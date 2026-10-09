@@ -8,6 +8,13 @@ people and agents can edit while it runs.
 This file is for any agent working with the app. It covers how to **use** it, how to **change
 its settings**, and how to **change the code**.
 
+> **This will be a public project. Never commit real repo names, folder names, host names,
+> tailnet names, paths under a home directory, or anything else about the owner's machines.**
+> That covers code, comments, docs, examples, `repodash.json` and commit messages. Use placeholders
+> (`my-app`, `myhost.example.ts.net`). Personal arrangement lives outside the repo, in
+> `~/.local/share/repodash/` (layout, covers). Before committing, grep the diff for names from
+> `ls ~/gitrepos`.
+
 ## Quick facts
 
 | Thing | Where |
