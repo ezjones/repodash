@@ -42,6 +42,7 @@ func main() {
 	cfgPath := flag.String("config", "", "settings file (default: repodash.json next to the binary, or $REPODASH_CONFIG)")
 	once := flag.Bool("json", false, "scan once, print JSON, exit")
 	check := flag.Bool("check", false, "validate the settings file, print problems, exit 1 if there are any")
+	noOpen := flag.Bool("no-open", false, "do not open the page in a browser on start")
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	printCfg := flag.Bool("print-config", false, "print the default settings and exit")
 	flag.Parse()
@@ -147,7 +148,14 @@ func main() {
 			allowed[h] = true
 		}
 	}
-	log.Fatal(http.ListenAndServe(*addr, guard(allowed, mux)))
+	ln, err := net.Listen("tcp", *addr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if !*noOpen && interactive() {
+		openBrowser("http://" + *addr)
+	}
+	log.Fatal(http.Serve(ln, guard(allowed, mux)))
 }
 
 type event struct {

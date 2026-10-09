@@ -262,3 +262,4 @@ and a real-device check of touch long-press on iOS.
 
 - `git tag vX.Y.Z && git push --tags` triggers `.github/workflows/release.yml`: it builds linux/darwin x amd64/arm64 (`CGO_ENABLED=0`, version via `-X main.buildVersion`), and publishes tarballs, `checksums.txt` and `install.sh` as release assets.
 - `install.sh` (repo root) is what `curl ... | sh` runs. Test it offline with `BASE_URL=file:///dir PREFIX=/tmp/bin sh install.sh` against a dir holding the tarball and `checksums.txt`.
+- On start RepoDash opens the page in the default browser (`open.go`: `open` on macOS, `wslview`/`cmd.exe` on WSL, `xdg-open` elsewhere), only when stdout is a terminal. `-no-open` disables it.

@@ -169,7 +169,8 @@ CGO_ENABLED=0 go build -o repodash .
 ./repodash
 ```
 
-Then open <http://127.0.0.1:8092>.
+RepoDash opens <http://127.0.0.1:8092> in your browser when it starts (pass `-no-open` to stop that).
+On WSL2 it opens in your Windows browser.
 
 By default it scans the folders directly inside `~/gitrepos`. Point it somewhere else with
 `-root`:
@@ -195,6 +196,7 @@ forwarded, so you can open <http://127.0.0.1:8092> in a Windows browser. See
 | `-config FILE` | Settings file (default: `repodash.json` next to the binary in a source checkout, otherwise `~/.config/repodash/repodash.json`) |
 | `-check` | Validate the settings file, print problems, exit 1 if there are any |
 | `-json` | Scan once and print the result as JSON |
+| `-no-open` | Do not open the page in a browser on start (it only opens when run from a terminal) |
 | `-version` | Print the version and exit |
 | `-print-config` | Print every setting with its default |
 
