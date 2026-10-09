@@ -41,17 +41,93 @@ think about them, and to sort them in different ways. So I built RepoDash.
 
 ## Screenshots
 
-Filter to what needs attention:
+### Grid
+
+Every repo as a card, sorted by most recent change, git activity, main language or name. The
+status buttons at the top filter to the repos that need your attention: unpushed commits, no
+remote, merge conflicts, uncommitted work, or branches that are behind.
 
 ![Grid filtered to the repos that need action](https://github.com/user-attachments/assets/ef3a8b46-0e6c-40e0-84b2-330a6072e6ba)
 
-Arrange repos freely on a canvas and group them the way you think about them:
+### Canvas
+
+A free-form board for your repos. Drag cards anywhere, right-click empty space to add a named
+group, and cards inside a group move with it. Drag on the background to lasso several cards at
+once, hold the middle mouse button to pan, and scroll or pinch to zoom. *Arrange* tidies loose
+cards into a grid in your current sort order. Positions and groups are saved outside your repos.
 
 ![Canvas view with repos arranged in named groups](https://github.com/user-attachments/assets/fa707482-c11d-4e23-aad4-4c67b25213d5)
 
-Keep your own boards, with columns you name and cards you drag between them:
+### Kanban
+
+Make as many boards as you like and name the columns whatever suits the work: Todo, Doing and
+Done, or something else entirely. Add, rename, move and delete columns, then drag repos between
+them. Switch to *By status* for automatic columns that follow each repo's state.
 
 ![Kanban view with a board of Todo, In progress and Done columns](https://github.com/user-attachments/assets/047fafa1-7c4a-47e1-afdd-e440a02f5cae)
+
+## tmux integration
+
+If you keep one tmux window per project, RepoDash turns each card into a switchboard for them. It
+is entirely optional: with no tmux server running, nothing changes except that the terminal button
+reports "no tmux server running".
+
+![A card marked "tab open" in the dashboard, next to the tmux window it jumps to](https://github.com/user-attachments/assets/e9f908b6-f97f-4f13-bd1a-b619c976f7cb)
+
+### The terminal button
+
+Every card has a terminal icon next to the copy button. Clicking it does one of three things, in
+this order:
+
+1. **Jump to the tab you already have.** If a pane's current directory is exactly the repo folder,
+   that window is selected.
+2. **Jump to a tab inside it.** If no pane sits at the root but one sits in a subfolder
+   (`my-app/src`, say), that window is selected. An exact match always wins over a subfolder.
+3. **Open a new one.** Otherwise a new window is created in the repo folder, in the tmux session
+   you used most recently.
+
+So you never end up with two tabs for the same project, and clicking a card is the same as picking
+the project from a tmux project switcher. The page shows what happened ("jumped to window 3" or
+"opened window 5").
+
+RepoDash switches whichever tmux client is attached, so run it as the same user and on the same
+machine as your tmux server. It does not matter whether RepoDash itself was started inside tmux.
+It only ever acts on folders directly under `-root` that are git repos, never on an arbitrary path.
+
+It selects the window; it cannot raise the terminal application. If your terminal is hidden behind
+a browser, bring it forward yourself. This applies to WSL2 too: the button switches the tab in your
+WSL tmux session, but the Windows terminal window stays where it is.
+
+### Tab and agent badges
+
+Cards read your panes every time the repos are scanned:
+
+- A small **tab open** badge appears on any repo that has a pane in it (at the root or below).
+- If that pane has a tmux pane option called `@claude`, the badge shows its value instead:
+  `busy` (working), `waiting` (needs you) or `idle`. When several panes are in one repo, `waiting`
+  beats `busy`, which beats `idle`.
+
+RepoDash only reads `@claude`; whatever runs your agent sets it. With Claude Code, hooks do this
+well. Add to `~/.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "[ -n \"$TMUX\" ] && tmux set -p @claude busy || true" }] }],
+    "Notification":     [{ "hooks": [{ "type": "command", "command": "[ -n \"$TMUX\" ] && tmux set -p @claude waiting || true" }] }],
+    "Stop":             [{ "hooks": [{ "type": "command", "command": "[ -n \"$TMUX\" ] && tmux set -p @claude idle || true" }] }]
+  }
+}
+```
+
+You can set it by hand to try it: `tmux set -p @claude waiting` in a pane inside a repo, and the card
+changes within a scan interval. Any other tool works the same way, since it is only a pane option.
+Pane options vanish with the pane, so a closed tab never leaves a stale badge behind.
+
+### Turning it off or trimming it
+
+- Remove the terminal button: `"card": { "actions": ["image", "copy"] }`.
+- Hide the badges: `"card": { "agent": false }`.
 
 ## Install and run
 
@@ -125,69 +201,6 @@ against DNS-rebinding attacks, so requests addressed to an unknown name are refu
 are always accepted.
 
 RepoDash has no login. Do not expose it to the internet.
-
-## tmux integration
-
-If you keep one tmux window per project, RepoDash turns each card into a switchboard for them. It
-is entirely optional: with no tmux server running, nothing changes except that the terminal button
-reports "no tmux server running".
-
-![A card marked "tab open" in the dashboard, next to the tmux window it jumps to](https://github.com/user-attachments/assets/e9f908b6-f97f-4f13-bd1a-b619c976f7cb)
-
-### The terminal button
-
-Every card has a terminal icon next to the copy button. Clicking it does one of three things, in
-this order:
-
-1. **Jump to the tab you already have.** If a pane's current directory is exactly the repo folder,
-   that window is selected.
-2. **Jump to a tab inside it.** If no pane sits at the root but one sits in a subfolder
-   (`my-app/src`, say), that window is selected. An exact match always wins over a subfolder.
-3. **Open a new one.** Otherwise a new window is created in the repo folder, in the tmux session
-   you used most recently.
-
-So you never end up with two tabs for the same project, and clicking a card is the same as picking
-the project from a tmux project switcher. The page shows what happened ("jumped to window 3" or
-"opened window 5").
-
-RepoDash switches whichever tmux client is attached, so run it as the same user and on the same
-machine as your tmux server. It does not matter whether RepoDash itself was started inside tmux.
-It only ever acts on folders directly under `-root` that are git repos, never on an arbitrary path.
-
-It selects the window; it cannot raise the terminal application. If your terminal is hidden behind
-a browser, bring it forward yourself. This applies to WSL2 too: the button switches the tab in your
-WSL tmux session, but the Windows terminal window stays where it is.
-
-### Tab and agent badges
-
-Cards read your panes every time the repos are scanned:
-
-- A small **tab open** badge appears on any repo that has a pane in it (at the root or below).
-- If that pane has a tmux pane option called `@claude`, the badge shows its value instead:
-  `busy` (working), `waiting` (needs you) or `idle`. When several panes are in one repo, `waiting`
-  beats `busy`, which beats `idle`.
-
-RepoDash only reads `@claude`; whatever runs your agent sets it. With Claude Code, hooks do this
-well. Add to `~/.claude/settings.json`:
-
-```json
-{
-  "hooks": {
-    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "[ -n \"$TMUX\" ] && tmux set -p @claude busy || true" }] }],
-    "Notification":     [{ "hooks": [{ "type": "command", "command": "[ -n \"$TMUX\" ] && tmux set -p @claude waiting || true" }] }],
-    "Stop":             [{ "hooks": [{ "type": "command", "command": "[ -n \"$TMUX\" ] && tmux set -p @claude idle || true" }] }]
-  }
-}
-```
-
-You can set it by hand to try it: `tmux set -p @claude waiting` in a pane inside a repo, and the card
-changes within a scan interval. Any other tool works the same way, since it is only a pane option.
-Pane options vanish with the pane, so a closed tab never leaves a stale badge behind.
-
-### Turning it off or trimming it
-
-- Remove the terminal button: `"card": { "actions": ["image", "copy"] }`.
-- Hide the badges: `"card": { "agent": false }`.
 
 ## How it works
 
