@@ -14,20 +14,20 @@ its settings**, and how to **change the code**.
 |---|---|
 | Source | `~/gitrepos/repodash` (module `repodash`, Go 1.22+, no dependencies) |
 | Run it | `./repodash` then open <http://127.0.0.1:8092> |
-| Settings file | `<root>/repodash.json`, default `~/gitrepos/repodash.json` (created on first run) |
+| Settings file | `repodash.json` **in this repo**, next to the binary (created on first run, tracked in git). Override with `-config FILE` or `$REPODASH_CONFIG` |
 | Card positions, groups, kanban columns | `~/.local/share/repodash/layout.json` (`$XDG_DATA_HOME` respected) |
 | Images added in the UI | `~/.local/share/repodash/images/<repo>.<ext>` |
 | Log when started in the background | `~/.local/share/repodash/repodash.log` |
 | Defaults, embedded in the binary | `default-config.json` (`repodash -print-config` prints it) |
 
-Flags: `-root DIR` (repos folder), `-addr HOST:PORT` (default `127.0.0.1:8092`; use `:8092` to
+Flags: `-root DIR` (repos folder, default `~/gitrepos`), `-addr HOST:PORT` (default `127.0.0.1:8092`; use `:8092` to
 reach it from other devices, only on a trusted network such as the tailnet), `-allow-host a,b`
 (host names the page may be opened by, see Security notes), `-config FILE`, `-json` (scan once,
 print JSON, exit), `-check` (validate settings, exit 1 on problems), `-print-config`.
 
 ## Changing settings (the common job)
 
-1. Edit `~/gitrepos/repodash.json`. It is plain JSON. Every key is optional; delete a key and
+1. Edit `~/gitrepos/repodash/repodash.json` (the file in this repo). It is plain JSON. Every key is optional; delete a key and
    its default is used. Keys starting with `_` are ignored (use them for notes to yourself).
 2. Run `repodash -check`. It prints each problem in words and exits 1 if there are any.
 3. Done. The running server notices the change within about a second and every open browser
@@ -86,6 +86,8 @@ All keys, with their defaults. Lists replace the default list entirely.
 `topbar.items` default: `title live view sort reverse kanbanMode filters search spacer addGroup
 arrange settings`. Allowed values are exactly those names. Some only show in one view: `sort` and
 `reverse` in Grid, `kanbanMode` in Kanban, `addGroup` and `arrange` in Canvas.
+
+The settings file is found next to the executable, so run the binary built in this folder (`go build`, then `./repodash`). `go run` builds into a temporary folder and would look for it there; use `-config` or `$REPODASH_CONFIG` in that case.
 
 Cover order: image added in the UI, then `repos.<name>.image`, then a logo-like file in the repo
 root, then the same names in `covers.dirs`, then the first README image (local files only, never

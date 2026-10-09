@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-// The settings file (repodash.json in the projects root) is meant to be edited
+// The settings file (repodash.json, kept in the repo next to the binary) is meant to be edited
 // by people and agents, so the rules are forgiving and loud:
 //   - every key is optional and falls back to default-config.json (embedded below)
 //   - a wrong type, an out-of-range number or an unknown word is reported in

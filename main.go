@@ -6,7 +6,8 @@
 //	repodash -check                validate repodash.json, print problems, exit 1 if any
 //	repodash -print-config         print every setting with its default value
 //
-// Settings live in <root>/repodash.json and apply live. See AGENTS.md.
+// Settings live in repodash.json next to the binary (so they are part of the repo)
+// and apply live. See AGENTS.md.
 package main
 
 import (
@@ -32,10 +33,10 @@ var webFS embed.FS
 
 func main() {
 	home, _ := os.UserHomeDir()
-	root := flag.String("root", filepath.Join(home, "gitrepos"), "directory holding the repos (and repodash.json)")
+	root := flag.String("root", filepath.Join(home, "gitrepos"), "directory holding the repos")
 	addr := flag.String("addr", "127.0.0.1:8092", "listen address")
 	allowHost := flag.String("allow-host", "", "extra host names the page may be opened by, comma separated (needed when -addr is reachable by name, e.g. a tailnet name)")
-	cfgPath := flag.String("config", "", "settings file (default <root>/repodash.json)")
+	cfgPath := flag.String("config", "", "settings file (default: repodash.json next to the binary, or $REPODASH_CONFIG)")
 	once := flag.Bool("json", false, "scan once, print JSON, exit")
 	check := flag.Bool("check", false, "validate the settings file, print problems, exit 1 if there are any")
 	printCfg := flag.Bool("print-config", false, "print the default settings and exit")
@@ -45,10 +46,7 @@ func main() {
 		os.Stdout.Write(defaultConfigJSON)
 		return
 	}
-	cfg.path = *cfgPath
-	if cfg.path == "" {
-		cfg.path = filepath.Join(*root, "repodash.json")
-	}
+	cfg.path = settingsPath(*cfgPath)
 	if !*check && !*once {
 		ensureConfigFile(cfg.path)
 	}
@@ -372,4 +370,24 @@ func guard(allowed map[string]bool, next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// settingsPath picks the settings file: -config, then $REPODASH_CONFIG, then
+// repodash.json beside the executable. Beside the executable means the repo
+// checkout when you run ./repodash after `go build`, so the settings are
+// versioned with the code instead of sitting loose in the projects folder.
+func settingsPath(flagValue string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+	if v := os.Getenv("REPODASH_CONFIG"); v != "" {
+		return v
+	}
+	if exe, err := os.Executable(); err == nil {
+		if real, err := filepath.EvalSymlinks(exe); err == nil {
+			exe = real
+		}
+		return filepath.Join(filepath.Dir(exe), "repodash.json")
+	}
+	return "repodash.json"
 }
