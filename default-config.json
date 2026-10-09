@@ -67,6 +67,10 @@
     "actions": ["image", "terminal", "copy"]
   },
 
+  "terminal": {
+    "multiplexer": "prefer-tmux"
+  },
+
   "kanban": {
     "columns": ["Todo", "Doing", "Done"],
     "unsortedLabel": "Unsorted"

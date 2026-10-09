@@ -433,7 +433,7 @@ function cardHTML(r){
   if (!chips.length) chips.push(['ok','in sync']);
 
   const agent = !C('card.agent', true) ? '' : r.claude ? `<span class="agent ${esc(r.claude)}" title="Claude is ${esc(r.claude)}">${esc(r.claude)}</span>`
-              : r.tmux ? '<span class="agent" title="open in tmux">tab open</span>' : '';
+              : (muxTabs(r).length) ? `<span class="agent" title="open in ${muxTabs(r).join(' and ')}">tab open</span>` : '';
   const edited = r.edited && r.edited >= r.last_commit;
   const act = edited
     ? `<p class="act"><span class="when edit">edited <span data-ago="${r.edited}"></span></span>uncommitted work</p>
@@ -444,7 +444,7 @@ function cardHTML(r){
   const bars = '▮'.repeat(Math.min(r.commits_7d, 12)) || '–';
   const btn = {
     image: C('card.cover', true) ? '' : imageBtn(r),   // with a cover, the image button lives in its corner
-    terminal: `<button class="ib" data-act="open" title="Open in tmux (jump to this project's tab)" aria-label="Open ${esc(r.name)} in tmux">${ICON_TERM}</button>`,
+    terminal: `<button class="ib" data-act="open" title="Open in ${muxName()} (jump to this project's tab)" aria-label="Open ${esc(r.name)} in ${muxName()}">${ICON_TERM}</button>`,
     copy: `<button class="ib" data-act="copy" title="Copy: cd ${esc(r.path)}" aria-label="Copy cd command for ${esc(r.name)}">${ICON_COPY}</button>`,
   };
   const acts = C('card.actions', []).map(a => btn[a] || '').join('');
@@ -525,6 +525,7 @@ $('#top').addEventListener('input', e => { if (e.target.id === 'q'){ query = e.t
 
 /* Appearance popover: theme, cover style (with little previews) and language badge. Per browser. */
 const COVERS = [['', 'File default'], ['aurora', 'Aurora'], ['deep', 'Deep'], ['name', 'Big name'], ['gradient', 'Soft']];
+const MUX = [['', 'File default'], ['prefer-tmux', 'Prefer tmux'], ['prefer-herdr', 'Prefer herdr'], ['tmux', 'tmux only'], ['herdr', 'herdr only']];
 const pop = document.createElement('div'); pop.className = 'panel pop'; pop.hidden = true; document.body.appendChild(pop);
 function popHTML(){
   const t = themeNow(), cv = ls('cover') || '';
@@ -557,17 +558,28 @@ addEventListener('pointerdown', e => { if (!pop.hidden && !e.target.closest('.po
 addEventListener('keydown', e => { if (e.key === 'Escape') pop.hidden = true; });
 
 const panel = document.createElement('div'); panel.className = 'panel'; panel.hidden = true; document.body.appendChild(panel);
-function showSettings(btn){
-  if (!panel.hidden){ panel.hidden = true; return; }
-  pop.hidden = true;
-  panel.innerHTML = `<h3>Settings</h3><p>Everything on this page is set in<br><code>${esc(CFG_PATH)}</code></p>
+const muxHTML = () => `<div class="plabel">Terminal button <small>tmux or herdr, this browser</small></div>
+    <div class="tiles t5">${MUX.map(([v, n]) => `<button class="tile" data-mux="${v}" aria-pressed="${(ls('mux') || '') === v}"><span>${n}</span></button>`).join('')}</div>
+    <p class="muted small">File default is <code>terminal.multiplexer</code> (now <code>${esc(C('terminal.multiplexer', 'prefer-tmux'))}</code>).</p>`;
+function settingsHTML(){
+  return `<h3>Settings</h3><p>Everything on this page is set in<br><code>${esc(CFG_PATH)}</code></p>
     <p class="muted">Edit the file and the page updates within a second or two. Agents: read AGENTS.md in the repodash repo.</p>
     <p class="muted">Theme, cover style and the language badge live under the palette button in the top bar (saved per browser). Their defaults are <code>card.coverStyle</code>, <code>card.languageBadge</code> and <code>theme</code> in the file.</p>
     <button class="tool" data-p="copy">Copy path</button>` +
-    (CFG_WARN.length ? `<ul class="warns">${CFG_WARN.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : '<p class="good">No problems in the settings file.</p>');
+    (CFG_WARN.length ? `<ul class="warns">${CFG_WARN.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : '<p class="good">No problems in the settings file.</p>') + muxHTML();
+}
+function showSettings(btn){
+  if (!panel.hidden){ panel.hidden = true; return; }
+  pop.hidden = true;
+  panel.innerHTML = settingsHTML();
   panel.hidden = false; anchor(panel, btn);
 }
 function rerenderCards(){ for (const e of els.values()) e.sig = ''; applyRepos(repos); setView(view); }
+panel.addEventListener('click', e => {
+  const b = e.target.closest('[data-mux]'); if (!b) return;
+  if (b.dataset.mux) ls('mux', b.dataset.mux); else try { localStorage.removeItem('repodash.mux'); } catch {}
+  rerenderCards(); panel.innerHTML = settingsHTML();
+});
 panel.addEventListener('click', async e => { if (e.target.closest('[data-p=copy]')) toast(await copyText(CFG_PATH) ? 'Copied the settings path' : 'Path: ' + CFG_PATH); });
 addEventListener('pointerdown', e => { if (!panel.hidden && !e.target.closest('.panel, #cfgbtn')) panel.hidden = true; }, true);
 addEventListener('keydown', e => { if (e.key === 'Escape') panel.hidden = true; });
@@ -995,6 +1007,9 @@ vp.addEventListener('wheel', closeMenu, {passive: true});
 let toastTimer;
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200); }
+const muxMode = () => ls('mux') || C('terminal.multiplexer', 'prefer-tmux');
+const muxTabs = r => [r.tmux && muxMode() !== 'herdr' && 'tmux', r.herdr && muxMode() !== 'tmux' && 'herdr'].filter(Boolean);
+const muxName = () => { const m = muxMode(); return m.startsWith('prefer') ? 'tmux or herdr' : m; };
 const shq = p => /^[\w@%+=:,./-]+$/.test(p) ? p : "'" + p.replace(/'/g, "'\\''") + "'";
 async function copyText(text){
   try { await navigator.clipboard.writeText(text); return true; } catch {}
@@ -1019,11 +1034,11 @@ async function onAct(e){
   }
   b.disabled = true;
   try {
-    const res = await fetch('/api/open', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name})});
+    const res = await fetch('/api/open', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name, mux: ls('mux') || ''})});
     if (!res.ok) throw new Error((await res.text()).trim() || res.status);
     const j = await res.json();
     toast((j.action === 'jumped' ? 'Jumped to tab ' : 'Opened new tab ') + j.window + ' · ' + name);
-  } catch (err) { toast('tmux: ' + err.message); }
+  } catch (err) { toast('Terminal: ' + err.message); }
   finally { b.disabled = false; }
 }
 let pickTarget = '';

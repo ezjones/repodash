@@ -112,6 +112,7 @@ func main() {
 		}
 		var req struct {
 			Name string `json:"name"`
+			Mux  string `json:"mux"` // this browser's choice; empty = the settings file
 		}
 		json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req)
 		// Only a directory that is really a repo under the root can be opened, never an arbitrary path.
@@ -120,7 +121,7 @@ func main() {
 			http.Error(w, "not a repo", http.StatusNotFound)
 			return
 		}
-		action, win, err := openInTmux(dir)
+		action, win, err := openInTerminal(dir, req.Mux)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return

@@ -27,12 +27,13 @@ import (
 var defaultConfigJSON []byte
 
 var (
-	statusKeys  = []string{"bad", "warn", "ok", "stale"}
-	barItems    = []string{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "spacer", "addGroup", "arrange", "cover", "theme", "appearance", "settings"}
-	cardActions = []string{"image", "terminal", "copy"}
-	coverStyles = []string{"aurora", "deep", "gradient", "name"}
-	hexColor    = regexp.MustCompile(`^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$`)
-	freeForm    = map[string]bool{"repos": true} // maps whose keys are user data, not settings
+	statusKeys   = []string{"bad", "warn", "ok", "stale"}
+	barItems     = []string{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "spacer", "addGroup", "arrange", "cover", "theme", "appearance", "settings"}
+	multiplexers = []string{"prefer-tmux", "prefer-herdr", "tmux", "herdr"}
+	cardActions  = []string{"image", "terminal", "copy"}
+	coverStyles  = []string{"aurora", "deep", "gradient", "name"}
+	hexColor     = regexp.MustCompile(`^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$`)
+	freeForm     = map[string]bool{"repos": true} // maps whose keys are user data, not settings
 )
 
 // cfg is the live settings. Everything that reads configuration goes through cfg.get().
@@ -55,6 +56,7 @@ type settings struct {
 	coverNames  []string
 	coverDirs   []string
 	coverReadme bool
+	multiplexer string // prefer-tmux | prefer-herdr | tmux | herdr
 	repos       map[string]repoCfg
 }
 
@@ -203,6 +205,7 @@ func validate(m, def map[string]any, w *[]string) {
 	oneOf("defaults.view", "auto", "grid", "canvas", "kanban")
 	oneOf("defaults.kanbanMode", "status", "board")
 	oneOf("defaults.sort", "recent", "activity", "language", "alpha")
+	oneOf("terminal.multiplexer", multiplexers...)
 	oneOf("card.coverStyle", coverStyles...)
 	oneOf("defaults.filter", append([]string{"all"}, statusKeys...)...)
 	num("scan.intervalSeconds", 2, 3600)
@@ -280,6 +283,7 @@ func parseSettings(path string, data []byte) (*settings, error) {
 	s.interval = time.Duration(get(m, "scan.intervalSeconds").(float64)) * time.Second
 	s.coverNames, s.coverDirs = strs(m, "covers.names"), strs(m, "covers.dirs")
 	s.coverReadme, _ = get(m, "covers.readme").(bool)
+	s.multiplexer, _ = get(m, "terminal.multiplexer").(string)
 	for name, v := range m["repos"].(map[string]any) {
 		e := v.(map[string]any)
 		rc := repoCfg{}

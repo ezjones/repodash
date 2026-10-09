@@ -31,9 +31,9 @@ think about them, and to sort them in different ways. So I built RepoDash.
   scanned when no browser is watching.
 - **A cover for every card**: an image you add, a logo or screenshot found in the repo, the first
   local image in its README, or generated pastel art.
-- **Jump to a terminal**: one click selects that repo's tmux window, or opens a new one there, and
-  cards show which repos already have a tab open and what a coding agent in it is doing
-  ([tmux integration](#tmux-integration)). Another button copies `cd /path/to/repo`.
+- **Jump to a terminal**: one click selects that repo's tmux window or [herdr](https://herdr.dev)
+  workspace, or opens a new one there, and cards show which repos already have a tab open and what a
+  coding agent in it is doing ([tmux](#tmux-integration) and [herdr](#herdr-integration) integration). Another button copies `cd /path/to/repo`.
 - **Everything is configurable** in one JSON file: the top bar, labels, colours, which parts of a
   card show, canvas and kanban layout, and per-repo titles, notes, covers and hiding. Edit the file
   and the open page updates within a second. Mistakes are reported in plain words and never break
@@ -129,9 +129,30 @@ Pane options vanish with the pane, so a closed tab never leaves a stale badge be
 - Remove the terminal button: `"card": { "actions": ["image", "copy"] }`.
 - Hide the badges: `"card": { "agent": false }`.
 
+## herdr integration
+
+[herdr](https://herdr.dev) is a terminal workspace manager for AI coding agents. RepoDash talks to it
+through the `herdr` command, so it needs `herdr` on your `PATH` and a running herdr server, and it is
+optional in the same way tmux is.
+
+- **Jump or open.** The terminal button focuses the workspace and tab that has a pane in the repo (an
+  exact folder match beats a subfolder). If there is none, it opens a new workspace named after the
+  repo, in the repo folder.
+- **Badges.** Cards show "tab open" for repos with a herdr pane. The busy / waiting / idle badge comes
+  from herdr's own agent detection, so no hook is needed (herdr's `working` shows as busy, `blocked`
+  as waiting).
+- **tmux or herdr, or both.** One terminal button serves both. Pick the order with
+  `terminal.multiplexer` in `repodash.json`: `prefer-tmux` (the default), `prefer-herdr`, `tmux` or
+  `herdr` (only that one). With a `prefer-` mode an existing tab wins, in the preferred one first;
+  with no tab anywhere, a new one opens in the preferred one if its server is running. Each browser
+  can override this at the bottom of the gear (Settings) panel.
+
+Like tmux, it selects the tab but cannot raise the terminal application, and RepoDash must run as the
+same user as the herdr server.
+
 ## Install and run
 
-You need git. tmux is optional (it powers the jump-to-terminal button).
+You need git. tmux or herdr is optional (they power the jump-to-terminal button).
 
 The quickest way is the install script. It picks the right build for your OS and CPU (Linux, macOS,
 or Windows through WSL2; amd64 or arm64), checks its checksum, and puts `repodash` in

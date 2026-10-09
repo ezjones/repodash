@@ -44,6 +44,7 @@ type Repo struct {
 	ImageSrc    string     `json:"image_src"` // custom | root | dir | readme
 	ImageFit    string     `json:"image_fit"` // cover | contain
 	Tmux        bool       `json:"tmux"`
+	Herdr       bool       `json:"herdr"`
 	Claude      string     `json:"claude"` // waiting | busy | idle | ""
 	Level       string     `json:"level"`  // bad | warn | ok | stale
 	Reasons     []string   `json:"reasons"`
@@ -68,7 +69,7 @@ func gitRaw(dir string, args ...string) (string, error) {
 	return string(b), err
 }
 
-type pane struct{ cwd, claude string }
+type pane struct{ cwd, claude, mux string }
 
 func tmuxPanes() []pane {
 	b, err := exec.Command("tmux", "list-panes", "-a", "-F", "#{pane_current_path}\t#{@claude}").Output()
@@ -79,11 +80,15 @@ func tmuxPanes() []pane {
 	for _, l := range strings.Split(strings.TrimSpace(string(b)), "\n") {
 		cwd, st, _ := strings.Cut(l, "\t")
 		if cwd != "" {
-			ps = append(ps, pane{cwd, st})
+			ps = append(ps, pane{cwd, st, "tmux"})
 		}
 	}
 	return ps
 }
+
+// terminalPanes gathers panes from every multiplexer. Which one a card uses is decided per
+// browser (Settings panel) or by terminal.multiplexer, so the scan does not filter.
+func terminalPanes() []pane { return append(tmuxPanes(), herdrPanes()...) }
 
 func defaultBranch(dir string) string {
 	if h := git(dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"); h != "" {
@@ -224,7 +229,8 @@ func inspect(root, name string, panes []pane) Repo {
 
 	for _, p := range panes {
 		if p.cwd == dir || strings.HasPrefix(p.cwd, dir+"/") {
-			r.Tmux = true
+			r.Tmux = r.Tmux || p.mux == "tmux"
+			r.Herdr = r.Herdr || p.mux == "herdr"
 			switch {
 			case strings.Contains(p.claude, "waiting"):
 				r.Claude = "waiting"
@@ -307,7 +313,7 @@ func scanAll(root string) []Repo {
 			names = append(names, n)
 		}
 	}
-	panes := tmuxPanes()
+	panes := terminalPanes()
 	repos := make([]Repo, len(names))
 	sem := make(chan struct{}, 8)
 	var wg sync.WaitGroup

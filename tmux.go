@@ -64,3 +64,42 @@ func openInTmux(dir string) (action, window string, err error) {
 	}
 	return "opened", idx, nil
 }
+
+// openInTerminal picks the multiplexer for terminal.multiplexer. The "prefer" modes look at both:
+// an existing tab in the preferred one wins, then an existing tab in the other; with none, a new
+// tab opens in the preferred one if its server is running, else in the other.
+func openInTerminal(dir, override string) (action, window string, err error) {
+	m := cfg.get().multiplexer
+	if contains(multiplexers, override) {
+		m = override
+	}
+	switch m {
+	case "tmux":
+		return openInTmux(dir)
+	case "herdr":
+		return openInHerdr(dir)
+	}
+	first, second := "tmux", "herdr"
+	if m == "prefer-herdr" {
+		first, second = second, first
+	}
+	open := map[string]func(string) (string, string, error){"tmux": openInTmux, "herdr": openInHerdr}
+	running := map[string]func() bool{
+		"tmux":  func() bool { _, e := tmux("list-sessions"); return e == nil },
+		"herdr": func() bool { _, e := listHerdrPanes(); return e == nil },
+	}
+	panes := terminalPanes()
+	for _, mux := range []string{first, second} {
+		for _, p := range panes {
+			if p.mux == mux && (p.cwd == dir || strings.HasPrefix(p.cwd, dir+"/")) {
+				return open[mux](dir)
+			}
+		}
+	}
+	for _, mux := range []string{first, second} {
+		if running[mux]() {
+			return open[mux](dir)
+		}
+	}
+	return "", "", errors.New("no tmux or herdr server running")
+}

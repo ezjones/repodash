@@ -82,6 +82,7 @@ All keys, with their defaults. Lists replace the default list entirely.
 | `canvas.columns` | 1-12 | `4` | Columns when arranging cards |
 | `canvas.cardWidth` | 200-600 | `280` | Card width in px (also kanban column width) |
 | `canvas.gap` | 0-200 | `30` | Space between cards when arranging |
+| `terminal.multiplexer` | `prefer-tmux` `prefer-herdr` `tmux` `herdr` | `prefer-tmux` | Which multiplexer the card's terminal button and "tab open" / agent badge use. The `prefer-` modes check both: an existing tab in the preferred one wins, then one in the other; with no tab, a new one opens in the preferred one if its server is running, else the other. `tmux` / `herdr` use only that one. Each browser can override it at the bottom of the gear (Settings) panel |
 | `kanban.columns` | list of names | `["Todo","Doing","Done"]` | Columns a **new** board starts with. Each board then has its own columns, which you add, rename, move and delete in the page (they are saved in `layout.json`, not here). Repos with no column sit in Unsorted |
 | `kanban.unsortedLabel` | string | `"Unsorted"` | Name of that first column |
 | `covers.names` | list of file base names | logo, icon, cover, banner, hero, screenshot, preview, thumbnail, og, social | Cover candidates (`logo.png`, `logo-navbar.png`, ...) |
@@ -157,8 +158,8 @@ comes from the modification times of uncommitted files.
   to any column. New boards start with the columns in `kanban.columns` (Todo, Doing, Done). Everything is saved
   in `layout.json` under `boards` and `activeBoard`. *By status* is the automatic read-only alternative.
 - **Card icons**: picture icon sets a cover (or drop an image file on the card); terminal icon
-  jumps to that repo's tmux tab, or opens one; copy icon copies `cd <path>`.
-- **Gear button**: shows the settings file path and any problems with it.
+  jumps to that repo's tmux tab or herdr workspace, or opens one; copy icon copies `cd <path>`.
+- **Gear button**: shows the settings file path and any problems with it, and a per-browser choice of tmux or herdr for the terminal button.
 
 ## HTTP API
 
@@ -183,7 +184,8 @@ Handy for scripts and tests. All local; see the security notes before exposing t
 | `config.go` | Loads, merges, validates and live-reloads `repodash.json`; global `cfg` |
 | `scan.go` | Runs git per repo (`git status --porcelain=v2`, `log`, `worktree`...), reads tmux panes, classifies status |
 | `image.go` | Cover discovery and the upload/serve handlers |
-| `tmux.go` | "Open in tmux" |
+| `tmux.go` | "Open in tmux", and `openInTerminal` which picks tmux or herdr |
+| `herdr.go` | Same for herdr, through its CLI (`herdr pane list`, `workspace focus`, `tab focus`, `workspace create`) |
 | `default-config.json` | Every setting and its default; embedded with `go:embed` |
 | `web/index.html` | The entire UI (HTML, CSS, vanilla JS), embedded with `go:embed`. No framework, no build step |
 
