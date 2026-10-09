@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Repo Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231c1e23'/%3E%3Crect x='6' y='7' width='9' height='8' rx='2' fill='%234cc38a'/%3E%3Crect x='17' y='7' width='9' height='8' rx='2' fill='%23e8b04a'/%3E%3Crect x='6' y='17' width='9' height='8' rx='2' fill='%23ff6b5e'/%3E%3Crect x='17' y='17' width='9' height='8' rx='2' fill='%238fa3ee'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f4f3ef;--panel:#fff;--ink:#1c1e23;--mute:#6a6f7a;--line:#e0ded7;--dot:#d6d4cc;
+  --bad:#c8362b;--warn:#b0731a;--ok:#2b8a57;--stale:#8a8f99;--info:#465fb5;--accent:#1c1e23;
+  --on-bad:#fff;--on-warn:#fff;--on-ok:#fff;--g1:#dbe6fb;--g2:#fbe3d9;--g3:#dcf1e3;--g4:#f6efc9;--g5:#eadcf6;--g6:#e2e4e8;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  --bg:#0e1014;--panel:#171a20;--ink:#e5e7ed;--mute:#8b91a0;--line:#272b34;--dot:#23262e;
+  --bad:#ff6b5e;--warn:#e8b04a;--ok:#4cc38a;--stale:#697080;--info:#8fa3ee;--accent:#e5e7ed;--on-bad:#2a0a07;--on-warn:#2a1d05;--on-ok:#062417;
+  --g1:#1b2640;--g2:#3a2119;--g3:#173022;--g4:#34301a;--g5:#2c1f3a;--g6:#23262d;}}
+:root[data-theme=dark]{
+  --bg:#0e1014;--panel:#171a20;--ink:#e5e7ed;--mute:#8b91a0;--line:#272b34;--dot:#23262e;
+  --bad:#ff6b5e;--warn:#e8b04a;--ok:#4cc38a;--stale:#697080;--info:#8fa3ee;--accent:#e5e7ed;--on-bad:#2a0a07;--on-warn:#2a1d05;--on-ok:#062417;
+  --g1:#1b2640;--g2:#3a2119;--g3:#173022;--g4:#34301a;--g5:#2c1f3a;--g6:#23262d}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  display:flex;flex-direction:column;overflow:hidden}
+button,input{font:inherit;color:inherit}
+
+/* top bar */
+.top{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+.top h1{font-size:16px;margin:0 8px 0 0;font-weight:650}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mute);margin-right:6px}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--stale)}
+.live.on i{background:var(--ok);box-shadow:0 0 0 0 var(--ok);animation:pulse 2.4s infinite}
+.live.off i{background:var(--bad)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 55%,transparent)}70%,100%{box-shadow:0 0 0 7px transparent}}
+@media (prefers-reduced-motion:reduce){.live.on i{animation:none}}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:5px 12px;cursor:pointer;font-size:13px}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--bg)}
+.chip-btn{border:1px solid var(--line);background:transparent;border-radius:999px;padding:4px 11px;font-size:13px;cursor:pointer}
+.chip-btn[aria-pressed=true]{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.chip-btn b{font-weight:600;opacity:.7;margin-left:3px}
+.chip-btn i{display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:6px;vertical-align:1px}
+.chip-btn.bad{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 55%,var(--line))}
+.chip-btn.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 55%,var(--line))}
+.chip-btn.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 55%,var(--line))}
+.chip-btn.stale{color:var(--mute)}
+.chip-btn.bad[aria-pressed=true]{background:var(--bad);color:var(--on-bad);border-color:var(--bad)}
+.chip-btn.warn[aria-pressed=true]{background:var(--warn);color:var(--on-warn);border-color:var(--warn)}
+.chip-btn.ok[aria-pressed=true]{background:var(--ok);color:var(--on-ok);border-color:var(--ok)}
+.chip-btn.stale[aria-pressed=true]{background:var(--stale);color:var(--bg);border-color:var(--stale)}
+.top input[type=search]{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:5px 12px;font-size:13px;width:150px;max-width:40vw}
+.spacer{flex:1}
+.tool{border:1px solid var(--line);background:transparent;border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer}
+.tool:hover,.chip-btn:hover{border-color:var(--mute)}
+.tool[aria-pressed=true]{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.tool.icon{display:inline-grid;place-items:center;width:34px;height:30px;padding:0}
+button:focus-visible,input:focus-visible,[contenteditable]:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+
+/* recent view */
+#recent{flex:1;overflow:auto;padding:16px;display:grid;gap:12px;align-content:start;
+  grid-template-columns:repeat(auto-fill,minmax(285px,1fr))}
+#recent .card{position:relative}
+
+/* canvas view */
+#viewport{flex:1;position:relative;overflow:hidden;touch-action:none;cursor:grab;
+  background-image:radial-gradient(var(--dot) 1.2px,transparent 1.2px);background-size:24px 24px}
+#viewport.panning{cursor:grabbing}
+#world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+.hint{position:absolute;left:12px;bottom:10px;font-size:12px;color:var(--mute);pointer-events:none}
+.zoomctl{position:absolute;right:12px;bottom:12px;display:flex;gap:6px}
+.zoomctl button{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-size:16px}
+
+/* group frames */
+.group{position:absolute;border-radius:14px;border:1.5px dashed var(--line);pointer-events:none}
+.group .gbar{pointer-events:auto;display:flex;align-items:center;gap:4px;height:44px;padding:0 8px 0 16px;cursor:grab;touch-action:none;
+  background:color-mix(in srgb,var(--ink) 8%,transparent);border-radius:13px 13px 0 0;user-select:none;-webkit-user-select:none}
+.group .gbar:active{cursor:grabbing}
+.group .gtitle{flex:1;font-weight:650;font-size:16px;outline:none;min-width:40px;border-radius:5px;padding:2px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.group .gtitle[contenteditable]{cursor:text;user-select:text;-webkit-user-select:text;background:var(--panel);text-overflow:clip}
+.group .gbtn{border:0;background:transparent;cursor:pointer;color:var(--mute);width:32px;height:32px;border-radius:7px;font-size:15px}
+@media (pointer:coarse){.group .gbar{height:56px}.group .gbtn{width:42px;height:42px}}
+.group .gbtn:hover{background:color-mix(in srgb,var(--ink) 10%,transparent)}
+.group .grip{pointer-events:auto;position:absolute;right:2px;bottom:2px;width:22px;height:22px;cursor:nwse-resize;touch-action:none;
+  background:linear-gradient(135deg,transparent 55%,var(--mute) 55% 62%,transparent 62% 72%,var(--mute) 72% 79%,transparent 79%);opacity:.6;border-radius:0 0 12px 0}
+
+/* cards (shared by both views) */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:6px 6px 10px}
+.card.stale{opacity:.72}
+.card .body{padding:0 8px}
+.cover{position:relative;height:var(--cover-h,98px);border-radius:9px;overflow:hidden;background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.cover>.artbg,.cover>img{display:block;width:100%;height:100%}
+.cover>img{object-fit:cover}
+.cover.art::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.22;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.card.ok .artbg{filter:saturate(.75)}
+.card.stale .artbg{filter:saturate(.35)}
+.cover.contain>img{object-fit:contain;padding:14px}
+.pill{z-index:1;position:absolute;left:8px;bottom:8px;display:inline-flex;align-items:center;gap:6px;padding:3px 11px 3px 9px;border-radius:999px;
+  font-size:12.5px;font-weight:650;background:var(--panel);color:var(--mute)}
+.pill i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.bad{background:var(--bad);color:var(--on-bad)}
+.pill.warn{color:var(--warn);box-shadow:inset 0 0 0 1.5px var(--warn)}
+.pill.ok{color:var(--ok)}
+.cover .rm{z-index:1;position:absolute;right:6px;top:6px;width:26px;height:26px;background:color-mix(in srgb,var(--panel) 85%,transparent);color:var(--ink)}
+.card.dropping{outline:2px dashed var(--info);outline-offset:3px}
+.card header{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0 2px;cursor:default}
+.on-canvas{position:absolute;width:var(--card-w,280px)}
+.on-canvas{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.on-canvas summary,.on-canvas .ib{cursor:pointer}
+.on-canvas.dragging{box-shadow:0 10px 32px rgba(0,0,0,.28);cursor:grabbing}
+.card h2{font-size:16.5px;letter-spacing:-.005em;margin:0;overflow-wrap:anywhere;font-weight:650}
+.branch{margin:0 0 9px;color:var(--mute);font-size:13px;overflow-wrap:anywhere}
+code{font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.chip{font-size:12px;padding:1px 8px;border-radius:999px;border:1px solid currentColor}
+.chip.bad{color:var(--bad)}.chip.warn{color:var(--warn)}.chip.ok{color:var(--ok)}.chip.info{color:var(--info)}
+.act{margin:0 0 3px;font-size:13px}.act .when{color:var(--mute);margin-right:6px;white-space:nowrap}
+.act .edit{color:var(--warn)}
+.week{margin:0;font-size:12.5px;color:var(--mute)}.bars{letter-spacing:-1px;color:var(--ok)}
+.agent{font-size:11px;padding:1px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mute);white-space:nowrap}
+.agent.busy{color:var(--warn);border-color:var(--warn)}.agent.waiting{color:var(--bad);border-color:var(--bad)}.agent.idle{color:var(--ok);border-color:var(--ok)}
+details{margin-top:6px;font-size:13px}summary{cursor:pointer;color:var(--mute)}
+ul{margin:4px 0 0;padding-left:18px}li.merged{color:var(--mute)}
+li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
+.hr{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.ib{display:inline-grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:transparent;color:var(--mute);cursor:pointer}
+.ib:hover{background:color-mix(in srgb,var(--ink) 9%,transparent);color:var(--ink)}
+.ib:disabled{opacity:.5}
+@media (pointer:coarse){.ib{width:38px;height:38px}}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--accent);color:var(--bg);padding:8px 16px;border-radius:999px;
+  font-size:13.5px;box-shadow:0 6px 24px rgba(0,0,0,.3);z-index:99999;max-width:90vw;pointer-events:none;opacity:0;transition:opacity .15s}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+.ctx{position:fixed;z-index:100000;min-width:190px;padding:5px;background:var(--panel);border:1px solid var(--line);border-radius:11px;box-shadow:0 12px 36px rgba(0,0,0,.28)}
+.ctx button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:8px 12px;border-radius:7px;font-size:14px;cursor:pointer}
+.ctx button:hover,.ctx button:focus-visible{background:color-mix(in srgb,var(--ink) 9%,transparent);outline:none}
+.ctx hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+.pill.inline{position:static}
+.note{margin:0 0 8px;font-size:13px;opacity:.8}
+.tool[data-warn]{position:relative}
+.tool[data-warn]::after{content:"";position:absolute;top:3px;right:3px;width:8px;height:8px;border-radius:50%;background:var(--bad)}
+.panel{position:fixed;z-index:100000;width:min(380px,calc(100vw - 16px));padding:14px 16px;background:var(--panel);border:1px solid var(--line);border-radius:13px;box-shadow:0 12px 36px rgba(0,0,0,.28);font-size:13.5px}
+.panel h3{margin:0 0 6px;font-size:15px}.panel p{margin:0 0 10px}.panel code{overflow-wrap:anywhere}
+.muted{color:var(--mute)}.warns{margin:12px 0 0;padding-left:18px;color:var(--bad)}.warns li{margin-bottom:4px}.panel .good{color:var(--ok);margin:12px 0 0}
+
+/* kanban */
+.kanban{flex:1;display:flex;gap:12px;align-items:flex-start;overflow:auto;padding:16px}
+.col{flex:0 0 calc(var(--card-w,280px) + 28px);display:flex;flex-direction:column;gap:10px;padding:10px;min-height:150px;
+  background:color-mix(in srgb,var(--ink) 4.5%,transparent);border-radius:16px}
+.col.over{outline:2px dashed var(--info);outline-offset:-3px;background:color-mix(in srgb,var(--info) 10%,transparent)}
+.colhead{display:flex;align-items:center;gap:8px;font-weight:650;font-size:14.5px;padding:2px 4px}
+.colhead i{width:9px;height:9px;border-radius:50%;background:var(--c,var(--mute))}
+.colhead b{margin-left:auto;font-weight:600;font-size:13px;color:var(--mute)}
+.col .cards{display:flex;flex-direction:column;gap:10px}
+.colempty{color:var(--mute);font-size:13px;padding:18px 6px;text-align:center;margin:0}
+.kanban .card{position:relative}
+.kboard .card{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.kboard .card.kdrag{position:fixed;z-index:100000;box-shadow:0 14px 36px rgba(0,0,0,.3);cursor:grabbing}
+[hidden]{display:none!important}
+.empty{color:var(--mute);padding:28px 16px}
+</style>
+</head>
+<body>
+<div class="top" id="top"></div>
+
+<div id="recent"></div>
+<div id="kanban" class="kanban" hidden></div>
+<div id="viewport" hidden>
+  <div id="world"></div>
+  <div class="hint">drag a card anywhere · right-click the canvas for a new group · drag the background to pan · scroll or pinch to zoom</div>
+  <div class="zoomctl"><button id="zout" aria-label="Zoom out">−</button><button id="zin" aria-label="Zoom in">+</button><button id="zfit" aria-label="Reset view">⌂</button></div>
+</div>
+<p class="empty" id="empty" hidden>No repos match.</p>
+<input type="file" id="pick" accept="image/*" hidden>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Settings come from repodash.json via /api/config (merged with defaults and validated by the server).
+let CFG = null, CFG_WARN = [], CFG_PATH = '', cfgSig = '';
+const C = (path, d) => { const v = path.split('.').reduce((o, k) => (o == null ? o : o[k]), CFG); return v === undefined ? d : v; };
+const L = k => C('labels.' + k, k);
+const S = k => C('statuses.' + k, {label: k});
+const cardW = () => C('canvas.cardWidth', 280), gapX = () => cardW() + C('canvas.gap', 30), cols = () => C('canvas.columns', 4);
+const COLORS = ['g1','g2','g3','g4','g5','g6'];
+
+let repos = [];                       // latest scan, newest activity first
+const els = new Map();                // repo name -> {el, sig}
+let layout = {cards:{}, groups:[], vp:{x:30,y:30,k:1}, board:{}};
+let view = 'grid';
+let filter = 'all', query = '', z = 10;
+let sortBy = 'recent', rev = false, kanbanMode = 'status';
+// Server order is newest activity first; A-Z is by name; reverse flips either.
+function sorted(){
+  const l = [...repos];
+  if (sortBy === 'alpha') l.sort((a, b) => a.name.localeCompare(b.name, undefined, {sensitivity: 'base', numeric: true}));
+  return rev ? l.reverse() : l;
+}
+
+function ls(k, v){ try { if (v === undefined) return localStorage.getItem('repodash.'+k); localStorage.setItem('repodash.'+k, v); } catch { return null; } }
+
+/* ---------- settings: applying repodash.json ---------- */
+const defaultView = () => { const v = C('defaults.view', 'auto'); return v === 'auto' ? (matchMedia('(max-width:700px)').matches ? 'grid' : 'canvas') : v; };
+function adoptDefaults(){
+  sortBy = C('defaults.sort', 'recent'); rev = !!C('defaults.reverse', false); kanbanMode = C('defaults.kanbanMode', 'status');
+  view = defaultView(); filter = C('defaults.filter', 'all');
+  ls('sort', sortBy); ls('rev', rev ? '1' : '0'); ls('kmode', kanbanMode); ls('view', view);
+}
+function restoreDevice(){
+  const v = ls('view'); view = v === 'recent' ? 'grid' : (['grid', 'canvas', 'kanban'].includes(v) ? v : defaultView());
+  sortBy = ['recent', 'alpha'].includes(ls('sort')) ? ls('sort') : C('defaults.sort', 'recent');
+  rev = ls('rev') === null ? !!C('defaults.reverse', false) : ls('rev') === '1';
+  kanbanMode = ['status', 'board'].includes(ls('kmode')) ? ls('kmode') : C('defaults.kanbanMode', 'status');
+  filter = C('defaults.filter', 'all');
+}
+// View, sort and friends are remembered per browser, until "defaults" in the settings file changes
+// (or defaults.remember is false). That way editing the file always wins over a stale local choice.
+function syncState(initial){
+  const sig = JSON.stringify(CFG.defaults);
+  if (!C('defaults.remember', true) || ls('defsig') !== sig){ adoptDefaults(); ls('defsig', sig); }
+  else if (initial) restoreDevice();
+}
+function onColor(hex){
+  let h = hex.replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  const [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(c => c <= .03928 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4);
+  const lum = .2126 * r + .7152 * g + .0722 * b;
+  return 1.05 / (lum + .05) >= (lum + .05) / .058 ? '#ffffff' : '#161616';
+}
+function applyStyle(){
+  const light = [], dark = [];
+  for (const k of ['bad', 'warn', 'ok', 'stale']){
+    const st = S(k); light.push(`--${k}:${st.color}`, `--on-${k}:${onColor(st.color)}`); dark.push(`--${k}:${st.darkColor}`, `--on-${k}:${onColor(st.darkColor)}`);
+  }
+  light.push(`--accent:${C('colors.accent')}`, `--card-w:${cardW()}px`, `--cover-h:${C('card.coverHeight', 98)}px`); dark.push(`--accent:${C('colors.accentDark')}`);
+  let el = document.getElementById('cfgstyle'); if (!el){ el = document.createElement('style'); el.id = 'cfgstyle'; document.head.appendChild(el); }
+  el.textContent = `:root{${light.join(';')}}@media (prefers-color-scheme:dark){:root:not([data-theme=light]){${dark.join(';')}}}:root[data-theme=dark]{${dark.join(';')}}`;
+  const t = C('theme', 'auto'); if (t === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  document.title = C('title', 'Repo Dashboard');
+}
+function applyConfig(p, initial){
+  const sig = JSON.stringify(p); if (!initial && sig === cfgSig) return; cfgSig = sig;
+  const before = CFG_WARN.join('\n');
+  CFG = p.config; CFG_WARN = p.warnings || []; CFG_PATH = p.path || '';
+  applyStyle(); syncState(initial); buildTopBar();
+  if (initial) return;
+  for (const e of els.values()) e.sig = '';          // re-render every card under the new settings
+  applyRepos(repos); setView(view);
+  if (CFG_WARN.length && CFG_WARN.join('\n') !== before) toast(`Settings: ${CFG_WARN.length} problem${CFG_WARN.length > 1 ? 's' : ''}. Open the gear for details.`);
+}
+
+/* ---------- time ---------- */
+function ago(ts){
+  if (!ts) return 'never';
+  const d = Date.now()/1000 - ts;
+  for (const [n,u] of [[31536000,'y'],[2592000,'mo'],[86400,'d'],[3600,'h'],[60,'m']])
+    if (d >= n) return Math.floor(d/n) + u + ' ago';
+  return 'just now';
+}
+const tickAgo = () => document.querySelectorAll('[data-ago]').forEach(e => e.textContent = ago(+e.dataset.ago));
+
+/* ---------- cover art ---------- */
+// Repos without an image get a soft mesh gradient: a few blurred pastel blobs over
+// a two-colour wash, seeded by the repo name. Same name, same art, every time.
+function hash(str){ let h = 2166136261; for (const c of str){ h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+function rng(seed){ return () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const artCache = new Map();
+function art(name){
+  if (artCache.has(name)) return artCache.get(name);
+  const rnd = rng(hash(name)), h0 = Math.floor(rnd() * 360);
+  const pastel = h => `hsl(${(h + 360) % 360} ${72 + Math.floor(rnd() * 18)}% ${80 + Math.floor(rnd() * 9)}%)`;
+  const spread = [0, 28 + rnd() * 30, -(28 + rnd() * 30), 90 + rnd() * 70];       // neighbouring hues, one far accent
+  const blobs = spread.map(off => `radial-gradient(${55 + Math.floor(rnd() * 35)}% ${80 + Math.floor(rnd() * 50)}% at ${Math.floor(rnd() * 100)}% ${Math.floor(rnd() * 100)}%, ${pastel(h0 + off)}, transparent 72%)`);
+  const bg = `${blobs.join(',')},linear-gradient(${Math.floor(rnd() * 360)}deg, ${pastel(h0 - 20)}, ${pastel(h0 + 50)})`;
+  const html = `<div class="artbg" style="background:${bg}"></div>`;
+  artCache.set(name, html); return html;
+}
+const pillHTML = (r, cls = '') => `<span class="pill ${r.level} ${cls}"><i></i>${esc(S(r.level).label)}</span>`;
+function coverHTML(r){
+  if (!C('card.cover', true)) return '';
+  const media = r.image ? `<img src="${esc(r.image)}" alt="" loading="lazy" draggable="false">` : art(r.name);
+  const rm = r.image_src === 'custom' ? '<button class="ib rm" data-act="rmimg" title="Remove cover image" aria-label="Remove cover image">✕</button>' : '';
+  return `<div class="cover ${r.image ? r.image_fit : 'art'}">${media}${pillHTML(r)}${rm}</div>`;
+}
+
+/* ---------- card markup ---------- */
+const svg = d => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICON_TERM = svg('<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7.5 9.5 3 2.5-3 2.5"/><path d="M13 15h3.5"/>');
+const ICON_IMG = svg('<rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="9" cy="9" r="1.7"/><path d="m21 15-4.6-4.6L6 21"/>');
+const ICON_COPY = svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>');
+function cardHTML(r){
+  const rc = (CFG.repos || {})[r.name] || {};
+  const chips = [];
+  if (!r.has_remote) chips.push(['bad','no remote']);
+  if (r.ahead) chips.push(['bad','↑'+r.ahead+' unpushed']);
+  else if (r.has_remote && !r.has_upstream && r.last_commit) chips.push(['bad','not pushed']);
+  if (r.conflicts) chips.push(['bad', r.conflicts+' conflict'+(r.conflicts>1?'s':'')]);
+  if (r.behind) chips.push(['warn','↓'+r.behind+' behind']);
+  if (r.staged) chips.push(['warn', r.staged+' staged']);
+  if (r.modified) chips.push(['warn', r.modified+' modified']);
+  if (r.untracked) chips.push(['warn', r.untracked+' untracked']);
+  if (r.stashes) chips.push(['info', r.stashes+' stash'+(r.stashes>1?'es':'')]);
+  if (!chips.length) chips.push(['ok','in sync']);
+
+  const agent = !C('card.agent', true) ? '' : r.claude ? `<span class="agent ${esc(r.claude)}" title="Claude is ${esc(r.claude)}">${esc(r.claude)}</span>`
+              : r.tmux ? '<span class="agent" title="open in tmux">tab open</span>' : '';
+  const edited = r.edited && r.edited >= r.last_commit;
+  const act = edited
+    ? `<p class="act"><span class="when edit">edited <span data-ago="${r.edited}"></span></span>uncommitted work</p>
+       <p class="act"><span class="when">committed <span data-ago="${r.last_commit}"></span></span>${esc(r.last_subject)}</p>`
+    : `<p class="act"><span class="when">committed <span data-ago="${r.last_commit}"></span></span>${esc(r.last_subject) || 'no commits'}</p>`;
+  const wts = r.worktrees.length ? `<details><summary>${r.worktrees.length} worktree${r.worktrees.length>1?'s':''}</summary><ul>${
+    r.worktrees.map(w => `<li class="${w.merged?'merged':''}">${esc(w.branch)}${w.merged?' <b>merged</b>':''}${w.dirty?` <i>${w.dirty} dirty</i>`:''}</li>`).join('')}</ul></details>` : '';
+  const bars = '▮'.repeat(Math.min(r.commits_7d, 12)) || '–';
+  const btn = {
+    image: `<button class="ib" data-act="image" title="Set a cover image" aria-label="Set a cover image for ${esc(r.name)}">${ICON_IMG}</button>`,
+    terminal: `<button class="ib" data-act="open" title="Open in tmux (jump to this project's tab)" aria-label="Open ${esc(r.name)} in tmux">${ICON_TERM}</button>`,
+    copy: `<button class="ib" data-act="copy" title="Copy: cd ${esc(r.path)}" aria-label="Copy cd command for ${esc(r.name)}">${ICON_COPY}</button>`,
+  };
+  const acts = C('card.actions', []).map(a => btn[a] || '').join('');
+  return `${coverHTML(r)}<div class="body"><header><h2>${esc(rc.title || r.name)}</h2><span class="hr">${agent}${acts}${C('card.cover', true) ? '' : pillHTML(r, 'inline')}</span></header>
+    ${C('card.branch', true) ? `<p class="branch"><code>${esc(r.branch)}</code>${r.base && r.base !== r.branch ? ' &nbsp;base '+esc(r.base) : ''}</p>` : ''}
+    ${rc.note && C('card.note', true) ? `<p class="note">${esc(rc.note)}</p>` : ''}
+    ${C('card.chips', true) ? `<div class="chips">${chips.map(([c,t]) => `<span class="chip ${c}">${esc(t)}</span>`).join('')}</div>` : ''}
+    ${C('card.activity', true) ? act : ''}${C('card.week', true) ? `<p class="week" title="commits in the last 7 days"><span class="bars">${bars}</span> ${r.commits_7d} this week</p>` : ''}${C('card.worktrees', true) ? wts : ''}</div>`;
+}
+
+/* ---------- top bar (built from "topbar.items") ---------- */
+const ICON_REV = svg('<path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/>');
+const ICON_GEAR = svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>');
+let liveState = {cls: '', txt: 'connecting'};
+const seg = (items, key) => items.map(([v, label]) => `<button data-top="${key}:${v}" aria-pressed="false">${esc(label)}</button>`).join('');
+// data-only="grid|canvas|kanban" shows a control in that view only.
+const BAR = {
+  title:      () => `<h1>${esc(C('title', 'Repo Dashboard'))}</h1>`,
+  live:       () => `<span class="live ${liveState.cls}" id="live"><i></i><span id="livetxt">${esc(liveState.txt)}</span></span>`,
+  view:       () => `<div class="seg" role="group" aria-label="View">${seg([['grid', L('viewGrid')], ['canvas', L('viewCanvas')], ['kanban', L('viewKanban')]], 'view')}</div>`,
+  sort:       () => `<div class="seg" data-only="grid" role="group" aria-label="Sort by">${seg([['recent', L('sortRecent')], ['alpha', L('sortAlpha')]], 'sort')}</div>`,
+  reverse:    () => `<button class="tool icon" data-only="grid" data-top="reverse" aria-pressed="false" title="Reverse the order" aria-label="Reverse the order">${ICON_REV}</button>`,
+  kanbanMode: () => `<div class="seg" data-only="kanban" role="group" aria-label="Kanban columns">${seg([['status', L('kanbanStatus')], ['board', L('kanbanBoard')]], 'kmode')}</div>`,
+  filters:    () => `<span id="filters" role="group" aria-label="Filter"></span>`,
+  search:     () => `<input id="q" type="search" placeholder="${esc(L('search'))}" aria-label="Filter by name" value="${esc(query)}">`,
+  spacer:     () => `<span class="spacer"></span>`,
+  addGroup:   () => `<button class="tool" data-only="canvas" data-top="addgroup">${esc(L('addGroup'))}</button>`,
+  arrange:    () => `<button class="tool" data-only="canvas" data-top="arrange" title="Re-grid the cards that are not in a group, in the current sort order">${esc(L('arrange'))}</button>`,
+  settings:   () => `<button class="tool icon" data-top="settings" id="cfgbtn" ${CFG_WARN.length ? 'data-warn="1"' : ''} title="Settings" aria-label="Settings">${ICON_GEAR}</button>`,
+};
+function buildTopBar(){
+  $('#top').innerHTML = C('topbar.items', []).map(i => BAR[i] ? BAR[i]() : '').join('');
+  syncChrome(); renderFilters();
+}
+function syncChrome(){
+  document.querySelectorAll('#top [data-only]').forEach(e => e.hidden = e.dataset.only !== view);
+  const on = (prefix, val) => document.querySelectorAll(`#top [data-top^="${prefix}:"]`).forEach(b => b.setAttribute('aria-pressed', b.dataset.top === `${prefix}:${val}`));
+  on('view', view); on('sort', sortBy); on('kmode', kanbanMode);
+  document.querySelectorAll('#top [data-top="reverse"]').forEach(b => b.setAttribute('aria-pressed', rev));
+}
+$('#top').addEventListener('click', e => {
+  const f = e.target.closest('[data-f]');
+  if (f){ filter = f.dataset.f; renderFilters(); applyFilter(); return; }
+  const b = e.target.closest('[data-top]'); if (!b) return;
+  const [k, v] = b.dataset.top.split(':');
+  if (k === 'view') setView(v);
+  else if (k === 'sort'){ sortBy = v; ls('sort', v); syncChrome(); place(); }
+  else if (k === 'reverse'){ rev = !rev; ls('rev', rev ? '1' : '0'); syncChrome(); place(); }
+  else if (k === 'kmode'){ kanbanMode = v; ls('kmode', v); syncChrome(); place(); }
+  else if (k === 'addgroup') addGroupCentre();
+  else if (k === 'arrange') arrangeCards();
+  else if (k === 'settings') showSettings(b);
+});
+$('#top').addEventListener('input', e => { if (e.target.id === 'q'){ query = e.target.value.trim().toLowerCase(); applyFilter(); } });
+
+const panel = document.createElement('div'); panel.className = 'panel'; panel.hidden = true; document.body.appendChild(panel);
+function showSettings(btn){
+  if (!panel.hidden){ panel.hidden = true; return; }
+  panel.innerHTML = `<h3>Settings</h3><p>Everything on this page is set in<br><code>${esc(CFG_PATH)}</code></p>
+    <p class="muted">Edit the file and the page updates within a second or two. Agents: read AGENTS.md in the repodash repo.</p>
+    <button class="tool" data-p="copy">Copy path</button>` +
+    (CFG_WARN.length ? `<ul class="warns">${CFG_WARN.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : '<p class="good">No problems in the settings file.</p>');
+  const r = btn.getBoundingClientRect(); panel.hidden = false;
+  panel.style.top = r.bottom + 8 + 'px'; panel.style.right = Math.max(8, innerWidth - r.right) + 'px';
+}
+panel.addEventListener('click', async e => { if (e.target.closest('[data-p=copy]')) toast(await copyText(CFG_PATH) ? 'Copied the settings path' : 'Path: ' + CFG_PATH); });
+addEventListener('pointerdown', e => { if (!panel.hidden && !e.target.closest('.panel, #cfgbtn')) panel.hidden = true; }, true);
+addEventListener('keydown', e => { if (e.key === 'Escape') panel.hidden = true; });
+
+/* ---------- repo updates (live) ---------- */
+function applyRepos(list){
+  repos = list;
+  const seen = new Set();
+  for (const r of repos){
+    seen.add(r.name);
+    const sig = JSON.stringify(r);
+    let e = els.get(r.name);
+    if (!e){
+      const el = document.createElement('article');
+      el.dataset.name = r.name;
+      e = {el, sig: ''};
+      els.set(r.name, e);
+      wireCard(el);
+    }
+    if (e.sig !== sig){
+      e.sig = sig;
+      const open = [...e.el.querySelectorAll('details')].map(d => d.open);
+      e.el.innerHTML = cardHTML(r);
+      e.el.querySelectorAll('details').forEach((d,i) => d.open = !!open[i]);
+    }
+    e.el.className = 'card ' + r.level + (view === 'canvas' ? ' on-canvas' : '');
+  }
+  for (const [n,e] of els) if (!seen.has(n)){ e.el.remove(); els.delete(n); }
+  renderFilters();
+  place();
+  tickAgo();
+}
+
+/* ---------- filters ---------- */
+function renderFilters(){
+  const box = $('#filters'); if (!box) return;
+  const counts = {bad:0, warn:0, ok:0, stale:0};
+  repos.forEach(r => counts[r.level]++);
+  const btn = (f, t, n) => `<button class="chip-btn ${f}" data-f="${f}" aria-pressed="${filter === f}">${f === 'all' ? '' : '<i></i>'}${esc(t)}<b>${n}</b></button>`;
+  box.innerHTML = btn('all', L('all'), repos.length) +
+    C('topbar.filters', []).filter(k => S(k).show !== false && (counts[k] || filter === k)).map(k => ' ' + btn(k, S(k).label, counts[k])).join('');
+}
+function applyFilter(){
+  let n = 0;
+  for (const r of repos){
+    const ok = (filter === 'all' || r.level === filter) && (!query || r.name.toLowerCase().includes(query));
+    els.get(r.name).el.hidden = !ok; n += ok;
+  }
+  document.querySelectorAll('#kanban .col').forEach(c => { c.querySelector('.colhead b').textContent = c.querySelectorAll('.card:not([hidden])').length; });
+  $('#empty').hidden = n > 0;
+}
+
+/* ---------- views ---------- */
+function setView(v){
+  view = v; ls('view', v);
+  $('#recent').hidden = v !== 'grid'; $('#viewport').hidden = v !== 'canvas'; $('#kanban').hidden = v !== 'kanban';
+  for (const e of els.values()) e.el.classList.toggle('on-canvas', v === 'canvas');
+  syncChrome(); place();
+}
+
+/* ---------- kanban ---------- */
+// "status": one column per status, filled automatically. "board": columns from
+// settings (kanban.columns) plus Unsorted; you drag repos between them and the
+// assignment is saved in layout.json. A repo whose column was removed from the
+// settings falls back to Unsorted.
+function kanbanColumns(){
+  if (kanbanMode === 'status')
+    return C('topbar.filters', []).map(k => ({id: k, title: S(k).label, color: `var(--${k})`, has: r => r.level === k}));
+  const names = C('kanban.columns', []), colOf = r => names.includes(layout.board[r.name]) ? layout.board[r.name] : '';
+  return [{id: '', title: C('kanban.unsortedLabel', 'Unsorted'), has: r => colOf(r) === ''}, ...names.map(n => ({id: n, title: n, has: r => colOf(r) === n}))];
+}
+function placeKanban(){
+  const box = $('#kanban'), list = sorted();
+  box.className = 'kanban' + (kanbanMode === 'board' ? ' kboard' : '');
+  box.replaceChildren(...kanbanColumns().map(c => {
+    const col = document.createElement('section'); col.className = 'col'; col.dataset.col = c.id;
+    const mine = list.filter(c.has);
+    col.innerHTML = `<div class="colhead">${c.color ? `<i style="--c:${c.color}"></i>` : ''}<span>${esc(c.title)}</span><b>${mine.length}</b></div><div class="cards"></div>`;
+    const cards = col.querySelector('.cards');
+    mine.forEach(r => cards.appendChild(els.get(r.name).el));
+    if (!mine.length) cards.innerHTML = `<p class="colempty">${kanbanMode === 'board' ? 'Drag a repo here' : 'Nothing here'}</p>`;
+    return col;
+  }));
+}
+function kanbanDrag(el, e){
+  if (e.target.closest('button, summary, a, input') || e.button > 0) return;
+  const sx = e.clientX, sy = e.clientY; let on = false, off, over = null;
+  el.setPointerCapture(e.pointerId);
+  const colAt = (x, y) => [...document.querySelectorAll('#kanban .col')].find(c => { const r = c.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; });
+  const mv = ev => {
+    if (!on){
+      if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
+      on = true; const r = el.getBoundingClientRect(); off = {x: sx - r.left, y: sy - r.top};
+      el.style.width = r.width + 'px'; el.classList.add('kdrag');
+    }
+    el.style.left = (ev.clientX - off.x) + 'px'; el.style.top = (ev.clientY - off.y) + 'px';
+    const c = colAt(ev.clientX, ev.clientY);
+    if (c !== over){ over?.classList.remove('over'); over = c; over?.classList.add('over'); }
+  };
+  const end = ev => {
+    el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', end); el.removeEventListener('pointercancel', end);
+    try { el.releasePointerCapture(ev.pointerId); } catch {}
+    over?.classList.remove('over'); el.classList.remove('kdrag'); el.style.width = el.style.left = el.style.top = '';
+    if (on && over && ev.type === 'pointerup'){
+      const name = el.dataset.name, id = over.dataset.col;
+      if (id) layout.board[name] = id; else delete layout.board[name];
+      save();
+    }
+    if (on) place();
+  };
+  el.addEventListener('pointermove', mv); el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+}
+
+function place(){
+  if (view === 'grid'){
+    const box = $('#recent');
+    sorted().forEach((r,i) => { const el = els.get(r.name).el; el.style.left = el.style.top = ''; if (box.children[i] !== el) box.insertBefore(el, box.children[i] || null); });
+  } else if (view === 'kanban'){
+    placeKanban();
+  } else {
+    const w = $('#world');
+    for (const r of repos){ const el = els.get(r.name).el; if (el.parentNode !== w) w.appendChild(el); }
+    ensurePositions();
+    for (const r of repos){
+      const el = els.get(r.name).el, p = layout.cards[r.name];
+      el.style.left = p.x + 'px'; el.style.top = p.y + 'px';
+    }
+    renderGroups(); applyVP();
+  }
+  applyFilter();
+}
+
+/* ---------- canvas: positions ---------- */
+// Lay names out in rows of cols(), each row as tall as its tallest card, so
+// nothing overlaps whatever the cards contain (covers, worktree lists).
+function gridPlace(names, startY){
+  let y = startY;
+  for (let i = 0; i < names.length; i += cols()){
+    const row = names.slice(i, i + cols());
+    row.forEach((n, c) => { layout.cards[n] = {x: c * gapX(), y}; });
+    y += Math.max(...row.map(n => els.get(n).el.offsetHeight || 300)) + 28;
+  }
+}
+function ensurePositions(){
+  const missing = sorted().filter(r => !layout.cards[r.name]).map(r => r.name);
+  if (!missing.length) return;
+  let top = 0;
+  for (const r of repos){ const p = layout.cards[r.name]; if (p) top = Math.max(top, p.y + (els.get(r.name).el.offsetHeight || 300)); }
+  gridPlace(missing, top ? top + 40 : 0);
+  save();
+}
+function arrangeCards(){
+  const free = sorted().filter(r => !groupAt(r.name)).map(r => r.name);
+  let top = 0;
+  for (const g of layout.groups) top = Math.max(top, g.y + g.h);
+  gridPlace(free, layout.groups.length ? top + 40 : 0);
+  save(); place();
+}
+
+/* ---------- canvas: pan / zoom ---------- */
+const vp = $('#viewport'), world = $('#world');
+function applyVP(){ const v = layout.vp; world.style.transform = `translate(${v.x}px,${v.y}px) scale(${v.k})`;
+  vp.style.backgroundSize = `${24*v.k}px ${24*v.k}px`; vp.style.backgroundPosition = `${v.x}px ${v.y}px`; }
+function zoomAt(cx, cy, k2){
+  const v = layout.vp; k2 = Math.min(2, Math.max(.25, k2));
+  v.x = cx - (cx - v.x) * (k2 / v.k); v.y = cy - (cy - v.y) * (k2 / v.k); v.k = k2; applyVP(); save();
+}
+const rectOf = () => vp.getBoundingClientRect();
+vp.addEventListener('wheel', e => { e.preventDefault(); const r = rectOf();
+  zoomAt(e.clientX - r.left, e.clientY - r.top, layout.vp.k * Math.exp(-e.deltaY * (e.ctrlKey ? .01 : .0015))); }, {passive:false});
+$('#zin').onclick = () => { const r = rectOf(); zoomAt(r.width/2, r.height/2, layout.vp.k * 1.2); };
+$('#zout').onclick = () => { const r = rectOf(); zoomAt(r.width/2, r.height/2, layout.vp.k / 1.2); };
+$('#zfit').onclick = () => { layout.vp = {x:30,y:30,k:1}; applyVP(); save(); };
+
+vp.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });   // no autoscroll cursor
+vp.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
+const pointers = new Map(); let pinch = null, lp = {t: 0};
+vp.addEventListener('pointerdown', e => {
+  const middle = e.button === 1;                       // middle button drags the canvas from anywhere
+  if (middle) e.preventDefault();
+  if ((!middle && e.target.closest('.card, .gbar, .grip, .zoomctl')) || e.button > 1 || (e.button === 1 && e.target.closest('.zoomctl'))) return;
+  vp.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  vp.classList.add('panning');
+  clearTimeout(lp.t);
+  if (e.pointerType !== 'mouse' && pointers.size === 1 && !middle){
+    lp = {x: e.clientX, y: e.clientY, t: setTimeout(() => { pointers.clear(); vp.classList.remove('panning'); canvasMenu(lp.x, lp.y); }, 550)};
+  }
+  if (pointers.size === 2){ const [a,b] = [...pointers.values()]; pinch = {d: Math.hypot(a.x-b.x, a.y-b.y), k: layout.vp.k}; }
+});
+vp.addEventListener('pointermove', e => {
+  const p = pointers.get(e.pointerId); if (!p) return;
+  if (Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 6) clearTimeout(lp.t);
+  if (pointers.size === 2 && pinch){
+    pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    const [a,b] = [...pointers.values()], r = rectOf();
+    zoomAt((a.x+b.x)/2 - r.left, (a.y+b.y)/2 - r.top, pinch.k * Math.hypot(a.x-b.x, a.y-b.y) / pinch.d);
+    return;
+  }
+  layout.vp.x += e.clientX - p.x; layout.vp.y += e.clientY - p.y;
+  pointers.set(e.pointerId, {x:e.clientX, y:e.clientY}); applyVP();
+});
+const endPan = e => { clearTimeout(lp.t); if (!pointers.delete(e.pointerId)) return; pinch = null; if (!pointers.size){ vp.classList.remove('panning'); save(); } };
+vp.addEventListener('pointerup', endPan); vp.addEventListener('pointercancel', endPan);
+
+/* ---------- canvas: dragging cards ---------- */
+function drag(el, handleEvent, onMove, onEnd){
+  const k = () => layout.vp.k;
+  const sx = handleEvent.clientX, sy = handleEvent.clientY;
+  el.setPointerCapture(handleEvent.pointerId);
+  const mv = e => onMove((e.clientX - sx) / k(), (e.clientY - sy) / k());
+  const up = e => { el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
+    try { el.releasePointerCapture(e.pointerId); } catch {} onEnd(); };
+  el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+}
+function wireCard(el){
+  el.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('Files')){ e.preventDefault(); el.classList.add('dropping'); } });
+  el.addEventListener('dragleave', () => el.classList.remove('dropping'));
+  el.addEventListener('drop', e => { el.classList.remove('dropping'); const f = e.dataTransfer.files[0];
+    if (f){ e.preventDefault(); uploadImage(el.dataset.name, f); } });
+  el.addEventListener('pointerdown', e => {
+    if (view === 'kanban' && kanbanMode === 'board') return kanbanDrag(el, e);
+    if (view !== 'canvas' || e.target.closest('button, summary, a, input') || e.button > 0) return;
+    e.preventDefault(); e.stopPropagation();
+    const name = el.dataset.name, p = layout.cards[name], x0 = p.x, y0 = p.y;
+    el.style.zIndex = ++z; el.classList.add('dragging');
+    drag(el, e, (dx,dy) => { p.x = Math.round(x0 + dx); p.y = Math.round(y0 + dy); el.style.left = p.x+'px'; el.style.top = p.y+'px'; },
+      () => { el.classList.remove('dragging'); save(); });
+  });
+}
+
+/* ---------- canvas: groups ---------- */
+// A card belongs to a group when its centre is inside the frame, so membership
+// needs no bookkeeping: drop a card on a frame and it moves with it.
+function cardCentre(name){ const p = layout.cards[name], e = els.get(name); return p && e ? {x: p.x + cardW()/2, y: p.y + (e.el.offsetHeight||200)/2} : null; }
+function inside(g, c){ return c && c.x >= g.x && c.x <= g.x + g.w && c.y >= g.y && c.y <= g.y + g.h; }
+function groupAt(name){ const c = cardCentre(name); for (let i = layout.groups.length-1; i >= 0; i--) if (inside(layout.groups[i], c)) return layout.groups[i]; return null; }
+const members = g => repos.map(r => r.name).filter(n => inside(g, cardCentre(n)));
+
+function renderGroups(){
+  world.querySelectorAll('.group').forEach(n => n.remove());
+  for (const g of layout.groups){
+    const el = document.createElement('div');
+    el.className = 'group'; el.style.cssText = `left:${g.x}px;top:${g.y}px;width:${g.w}px;height:${g.h}px;background:var(--${g.c})`;
+    el.dataset.id = g.id;
+    el.innerHTML = `<div class="gbar"><span class="gtitle" spellcheck="false"></span>
+      <button class="gbtn" data-a="rename" title="Rename" aria-label="Rename group">✎</button>
+      <button class="gbtn" data-a="color" title="Change colour" aria-label="Change colour">◐</button>
+      <button class="gbtn" data-a="del" title="Remove group (cards stay)" aria-label="Remove group">✕</button></div><div class="grip"></div>`;
+    const title = el.querySelector('.gtitle'); title.textContent = g.t;
+    title.addEventListener('blur', () => { title.removeAttribute('contenteditable'); g.t = title.textContent.trim() || 'Group'; title.textContent = g.t; save(); });
+    title.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === 'Escape'){ e.preventDefault(); title.blur(); } });
+    el.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b) return;
+      if (b.dataset.a === 'del') delGroup(g); else if (b.dataset.a === 'rename') startEdit(g.id); else cycleColor(g); });
+    el.querySelector('.gbar').addEventListener('dblclick', e => { if (!e.target.closest('.gbtn')) startEdit(g.id); });
+    el.querySelector('.gbar').addEventListener('contextmenu', e => { e.preventDefault(); groupMenu(g, e.clientX, e.clientY); });
+    el.querySelector('.gbar').addEventListener('pointerdown', e => {
+      if (e.target.closest('.gbtn') || e.target.closest('.gtitle[contenteditable]') || e.button > 0) return;
+      e.preventDefault(); e.stopPropagation();
+      const bar = e.currentTarget, mem = members(g).map(n => [layout.cards[n], layout.cards[n].x, layout.cards[n].y, els.get(n).el]);
+      const x0 = g.x, y0 = g.y;
+      drag(bar, e, (dx,dy) => { g.x = Math.round(x0+dx); g.y = Math.round(y0+dy); el.style.left = g.x+'px'; el.style.top = g.y+'px';
+        for (const [p,px,py,ce] of mem){ p.x = Math.round(px+dx); p.y = Math.round(py+dy); ce.style.left = p.x+'px'; ce.style.top = p.y+'px'; } }, save);
+    });
+    el.querySelector('.grip').addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation(); const w0 = g.w, h0 = g.h;
+      drag(e.currentTarget, e, (dx,dy) => { g.w = Math.max(200, Math.round(w0+dx)); g.h = Math.max(120, Math.round(h0+dy)); el.style.width = g.w+'px'; el.style.height = g.h+'px'; }, save);
+    });
+    world.insertBefore(el, world.firstChild);   // frames sit under cards
+  }
+}
+function startEdit(id){
+  const t = world.querySelector(`.group[data-id="${id}"] .gtitle`); if (!t) return;
+  t.contentEditable = 'plaintext-only'; t.focus();
+  const r = document.createRange(); r.selectNodeContents(t); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+}
+function cycleColor(g){ g.c = COLORS[(COLORS.indexOf(g.c) + 1) % COLORS.length]; save(); renderGroups(); }
+function delGroup(g){ layout.groups = layout.groups.filter(x => x !== g); save(); renderGroups(); }
+function addGroupAt(x, y){
+  const g = {id: Date.now().toString(36), t: 'New group', x, y, w: 660, h: 440, c: COLORS[layout.groups.length % COLORS.length]};
+  layout.groups.push(g); save(); renderGroups(); startEdit(g.id);   // type the name straight away
+}
+const toWorld = (cx, cy) => { const r = rectOf(), v = layout.vp; return {x: Math.round((cx - r.left - v.x) / v.k), y: Math.round((cy - r.top - v.y) / v.k)}; };
+function addGroupCentre(){ const r = rectOf(), c = toWorld(r.left + r.width / 2, r.top + r.height / 2); addGroupAt(c.x - 330, c.y - 220); }
+
+/* ---------- context menu: right-click (or long-press on touch) ---------- */
+const ctx = document.createElement('div'); ctx.className = 'ctx'; ctx.hidden = true; ctx.setAttribute('role', 'menu'); document.body.appendChild(ctx);
+function closeMenu(){ ctx.hidden = true; }
+function openMenu(x, y, items){
+  ctx.innerHTML = '';
+  for (const it of items){
+    if (it === '-'){ ctx.appendChild(document.createElement('hr')); continue; }
+    const b = document.createElement('button'); b.setAttribute('role', 'menuitem'); b.textContent = it[0];
+    b.onclick = () => { closeMenu(); it[1](); }; ctx.appendChild(b);
+  }
+  ctx.hidden = false;
+  ctx.style.left = Math.max(8, Math.min(x, innerWidth - ctx.offsetWidth - 8)) + 'px';
+  ctx.style.top = Math.max(8, Math.min(y, innerHeight - ctx.offsetHeight - 8)) + 'px';
+  ctx.querySelector('button').focus();
+}
+function canvasMenu(cx, cy){ const w = toWorld(cx, cy);
+  openMenu(cx, cy, [['New group here', () => addGroupAt(w.x, w.y)], '-', ['Arrange cards', arrangeCards], ['Reset view', () => $('#zfit').click()]]); }
+function groupMenu(g, cx, cy){
+  openMenu(cx, cy, [['Rename', () => startEdit(g.id)], ['Next colour', () => cycleColor(g)], '-', ['Delete group', () => delGroup(g)]]); }
+vp.addEventListener('contextmenu', e => {
+  if (e.target.closest('.card, .gbar, .zoomctl')) return;       // groups handle their own; cards keep the browser menu
+  e.preventDefault(); canvasMenu(e.clientX, e.clientY);
+});
+addEventListener('pointerdown', e => { if (!ctx.hidden && !e.target.closest('.ctx')) closeMenu(); }, true);
+addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+vp.addEventListener('wheel', closeMenu, {passive: true});
+
+/* ---------- jump to a terminal ---------- */
+let toastTimer;
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200); }
+const shq = p => /^[\w@%+=:,./-]+$/.test(p) ? p : "'" + p.replace(/'/g, "'\\''") + "'";
+async function copyText(text){
+  try { await navigator.clipboard.writeText(text); return true; } catch {}
+  // plain-http origins (a tailnet address) have no clipboard API; fall back to a selection copy
+  const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+  document.body.appendChild(ta); ta.select(); let ok = false;
+  try { ok = document.execCommand('copy'); } catch {}
+  ta.remove(); return ok;
+}
+async function onAct(e){
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const name = b.closest('.card').dataset.name, r = repos.find(x => x.name === name); if (!r) return;
+  if (b.dataset.act === 'copy'){
+    const cmd = 'cd ' + shq(r.path);
+    toast(await copyText(cmd) ? 'Copied: ' + cmd : 'Could not copy. Path: ' + r.path);
+    return;
+  }
+  if (b.dataset.act === 'image'){ pickTarget = name; $('#pick').value = ''; $('#pick').click(); return; }
+  if (b.dataset.act === 'rmimg'){
+    const res = await fetch('/api/image/' + encodeURIComponent(name), {method:'DELETE', headers:{'Content-Type':'image/png'}}).catch(() => null);
+    toast(res && res.ok ? 'Cover image removed' : 'Could not remove the image'); refreshNow(); return;
+  }
+  b.disabled = true;
+  try {
+    const res = await fetch('/api/open', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name})});
+    if (!res.ok) throw new Error((await res.text()).trim() || res.status);
+    const j = await res.json();
+    toast((j.action === 'jumped' ? 'Jumped to tab ' : 'Opened new tab ') + j.window + ' · ' + name);
+  } catch (err) { toast('tmux: ' + err.message); }
+  finally { b.disabled = false; }
+}
+let pickTarget = '';
+const refreshNow = () => fetch('/api/refresh', {method:'POST'}).catch(() => {});
+$('#pick').addEventListener('change', e => { const f = e.target.files[0]; if (f && pickTarget) uploadImage(pickTarget, f); });
+// Big photos are shrunk in the browser first: a card is ~280px wide, and 35 of them load at once.
+async function shrink(file){
+  if (!/^image\/(png|jpeg|webp|avif)$/.test(file.type) || file.size < 200 * 1024) return file;
+  try {
+    const bmp = await createImageBitmap(file), k = Math.min(1, 720 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, file.type === 'image/jpeg' ? 'image/jpeg' : 'image/png', .85));
+    return blob && blob.size < file.size ? blob : file;
+  } catch { return file; }
+}
+const EXT_TYPE = {png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', webp:'image/webp', gif:'image/gif', svg:'image/svg+xml', avif:'image/avif'};
+async function uploadImage(name, file){
+  const type = file.type || EXT_TYPE[(file.name.split('.').pop() || '').toLowerCase()];
+  if (!type || !type.startsWith('image/')){ toast('That is not an image file'); return; }
+  const body = await shrink(file.type ? file : new Blob([file], {type}));
+  try {
+    const res = await fetch('/api/image/' + encodeURIComponent(name), {method:'PUT', headers:{'Content-Type': body.type || type}, body});
+    if (!res.ok) throw new Error((await res.text()).trim() || res.status);
+    toast('Cover image set for ' + name); refreshNow();
+  } catch (err) { toast('Image not saved: ' + err.message); }
+}
+$('#recent').addEventListener('click', onAct);
+$('#world').addEventListener('click', onAct);
+
+/* ---------- persistence ---------- */
+let saveTimer;
+function save(){ clearTimeout(saveTimer); saveTimer = setTimeout(() =>
+  fetch('/api/layout', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(layout)}).catch(() => {}), 400); }
+async function loadLayout(){
+  try { const l = await (await fetch('/api/layout')).json();
+    layout = {cards: l.cards || {}, groups: l.groups || [], vp: l.vp || {x:30,y:30,k:1}, board: l.board || {}}; } catch {}
+}
+
+/* ---------- live feed ---------- */
+function setLive(cls, txt){ liveState = {cls, txt}; const l = $('#live'); if (l){ l.className = 'live ' + cls; $('#livetxt').textContent = txt; } }
+function connect(){
+  const es = new EventSource('/events');
+  es.addEventListener('config', e => applyConfig(JSON.parse(e.data), false));
+  es.addEventListener('repos', e => { setLive('on', 'live'); applyRepos(JSON.parse(e.data)); });
+  es.onerror = () => setLive('off', 'reconnecting');
+  es.onopen = () => setLive('on', 'live');
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) fetch('/api/refresh', {method:'POST'}).catch(() => {}); });
+
+(async () => {
+  try { applyConfig(await (await fetch('/api/config')).json(), true); }
+  catch { document.body.textContent = 'Could not load /api/config. Is repodash running?'; return; }
+  await loadLayout();
+  setView(view);
+  connect();
+  setInterval(tickAgo, 20000);
+})();
+</script>
+</body>
+</html>

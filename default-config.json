@@ -1,0 +1,84 @@
+{
+  "_comment": "repodash settings. Edit this file; changes apply live within a couple of seconds. Every key is optional: delete one and its default is used. Keys starting with _ are ignored. Full reference: AGENTS.md in the repodash repo.",
+
+  "title": "Repo Dashboard",
+  "theme": "auto",
+
+  "scan": {
+    "skip": [],
+    "intervalSeconds": 15,
+    "staleDays": 30
+  },
+
+  "defaults": {
+    "view": "auto",
+    "kanbanMode": "status",
+    "sort": "recent",
+    "reverse": false,
+    "filter": "all",
+    "remember": true
+  },
+
+  "topbar": {
+    "items": ["title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "spacer", "addGroup", "arrange", "settings"],
+    "filters": ["bad", "warn", "ok", "stale"]
+  },
+
+  "labels": {
+    "viewGrid": "Grid",
+    "viewCanvas": "Canvas",
+    "viewKanban": "Kanban",
+    "kanbanStatus": "By status",
+    "kanbanBoard": "My board",
+    "sortRecent": "Recent",
+    "sortAlpha": "A–Z",
+    "all": "All",
+    "search": "filter",
+    "addGroup": "+ Group",
+    "arrange": "Arrange"
+  },
+
+  "statuses": {
+    "bad":   { "label": "Needs action", "color": "#c8362b", "darkColor": "#ff6b5e", "show": true },
+    "warn":  { "label": "Loose ends",   "color": "#b0731a", "darkColor": "#e8b04a", "show": true },
+    "ok":    { "label": "Clean",        "color": "#2b8a57", "darkColor": "#4cc38a", "show": true },
+    "stale": { "label": "Quiet",        "color": "#8a8f99", "darkColor": "#697080", "show": true }
+  },
+
+  "colors": {
+    "accent": "#1c1e23",
+    "accentDark": "#e5e7ed"
+  },
+
+  "card": {
+    "cover": true,
+    "coverHeight": 98,
+    "branch": true,
+    "note": true,
+    "chips": true,
+    "activity": true,
+    "week": true,
+    "worktrees": true,
+    "agent": true,
+    "actions": ["image", "terminal", "copy"]
+  },
+
+  "kanban": {
+    "columns": ["Active", "Paused", "Ideas", "Done"],
+    "unsortedLabel": "Unsorted"
+  },
+
+  "canvas": {
+    "columns": 4,
+    "cardWidth": 280,
+    "gap": 30
+  },
+
+  "covers": {
+    "names": ["logo", "icon", "cover", "banner", "hero", "screenshot", "preview", "thumbnail", "og", "social"],
+    "dirs": ["assets", "docs", "public", "static", "images", "img", ".github", "resources"],
+    "readme": true
+  },
+
+  "repos": {}
+}
