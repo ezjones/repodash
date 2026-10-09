@@ -93,8 +93,8 @@ All keys, with their defaults. Lists replace the default list entirely.
 | `repos.<name>.image` | path inside the repo | none | Cover for that repo, relative to the repo folder |
 | `repos.<name>.hidden` | true/false | `false` | Leave the repo out entirely |
 
-`topbar.items` default: `title live view sort reverse kanbanMode filters search spacer addGroup
-arrange appearance settings`. Allowed values are exactly those names plus `cover` and `theme`. Some only show in one view: `sort` and
+`topbar.items` default: `title live view sort reverse kanbanMode filters search agents spacer addGroup
+arrange appearance settings`. `agents` is a live summary ("2 working · 1 waiting"). Allowed values are exactly those names plus `cover` and `theme`. Some only show in one view: `sort` and
 `reverse` in Grid, `kanbanMode` in Kanban, `addGroup` and `arrange` in Canvas. `appearance` is a palette button that opens
 a popover with the theme (auto, light, dark), the cover style (with previews) and the language-badge toggle. These save per
 browser and override `theme`, `card.coverStyle` and `card.languageBadge` in the file until the browser's choice is cleared.
@@ -157,6 +157,7 @@ comes from the modification times of uncommitted files.
   title to rename it, the **⋯** button (or right-click the title) moves or deletes it, and you drag a repo card
   to any column. New boards start with the columns in `kanban.columns` (Todo, Doing, Done). Everything is saved
   in `layout.json` under `boards` and `activeBoard`. *By status* is the automatic read-only alternative.
+- **Agent state**: a card's small icon shows the agent in that repo's tmux/herdr pane: spinning ring = working, pulsing red dot = waiting for you, green dot = idle (hover for the words). Canvas group frames show their worst member; the tab title shows totals. It is fed by a separate 1-second poll of the multiplexers (`pollAgents` in `main.go`, SSE event `agents`), so it follows the agent within about a second without the slow git scan. Hidden by `card.agent: false`.
 - **Card icons**: picture icon sets a cover (or drop an image file on the card); terminal icon
   jumps to that repo's tmux tab or herdr workspace, or opens one; copy icon copies `cd <path>`.
 - **Gear button**: shows the settings file path and any problems with it, and a per-browser choice of tmux or herdr for the terminal button.

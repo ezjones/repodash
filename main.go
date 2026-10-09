@@ -175,6 +175,8 @@ type hub struct {
 	lastAt   time.Time
 	clients  map[chan event]struct{}
 	scanning bool
+	dirs     map[string]string // repo name -> path, from the last scan
+	agents   []byte            // last agent-state event
 }
 
 func newHub(scan func() []Repo) *hub {
@@ -197,6 +199,9 @@ func (h *hub) run() {
 		h.mu.Lock()
 		n := len(h.clients)
 		h.mu.Unlock()
+		if n > 0 {
+			h.pollAgents()
+		}
 		if n > 0 && time.Since(lastScan) >= cfg.get().interval {
 			h.refresh()
 			lastScan = time.Now()
@@ -225,15 +230,53 @@ func (h *hub) refresh() {
 	h.scanning = true
 	h.mu.Unlock()
 
-	b, _ := json.Marshal(h.scan())
+	list := h.scan()
+	b, _ := json.Marshal(list)
+	dirs := make(map[string]string, len(list))
+	for _, r := range list {
+		dirs[r.Name] = r.Path
+	}
 
 	h.mu.Lock()
+	h.dirs = dirs
 	h.scanning = false
 	changed := string(b) != string(h.last)
 	h.last, h.lastAt = b, time.Now()
 	h.mu.Unlock()
 	if changed {
 		h.broadcast("repos", b)
+	}
+}
+
+// pollAgents is the cheap, fast half of the scan: one look at the terminal multiplexers,
+// no git. It runs every second while a browser is open and broadcasts only when an agent
+// state (or a tab) changed, so the badge follows the agent within about a second.
+func (h *hub) pollAgents() {
+	h.mu.Lock()
+	dirs := h.dirs
+	h.mu.Unlock()
+	if len(dirs) == 0 {
+		return
+	}
+	type st struct {
+		Claude string `json:"claude"`
+		Tmux   bool   `json:"tmux"`
+		Herdr  bool   `json:"herdr"`
+	}
+	panes := terminalPanes()
+	out := make(map[string]st, len(dirs))
+	for n, d := range dirs {
+		var s st
+		s.Tmux, s.Herdr, s.Claude = agentState(panes, d)
+		out[n] = s
+	}
+	b, _ := json.Marshal(out)
+	h.mu.Lock()
+	changed := string(b) != string(h.agents)
+	h.agents = b
+	h.mu.Unlock()
+	if changed {
+		h.broadcast("agents", b)
 	}
 }
 

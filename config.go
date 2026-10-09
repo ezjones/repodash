@@ -28,7 +28,7 @@ var defaultConfigJSON []byte
 
 var (
 	statusKeys   = []string{"bad", "warn", "ok", "stale"}
-	barItems     = []string{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "spacer", "addGroup", "arrange", "cover", "theme", "appearance", "settings"}
+	barItems     = []string{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "agents", "spacer", "addGroup", "arrange", "cover", "theme", "appearance", "settings"}
 	multiplexers = []string{"prefer-tmux", "prefer-herdr", "tmux", "herdr"}
 	cardActions  = []string{"image", "terminal", "copy"}
 	coverStyles  = []string{"aurora", "deep", "gradient", "name"}

@@ -180,7 +180,22 @@ code{font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace}
 .act .edit{color:var(--warn)}
 .week{margin:0;font-size:12.5px;color:var(--mute)}.bars{letter-spacing:-1px;color:var(--ok)}
 .agent{font-size:11px;padding:1px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mute);white-space:nowrap}
+.agent:has(>.adot:only-child){padding:5px;border-color:transparent;background:none}
+.agent>.adot:only-child{width:12px;height:12px}
 .agent.busy{color:var(--warn);border-color:var(--warn)}.agent.waiting{color:var(--bad);border-color:var(--bad)}.agent.idle{color:var(--ok);border-color:var(--ok)}
+.agent,.gagent,.agentsum{display:inline-flex;align-items:center;gap:5px}
+.adot{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+.busy>.adot{background:none;border:2px solid color-mix(in srgb,currentColor 30%,transparent);border-top-color:currentColor;animation:aspin .8s linear infinite}
+.waiting>.adot{animation:apulse 1s ease-in-out infinite}
+@keyframes aspin{to{transform:rotate(360deg)}}
+@keyframes apulse{50%{opacity:.25;transform:scale(1.35)}}
+.agent.waiting{background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.gagent{padding:4px;margin-left:6px;pointer-events:auto}
+.gagent .adot{width:14px;height:14px}
+.gagent.busy{color:var(--warn)}.gagent.waiting{color:var(--bad)}.gagent.idle{color:var(--ok)}
+.agentsum{font-size:12px;color:var(--mute);gap:10px;white-space:nowrap}.agentsum span{display:inline-flex;align-items:center;gap:5px}
+.agentsum .busy{color:var(--warn)}.agentsum .waiting{color:var(--bad)}.agentsum .idle{color:var(--ok)}
+@media (prefers-reduced-motion:reduce){.busy>.adot,.waiting>.adot{animation:none}}
 details{margin-top:6px;font-size:13px}summary{cursor:pointer;color:var(--mute)}
 ul{margin:4px 0 0;padding-left:18px}li.merged{color:var(--mute)}
 li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
@@ -432,7 +447,7 @@ function cardHTML(r){
   if (r.stashes) chips.push(['info', r.stashes+' stash'+(r.stashes>1?'es':'')]);
   if (!chips.length) chips.push(['ok','in sync']);
 
-  const agent = !C('card.agent', true) ? '' : r.claude ? `<span class="agent ${esc(r.claude)}" title="Claude is ${esc(r.claude)}">${esc(r.claude)}</span>`
+  const agent = !C('card.agent', true) ? '' : r.claude ? `<span class="agent ${esc(r.claude)}" title="Claude is ${r.claude === 'busy' ? 'working' : esc(r.claude)}" aria-label="Claude is ${r.claude === 'busy' ? 'working' : esc(r.claude)}"><i class="adot"></i></span>`
               : (muxTabs(r).length) ? `<span class="agent" title="open in ${muxTabs(r).join(' and ')}">tab open</span>` : '';
   const edited = r.edited && r.edited >= r.last_commit;
   const act = edited
@@ -479,6 +494,7 @@ const BAR = {
   kanbanMode: () => `<div class="seg" data-only="kanban" role="group" aria-label="Kanban columns">${seg([['status', L('kanbanStatus')], ['board', L('kanbanBoard')]], 'kmode')}</div>`,
   filters:    () => `<span id="filters" role="group" aria-label="Filter"></span>`,
   search:     () => `<input id="q" type="search" placeholder="${esc(L('search'))}" aria-label="Filter by name" value="${esc(query)}">`,
+  agents:     () => `<span class="agentsum" id="agentsum"></span>`,
   spacer:     () => `<span class="spacer"></span>`,
   addGroup:   () => `<button class="tool" data-only="canvas" data-top="addgroup">${esc(L('addGroup'))}</button>`,
   arrange:    () => `<button class="tool" data-only="canvas" data-top="arrange" title="Re-grid the cards that are not in a group, in the current sort order">${esc(L('arrange'))}</button>`,
@@ -490,6 +506,7 @@ const BAR = {
 function buildTopBar(){
   $('#top').innerHTML = C('topbar.items', []).map(i => BAR[i] ? BAR[i]() : '').join('');
   syncChrome(); renderFilters(); syncTheme();
+  paintAgents();
 }
 function syncChrome(){
   document.querySelectorAll('#top [data-only]').forEach(e => e.hidden = e.dataset.only !== view);
@@ -611,6 +628,37 @@ function applyRepos(list){
   renderFilters();
   place();
   tickAgo();
+  paintAgents();
+}
+
+/* ---------- agent state (fast feed) ---------- */
+const AG_RANK = {waiting: 3, busy: 2, idle: 1};
+const worst = list => list.reduce((a, c) => (AG_RANK[c] || 0) > (AG_RANK[a] || 0) ? c : a, '');
+// Group frames show their worst member state; the top bar and tab title show the totals.
+function paintAgents(){
+  const on = C('card.agent', true);
+  const by = {};
+  for (const r of repos) if (r.claude) by[r.claude] = (by[r.claude] || 0) + 1;
+  const sum = $('#agentsum');
+  if (sum) sum.innerHTML = on ? ['waiting', 'busy', 'idle'].filter(k => by[k]).map(k =>
+    `<span class="${k}" title="${by[k]} repo${by[k] > 1 ? 's' : ''} with an agent ${k === 'busy' ? 'working' : k}"><i class="adot"></i>${by[k]} ${k === 'busy' ? 'working' : k}</span>`).join('') : '';
+  const t = C('title', 'RepoDash');
+  document.title = on && (by.waiting || by.busy) ? `${by.waiting ? '● ' + by.waiting + ' waiting' : '⠿ ' + by.busy + ' working'} · ${t}` : t;
+  const st = new Map(repos.map(r => [r.name, r.claude]));
+  for (const g of layout.groups || []){
+    const el = world.querySelector(`.group[data-id="${g.id}"] .gagent`);
+    if (!el) continue;
+    const w = on ? worst(members(g).map(n => st.get(n))) : '';
+    el.hidden = !w; el.className = 'gagent ' + w; el.innerHTML = w ? '<i class="adot"></i>' : ''; el.title = w ? 'Claude is ' + (w === 'busy' ? 'working' : w) : '';
+  }
+}
+function applyAgents(m){
+  let changed = false;
+  for (const r of repos){
+    const a = m[r.name]; if (!a) continue;
+    if (r.claude !== a.claude || r.tmux !== a.tmux || r.herdr !== a.herdr){ r.claude = a.claude; r.tmux = a.tmux; r.herdr = a.herdr; changed = true; }
+  }
+  if (changed) applyRepos(repos);
 }
 
 /* ---------- filters ---------- */
@@ -936,7 +984,7 @@ function renderGroups(){
     const el = document.createElement('div');
     el.className = 'group'; el.style.cssText = `left:${g.x}px;top:${g.y}px;width:${g.w}px;height:${g.h}px;background:var(--${g.c})`;
     el.dataset.id = g.id;
-    el.innerHTML = `<div class="gbar"><span class="gtitle" spellcheck="false"></span>
+    el.innerHTML = `<div class="gbar"><span class="gtitle" spellcheck="false"></span><span class="gagent" hidden></span>
       <button class="gbtn" data-a="rename" title="Rename" aria-label="Rename group">✎</button>
       <button class="gbtn" data-a="color" title="Change colour" aria-label="Change colour">◐</button>
       <button class="gbtn" data-a="del" title="Remove group (cards stay)" aria-label="Remove group">✕</button></div><div class="grip"></div>`;
@@ -961,6 +1009,7 @@ function renderGroups(){
     });
     world.insertBefore(el, world.firstChild);   // frames sit under cards
   }
+  paintAgents();
 }
 function startEdit(id){
   const t = world.querySelector(`.group[data-id="${id}"] .gtitle`); if (!t) return;
@@ -1090,6 +1139,7 @@ function connect(){
   const es = new EventSource('/events');
   es.addEventListener('config', e => applyConfig(JSON.parse(e.data), false));
   es.addEventListener('repos', e => { setLive('on', 'live'); applyRepos(JSON.parse(e.data)); });
+  es.addEventListener('agents', e => applyAgents(JSON.parse(e.data)));
   es.onerror = () => setLive('off', 'reconnecting');
   es.onopen = () => setLive('on', 'live');
 }

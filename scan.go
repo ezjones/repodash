@@ -90,6 +90,27 @@ func tmuxPanes() []pane {
 // browser (Settings panel) or by terminal.multiplexer, so the scan does not filter.
 func terminalPanes() []pane { return append(tmuxPanes(), herdrPanes()...) }
 
+// agentState folds every pane inside dir into: has a tmux tab, has a herdr tab, and the most
+// urgent agent state (waiting beats busy beats idle).
+func agentState(panes []pane, dir string) (tm, hd bool, claude string) {
+	for _, p := range panes {
+		if p.cwd != dir && !strings.HasPrefix(p.cwd, dir+"/") {
+			continue
+		}
+		tm = tm || p.mux == "tmux"
+		hd = hd || p.mux == "herdr"
+		switch {
+		case strings.Contains(p.claude, "waiting"):
+			claude = "waiting"
+		case strings.Contains(p.claude, "busy") && claude != "waiting":
+			claude = "busy"
+		case strings.Contains(p.claude, "idle") && claude == "":
+			claude = "idle"
+		}
+	}
+	return
+}
+
 func defaultBranch(dir string) string {
 	if h := git(dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"); h != "" {
 		return h
@@ -227,20 +248,7 @@ func inspect(root, name string, panes []pane) Repo {
 	baseRef := defaultBranch(dir)
 	r.Worktrees = append(r.Worktrees, worktrees(dir, baseRef)...)
 
-	for _, p := range panes {
-		if p.cwd == dir || strings.HasPrefix(p.cwd, dir+"/") {
-			r.Tmux = r.Tmux || p.mux == "tmux"
-			r.Herdr = r.Herdr || p.mux == "herdr"
-			switch {
-			case strings.Contains(p.claude, "waiting"):
-				r.Claude = "waiting"
-			case strings.Contains(p.claude, "busy") && r.Claude != "waiting":
-				r.Claude = "busy"
-			case strings.Contains(p.claude, "idle") && r.Claude == "":
-				r.Claude = "idle"
-			}
-		}
-	}
+	r.Tmux, r.Herdr, r.Claude = agentState(panes, dir)
 	if c, ok := findCover(root, name); ok {
 		r.Image, r.ImageSrc, r.ImageFit = c.url(name), c.src, c.fit
 	}
