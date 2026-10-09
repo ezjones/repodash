@@ -58,7 +58,9 @@ By default it scans the folders directly inside `~/gitrepos`. Point it somewhere
 
 It is developed and used on Windows through WSL2, which means the Linux build. Plain Linux works the
 same way, and macOS should too. Native Windows (outside WSL) is untested. Under WSL2, `localhost` is
-forwarded, so you can open <http://127.0.0.1:8092> in a Windows browser.
+forwarded, so you can open <http://127.0.0.1:8092> in a Windows browser. The terminal button
+switches the tab in your WSL tmux session; it cannot raise the terminal window itself, so if that
+window is hidden behind other apps you still need to bring it forward.
 
 ### Options
 
