@@ -226,8 +226,11 @@ XDG_DATA_HOME=$S ./repodash -addr 127.0.0.1:8097 -config $S/repodash.json &   # 
 ```
 
 then drive `http://127.0.0.1:8097` (Playwright works well; a pty-attached `tmux` client works for
-the tmux button). To test "Open in tmux" use a throwaway tmux server (`TMUX_TMPDIR=$S/tmux tmux
+the tmux button). To test "Open in tmux" use a throwaway tmux server (`env -u TMUX TMUX_TMPDIR=$S/tmux tmux
 new-session -d ...` and start that instance with the same `TMUX_TMPDIR`) so no real tab moves.
+**Always prefix `env -u TMUX`**: inside a tmux pane `$TMUX` wins over `TMUX_TMPDIR`, so a plain
+`tmux` command would hit your real server. Never run `tmux kill-server` here; end the demo with
+`tmux kill-session -t <name>` using the same prefix.
 
 Useful checks: `repodash -check -config FILE`; `curl -s localhost:8097/api/config | jq .warnings`;
 break the settings file on purpose (invalid JSON, a bad enum) and confirm the page keeps working.
