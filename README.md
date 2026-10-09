@@ -145,6 +145,21 @@ repodash
 Set `VERSION=v0.1.0` to pin a release or `PREFIX=/some/dir` to install somewhere else. Installed
 this way, your settings live in `~/.config/repodash/repodash.json`.
 
+If `repodash` is not found afterwards, `~/.local/bin` is not on your `PATH`. Add this line to
+`~/.bashrc` or `~/.zshrc` and open a new terminal:
+
+```sh
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+To update, run the same install command again. To check what you have, run `repodash -version`.
+To uninstall, delete the binary and, if you want to drop your settings too, the config folder:
+
+```sh
+rm ~/.local/bin/repodash
+rm -r ~/.config/repodash
+```
+
 To build from source instead you need Go 1.22 or newer:
 
 ```sh
