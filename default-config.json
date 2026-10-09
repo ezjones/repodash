@@ -20,7 +20,7 @@
   },
 
   "topbar": {
-    "items": ["title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "spacer", "addGroup", "arrange", "settings"],
+    "items": ["title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "spacer", "addGroup", "arrange", "cover", "theme", "settings"],
     "filters": ["bad", "warn", "ok", "stale"]
   },
 
@@ -53,6 +53,8 @@
   "card": {
     "cover": true,
     "coverHeight": 98,
+    "coverStyle": "name",
+    "languageBadge": true,
     "branch": true,
     "note": true,
     "chips": true,

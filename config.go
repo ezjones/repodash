@@ -28,8 +28,9 @@ var defaultConfigJSON []byte
 
 var (
 	statusKeys  = []string{"bad", "warn", "ok", "stale"}
-	barItems    = []string{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "spacer", "addGroup", "arrange", "settings"}
+	barItems    = []string{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "spacer", "addGroup", "arrange", "cover", "theme", "settings"}
 	cardActions = []string{"image", "terminal", "copy"}
+	coverStyles = []string{"aurora", "deep", "gradient", "name"}
 	hexColor    = regexp.MustCompile(`^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$`)
 	freeForm    = map[string]bool{"repos": true} // maps whose keys are user data, not settings
 )
@@ -202,6 +203,7 @@ func validate(m, def map[string]any, w *[]string) {
 	oneOf("defaults.view", "auto", "grid", "canvas", "kanban")
 	oneOf("defaults.kanbanMode", "status", "board")
 	oneOf("defaults.sort", "recent", "alpha")
+	oneOf("card.coverStyle", coverStyles...)
 	oneOf("defaults.filter", append([]string{"all"}, statusKeys...)...)
 	num("scan.intervalSeconds", 2, 3600)
 	num("scan.staleDays", 1, 3650)
@@ -232,14 +234,17 @@ func validate(m, def map[string]any, w *[]string) {
 			continue
 		}
 		for k, x := range e {
-			want := map[string]string{"title": "string", "image": "string", "note": "string", "hidden": "true/false"}[k]
+			want := map[string]string{"title": "string", "image": "string", "note": "string", "hidden": "true/false", "coverStyle": "string"}[k]
 			switch {
 			case strings.HasPrefix(k, "_"):
 			case want == "":
-				warn("repos.%s.%s: unknown setting (allowed: title, note, image, hidden)", name, k)
+				warn("repos.%s.%s: unknown setting (allowed: title, note, image, hidden, coverStyle)", name, k)
 				delete(e, k)
 			case kindOf(x) != want:
 				warn("repos.%s.%s: expected %s, got %s (ignored)", name, k, want, kindOf(x))
+				delete(e, k)
+			case k == "coverStyle" && !contains(coverStyles, x.(string)):
+				warn("repos.%s.coverStyle: %q is not one of %s (ignored)", name, x, strings.Join(coverStyles, ", "))
 				delete(e, k)
 			}
 		}

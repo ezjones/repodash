@@ -75,6 +75,8 @@ All keys, with their defaults. Lists replace the default list entirely.
 | `colors.accent`, `colors.accentDark` | hex | `#1c1e23` / `#e5e7ed` | Selected-button colour, light and dark |
 | `card.cover` | true/false | `true` | Cover image/art on cards. If off, the status pill moves into the header |
 | `card.coverHeight` | 40-300 | `98` | Cover height in px |
+| `card.coverStyle` | `aurora` `deep` `gradient` `name` | `name` | Generated cover for repos with no image. `aurora` glowing colour on near-black, `deep` dark three-stop gradient with grain, `gradient` soft pastel blobs, `name` the repo name big on a flat colour (fixed size, long names are cut off). Drawn from the repo name, so a repo always gets the same art. Per repo: `repos.<name>.coverStyle`. The top bar can override this and the badge for one browser |
+| `card.languageBadge` | true/false | `true` | Small badge in the cover's lower-right corner with the repo's main language (by tracked file count; hidden when none is recognised) |
 | `card.branch` `note` `chips` `activity` `week` `worktrees` `agent` | true/false | `true` | Show or hide each card section |
 | `card.actions` | list of `image` `terminal` `copy` | all three | Which buttons a card has. `terminal` and `copy` are header icons, in this order. `image` sits in the top-right corner of the cover (shown on hover; always visible on touch), or in the header if `card.cover` is off |
 | `canvas.columns` | 1-12 | `4` | Columns when arranging cards |
@@ -91,14 +93,16 @@ All keys, with their defaults. Lists replace the default list entirely.
 | `repos.<name>.hidden` | true/false | `false` | Leave the repo out entirely |
 
 `topbar.items` default: `title live view sort reverse kanbanMode filters search spacer addGroup
-arrange settings`. Allowed values are exactly those names. Some only show in one view: `sort` and
-`reverse` in Grid, `kanbanMode` in Kanban, `addGroup` and `arrange` in Canvas.
+arrange cover theme settings`. Allowed values are exactly those names. Some only show in one view: `sort` and
+`reverse` in Grid, `kanbanMode` in Kanban, `addGroup` and `arrange` in Canvas. `cover` is the cover style
+select plus the language-badge toggle; `theme` cycles auto, light, dark. Both save per browser and override
+`card.coverStyle`, `card.languageBadge` and `theme` in the file until the browser's choice is cleared.
 
 The settings file is found next to the executable, so run the binary built in this folder (`go build`, then `./repodash`). `go run` builds into a temporary folder and would look for it there; use `-config` or `$REPODASH_CONFIG` in that case.
 
 Cover order: image added in the UI, then `repos.<name>.image`, then a logo-like file in the repo
 root, then the same names in `covers.dirs`, then the first README image (local files only, never
-http), then generated pastel art. Images over 4 MB and anything outside the repo are ignored.
+http), then generated art (`card.coverStyle`). Images over 4 MB and anything outside the repo are ignored.
 
 ### Recipes
 

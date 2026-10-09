@@ -96,6 +96,14 @@ button:focus-visible,input:focus-visible,[contenteditable]:focus-visible{outline
 .cover.art::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.22;mix-blend-mode:multiply;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 .card.ok .artbg{filter:saturate(.75)}
+.cover.s-aurora::after,.cover.s-deep::after,.cover.s-name::after{display:none}
+.artbg svg{display:block;width:100%;height:100%}
+.artname{height:100%;display:flex;align-items:flex-start;padding:8px 14px 0;overflow:hidden;white-space:nowrap;font-weight:800;letter-spacing:-.03em;line-height:1;font-size:calc(var(--cover-h,98px)*.44)}
+.langbadge{position:absolute;right:8px;bottom:8px;z-index:1;font:600 11.5px/1 ui-monospace,Menlo,Consolas,monospace;color:#fff;padding:5px 9px;border-radius:7px}
+.coverctl{display:inline-flex;gap:4px;align-items:center}
+#coverSel{height:30px;padding:0 6px;color:var(--ink);background:var(--panel)}
+.panel label.row{display:flex;gap:8px;align-items:center;margin:8px 0 0;font-size:13px}
+.panel select{font:inherit;padding:3px 6px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
 .card.stale .artbg{filter:saturate(.35)}
 .cover.contain>img{object-fit:contain;padding:14px}
 .pill{z-index:1;position:absolute;left:8px;bottom:8px;display:inline-flex;align-items:center;gap:6px;padding:3px 11px 3px 9px;border-radius:999px;
@@ -107,7 +115,8 @@ button:focus-visible,input:focus-visible,[contenteditable]:focus-visible{outline
 .covbtns{position:absolute;z-index:1;top:6px;right:6px;display:flex;gap:4px}
 .covbtns .ib{background:color-mix(in srgb,var(--panel) 82%,transparent);color:var(--ink);backdrop-filter:blur(4px)}
 .covbtns .ib:hover{background:var(--panel)}
-@media (hover:hover){.covbtns{opacity:0;transition:opacity .12s}.card:hover .covbtns,.covbtns:focus-within{opacity:1}}
+.covbtns.noimg{opacity:.6}.covbtns.noimg:hover,.covbtns.noimg:focus-within{opacity:1}
+@media (hover:hover){.covbtns.has{opacity:0;transition:opacity .12s}.card:hover .covbtns.has,.covbtns.has:focus-within{opacity:1}}
 @media (prefers-reduced-motion:reduce){.covbtns{transition:none}}
 .card.dropping{outline:2px dashed var(--info);outline-offset:3px}
 .card header{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0 2px;cursor:default}
@@ -235,6 +244,13 @@ function onColor(hex){
   const lum = .2126 * r + .7152 * g + .0722 * b;
   return 1.05 / (lum + .05) >= (lum + .05) / .058 ? '#ffffff' : '#161616';
 }
+// Light/dark: this browser's choice (top bar button) first, then `theme` in the settings file.
+const themeNow = () => ['auto', 'light', 'dark'].includes(ls('theme')) ? ls('theme') : C('theme', 'auto');
+function syncTheme(){
+  const b = document.getElementById('themebtn'); if (!b) return;
+  const t = themeNow(); b.innerHTML = t === 'light' ? ICON_SUN : t === 'dark' ? ICON_MOON : ICON_AUTO;
+  b.title = `Theme: ${t}. Click to switch (auto, light, dark).`; b.setAttribute('aria-label', b.title);
+}
 function applyStyle(){
   const light = [], dark = [];
   for (const k of ['bad', 'warn', 'ok', 'stale']){
@@ -243,7 +259,7 @@ function applyStyle(){
   light.push(`--accent:${C('colors.accent')}`, `--card-w:${cardW()}px`, `--cover-h:${C('card.coverHeight', 98)}px`); dark.push(`--accent:${C('colors.accentDark')}`);
   let el = document.getElementById('cfgstyle'); if (!el){ el = document.createElement('style'); el.id = 'cfgstyle'; document.head.appendChild(el); }
   el.textContent = `:root{${light.join(';')}}@media (prefers-color-scheme:dark){:root:not([data-theme=light]){${dark.join(';')}}}:root[data-theme=dark]{${dark.join(';')}}`;
-  const t = C('theme', 'auto'); if (t === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  const t = themeNow(); syncTheme(); if (t === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
   document.title = C('title', 'RepoDash');
 }
 function applyConfig(p, initial){
@@ -284,14 +300,50 @@ function art(name){
   const html = `<div class="artbg" style="background:${bg}"></div>`;
   artCache.set(name, html); return html;
 }
+// aurora / deep / name are drawn in the page too, from the repo name only (same name, same art).
+const hsl = (h, sat, l) => `hsl(${(h % 360 + 360) % 360} ${sat}% ${l}%)`;
+const ART = {
+  aurora(name){
+    const r = rng(hash(name)), h0 = Math.floor(r() * 360), id = 'a' + hash(name);
+    const blobs = [0, 40, -45, 95].map(o => `<ellipse cx="${Math.floor(r() * 360)}" cy="${Math.floor(r() * 120)}" rx="${60 + Math.floor(r() * 70)}" ry="${22 + Math.floor(r() * 30)}" fill="${hsl(h0 + o, 95, 52 + Math.floor(r() * 10))}" transform="rotate(${Math.floor(r() * 50 - 25)} 180 60)"/>`).join('');
+    return `<svg viewBox="0 0 360 120" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><filter id="${id}" x="-30%" y="-80%" width="160%" height="260%"><feGaussianBlur stdDeviation="17"/></filter></defs>
+      <rect width="360" height="120" fill="${hsl(h0 + 200, 50, 7)}"/><g filter="url(#${id})" style="mix-blend-mode:screen" opacity=".92">${blobs}</g></svg>`;
+  },
+  deep(name){
+    const r = rng(hash(name)), h0 = Math.floor(r() * 360), id = 'd' + hash(name), sp = 40 + Math.floor(r() * 40);
+    const c = (o, l) => hsl(h0 + o, 62 + Math.floor(r() * 16), l);
+    return `<svg viewBox="0 0 360 120" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs>
+      <linearGradient id="${id}" gradientTransform="rotate(${20 + Math.floor(r() * 50)} .5 .5)"><stop offset="0" stop-color="${c(0, 16)}"/><stop offset=".55" stop-color="${c(sp, 24)}"/><stop offset="1" stop-color="${c(sp * 2, 30)}"/></linearGradient>
+      <radialGradient id="${id}r" cx="${.2 + r() * .6}" cy="${.1 + r() * .8}" r=".6"><stop offset="0" stop-color="${c(sp + 30, 52)}" stop-opacity=".6"/><stop offset="1" stop-color="${c(sp + 30, 52)}" stop-opacity="0"/></radialGradient>
+      <filter id="${id}n"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .5 0"/></filter></defs>
+      <rect width="360" height="120" fill="url(#${id})"/><rect width="360" height="120" fill="url(#${id}r)"/><rect width="360" height="120" filter="url(#${id}n)" opacity=".1"/></svg>`;
+  },
+  name(name){
+    const r = rng(hash(name)), P = PAL[hash(name) % PAL.length], bg = [P[4], P[1], P[2], P[0]][Math.floor(r() * 4)];
+    const ink = bg === P[0] || bg === P[3] ? P[4] : '#ffffff';
+    return `<div class="artname" style="background:${bg};color:${ink}">${esc(name)}</div>`;
+  },
+};
+const PAL = [['#EEE6D8','#D9573B','#2F5D62','#E8B04A','#243035'],['#E6EDF3','#274C77','#6096BA','#E3A812','#1B2A3A'],['#EFEAE0','#7A9E7E','#C7603B','#3B4B59','#E2C28F'],
+  ['#ECE9F5','#5B4B8A','#F2A65A','#2A9D8F','#2B2B3A'],['#F3E7E2','#B5446E','#2D6A6A','#F0B67F','#2E2A33'],['#E7EFE4','#2E6F40','#E9A23B','#C84B31','#1F2D26'],
+  ['#F1ECDB','#1D4E89','#E4572E','#F2C14E','#222222'],['#E4EBEE','#0B6E6E','#F26B5B','#F6D55C','#173F4F'],['#F0E4EA','#3C3F8F','#E26D5A','#7BC8A4','#25243A'],['#E8EDE6','#C2452D','#3F7F6E','#EAB308','#2A2F2B']];
+const LANG_COLOR = {Go:'#2A9CB8',Python:'#3E6FA3',TypeScript:'#3178C6',JavaScript:'#B59B0C',Rust:'#B5532A',Swift:'#E0533D',Shell:'#4E9A3C','C++':'#C2417A',C:'#5C6B7A',Ruby:'#B8322A',Java:'#B0722A',Kotlin:'#7F52FF','C#':'#2F8F3A',PHP:'#6C78AF',Lua:'#2C2D72',Dart:'#0B7FA8',Zig:'#C27A1A',Elixir:'#6E4A7E',Haskell:'#5E5086',Scala:'#C22D40',Vue:'#3B9E6E',Svelte:'#D9481C',QML:'#41A15C'};
+const mixHex = (a, b, t) => { const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); const x = p(a), y = p(b);
+  return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join(''); };
+// Effective style: per-repo setting, then this browser's choice (settings panel), then the settings file.
+const coverStyleOf = r => ((CFG.repos || {})[r.name] || {}).coverStyle || ls('cover') || C('card.coverStyle', 'name');
+const badgeOn = () => ls('badge') === null ? !!C('card.languageBadge', true) : ls('badge') === '1';
 const pillHTML = (r, cls = '') => `<span class="pill ${r.level} ${cls}"><i></i>${esc(S(r.level).label)}</span>`;
 const imageBtn = r => `<button class="ib" data-act="image" title="Set a cover image" aria-label="Set a cover image for ${esc(r.name)}">${ICON_IMG}</button>`;
 function coverHTML(r){
   if (!C('card.cover', true)) return '';
-  const media = r.image ? `<img src="${esc(r.image)}" alt="" loading="lazy" draggable="false">` : art(r.name);
+  const style = coverStyleOf(r);
+  const gen = style === 'gradient' ? art(r.name) : (ART[style] || ART.aurora)(r.name);
+  const media = r.image ? `<img src="${esc(r.image)}" alt="" loading="lazy" draggable="false">` : (style === 'gradient' ? gen : `<div class="artbg">${gen}</div>`);
+  const lang = r.language && badgeOn() ? `<span class="langbadge" style="background:${mixHex(LANG_COLOR[r.language] || '#667788', '#000000', .38)}">${esc(r.language)}</span>` : '';
   const rm = r.image_src === 'custom' ? '<button class="ib rm" data-act="rmimg" title="Remove cover image" aria-label="Remove cover image">✕</button>' : '';
-  const set = C('card.actions', []).includes('image') ? imageBtn(r) : '';
-  return `<div class="cover ${r.image ? r.image_fit : 'art'}">${media}${pillHTML(r)}${rm || set ? `<span class="covbtns">${rm}${set}</span>` : ''}</div>`;
+  const set = !rm && C('card.actions', []).includes('image') ? imageBtn(r) : '';   // only until a custom image is set
+  return `<div class="cover ${r.image ? r.image_fit : 'art s-' + style}">${media}${pillHTML(r)}${lang}${rm || set ? `<span class="covbtns ${rm ? 'has' : 'noimg'}">${rm}${set}</span>` : ''}</div>`;
 }
 
 /* ---------- card markup ---------- */
@@ -341,6 +393,10 @@ const ICON_GRID = svg('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x=
 const ICON_CANVAS = svg('<rect x="3" y="4" width="9" height="7" rx="1.5"/><rect x="13" y="9" width="8" height="6" rx="1.5"/><rect x="6" y="14" width="8" height="7" rx="1.5"/>');
 const ICON_KANBAN = svg('<rect x="3" y="3" width="5" height="18" rx="1.5"/><rect x="10" y="3" width="5" height="11" rx="1.5"/><rect x="17" y="3" width="4" height="14" rx="1.5"/>');
 const ICON_REV = svg('<path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/>');
+const ICON_LANG = svg('<path d="m8 8-5 4 5 4"/><path d="m16 8 5 4-5 4"/><path d="m14 5-4 14"/>');
+const ICON_SUN = svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>');
+const ICON_MOON = svg('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>');
+const ICON_AUTO = svg('<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/>');
 const ICON_GEAR = svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>');
 let liveState = {cls: '', txt: 'connecting'};
 const seg = (items, key) => items.map(([v, label, icon]) => `<button data-top="${key}:${v}" aria-pressed="false" title="${esc(label)}" aria-label="${esc(label)}">${icon || ''}<span class="lbl">${esc(label)}</span></button>`).join('');
@@ -357,11 +413,13 @@ const BAR = {
   spacer:     () => `<span class="spacer"></span>`,
   addGroup:   () => `<button class="tool" data-only="canvas" data-top="addgroup">${esc(L('addGroup'))}</button>`,
   arrange:    () => `<button class="tool" data-only="canvas" data-top="arrange" title="Re-grid the cards that are not in a group, in the current sort order">${esc(L('arrange'))}</button>`,
+  cover:      () => `<span class="coverctl"><select id="coverSel" class="tool" title="Cover style for repos without an image (this browser)" aria-label="Cover style">${[['', 'Cover: file default'], ['aurora', 'Aurora'], ['deep', 'Deep gradient'], ['name', 'Big name'], ['gradient', 'Soft gradient']].map(([v, t]) => `<option value="${v}" ${(ls('cover') || '') === v ? 'selected' : ''}>${t}</option>`).join('')}</select><button class="tool icon" data-top="badge" aria-pressed="${badgeOn()}" title="Language badge on covers" aria-label="Language badge">${ICON_LANG}</button></span>`,
+  theme:      () => `<button class="tool icon" data-top="theme" id="themebtn" title="" aria-label="Theme"></button>`,
   settings:   () => `<button class="tool icon" data-top="settings" id="cfgbtn" ${CFG_WARN.length ? 'data-warn="1"' : ''} title="Settings" aria-label="Settings">${ICON_GEAR}</button>`,
 };
 function buildTopBar(){
   $('#top').innerHTML = C('topbar.items', []).map(i => BAR[i] ? BAR[i]() : '').join('');
-  syncChrome(); renderFilters();
+  syncChrome(); renderFilters(); syncTheme();
 }
 function syncChrome(){
   document.querySelectorAll('#top [data-only]').forEach(e => e.hidden = e.dataset.only !== view);
@@ -380,7 +438,14 @@ $('#top').addEventListener('click', e => {
   else if (k === 'kmode'){ kanbanMode = v; ls('kmode', v); syncChrome(); place(); }
   else if (k === 'addgroup') addGroupCentre();
   else if (k === 'arrange') arrangeCards();
+  else if (k === 'theme'){ const o = ['auto', 'light', 'dark']; ls('theme', o[(o.indexOf(themeNow()) + 1) % 3]); applyStyle(); }
+  else if (k === 'badge'){ ls('badge', badgeOn() ? '0' : '1'); b.setAttribute('aria-pressed', badgeOn()); rerenderCards(); }
   else if (k === 'settings') showSettings(b);
+});
+$('#top').addEventListener('change', e => {
+  if (e.target.id !== 'coverSel') return;
+  if (e.target.value) ls('cover', e.target.value); else try { localStorage.removeItem('repodash.cover'); } catch {}
+  rerenderCards();
 });
 $('#top').addEventListener('input', e => { if (e.target.id === 'q'){ query = e.target.value.trim().toLowerCase(); applyFilter(); } });
 
@@ -389,11 +454,13 @@ function showSettings(btn){
   if (!panel.hidden){ panel.hidden = true; return; }
   panel.innerHTML = `<h3>Settings</h3><p>Everything on this page is set in<br><code>${esc(CFG_PATH)}</code></p>
     <p class="muted">Edit the file and the page updates within a second or two. Agents: read AGENTS.md in the repodash repo.</p>
+    <p class="muted">Cover style, language badge and theme live in the top bar (saved per browser). Their defaults are <code>card.coverStyle</code>, <code>card.languageBadge</code> and <code>theme</code> in the file.</p>
     <button class="tool" data-p="copy">Copy path</button>` +
     (CFG_WARN.length ? `<ul class="warns">${CFG_WARN.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : '<p class="good">No problems in the settings file.</p>');
   const r = btn.getBoundingClientRect(); panel.hidden = false;
   panel.style.top = r.bottom + 8 + 'px'; panel.style.right = Math.max(8, innerWidth - r.right) + 'px';
 }
+function rerenderCards(){ for (const e of els.values()) e.sig = ''; applyRepos(repos); setView(view); }
 panel.addEventListener('click', async e => { if (e.target.closest('[data-p=copy]')) toast(await copyText(CFG_PATH) ? 'Copied the settings path' : 'Path: ' + CFG_PATH); });
 addEventListener('pointerdown', e => { if (!panel.hidden && !e.target.closest('.panel, #cfgbtn')) panel.hidden = true; }, true);
 addEventListener('keydown', e => { if (e.key === 'Escape') panel.hidden = true; });

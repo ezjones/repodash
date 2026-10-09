@@ -38,6 +38,7 @@ type Repo struct {
 	Edited      int64      `json:"edited"`   // newest mtime among uncommitted files, 0 when clean
 	Activity    int64      `json:"activity"` // max(LastCommit, Edited): what "recent" sorts by
 	Commits7d   int        `json:"commits_7d"`
+	Language    string     `json:"language"` // main language by tracked file count, "" when none is recognised
 	Worktrees   []Worktree `json:"worktrees"`
 	Image       string     `json:"image"`     // cover URL, "" when there is none (the page draws generated art)
 	ImageSrc    string     `json:"image_src"` // custom | root | dir | readme
@@ -216,6 +217,7 @@ func inspect(root, name string, panes []pane) Repo {
 	if n := git(dir, "rev-list", "--count", "--since=7.days.ago", "HEAD"); n != "" {
 		r.Commits7d, _ = strconv.Atoi(n)
 	}
+	r.Language = mainLanguage(dir)
 	// Compare against the same ref git would, so a fresh branch is not "merged" into itself.
 	baseRef := defaultBranch(dir)
 	r.Worktrees = append(r.Worktrees, worktrees(dir, baseRef)...)
