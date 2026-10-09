@@ -31,6 +31,12 @@ button,input{font:inherit;color:inherit}
 
 /* top bar */
 .top{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+.top .seg,.top .tool,.top .chip-btn,.top input[type=search]{box-sizing:border-box;height:32px}
+.top .seg button{height:100%}
+.top .chip-btn{display:inline-flex;align-items:center;padding-top:0;padding-bottom:0}
+.top button.tool:not(.icon){display:inline-flex;align-items:center}
+#filters,#filters .chips{display:inline-flex;align-items:center;gap:6px;margin:0}
+.top .tool.icon{height:32px}
 .top h1{font-size:16px;margin:0 8px 0 0;font-weight:650}
 .live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mute);margin-right:6px}
 .live i{width:8px;height:8px;border-radius:50%;background:var(--stale)}
