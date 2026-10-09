@@ -12,7 +12,7 @@
 
   "defaults": {
     "view": "auto",
-    "kanbanMode": "status",
+    "kanbanMode": "board",
     "sort": "recent",
     "reverse": false,
     "filter": "all",
@@ -20,7 +20,7 @@
   },
 
   "topbar": {
-    "items": ["title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "spacer", "addGroup", "arrange", "cover", "theme", "settings"],
+    "items": ["title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "spacer", "addGroup", "arrange", "appearance", "settings"],
     "filters": ["bad", "warn", "ok", "stale"]
   },
 
@@ -29,8 +29,10 @@
     "viewCanvas": "Canvas",
     "viewKanban": "Kanban",
     "kanbanStatus": "By status",
-    "kanbanBoard": "My board",
+    "kanbanBoard": "Boards",
     "sortRecent": "Recent",
+    "sortActivity": "Activity",
+    "sortLanguage": "Language",
     "sortAlpha": "A–Z",
     "all": "All",
     "search": "filter",
@@ -66,7 +68,7 @@
   },
 
   "kanban": {
-    "columns": ["Active", "Paused", "Ideas", "Done"],
+    "columns": ["Todo", "Doing", "Done"],
     "unsortedLabel": "Unsorted"
   },
 

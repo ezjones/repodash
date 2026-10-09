@@ -51,7 +51,47 @@ button,input{font:inherit;color:inherit}
 .chip-btn.warn[aria-pressed=true]{background:var(--warn);color:var(--on-warn);border-color:var(--warn)}
 .chip-btn.ok[aria-pressed=true]{background:var(--ok);color:var(--on-ok);border-color:var(--ok)}
 .chip-btn.stale[aria-pressed=true]{background:var(--stale);color:var(--bg);border-color:var(--stale)}
-.top input[type=search]{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:5px 12px;font-size:13px;width:150px;max-width:40vw}
+.top input[type=search]{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:5px 12px;font-size:13px;flex:0 1 150px;min-width:100px}
+.sortsel{display:none;appearance:none;-webkit-appearance:none;font-weight:550;padding:5px 28px 5px 11px;color:var(--ink);
+  background:linear-gradient(45deg,transparent 50%,currentColor 50%) right 14px center/5px 5px no-repeat,linear-gradient(-45deg,transparent 50%,currentColor 50%) right 9px center/5px 5px no-repeat}
+.chip-btn .t{white-space:nowrap}
+.filtersel{display:none;appearance:none;-webkit-appearance:none;font-weight:550;padding:5px 28px 5px 11px;color:var(--ink);
+  background:linear-gradient(45deg,transparent 50%,currentColor 50%) right 14px center/5px 5px no-repeat,linear-gradient(-45deg,transparent 50%,currentColor 50%) right 9px center/5px 5px no-repeat}
+/* narrower screens: collapse labels, then swap the sort buttons for a dropdown */
+@media (max-width:1640px){.top .seg[aria-label="Sort by"]{display:none}.sortsel{display:inline-block}}
+@media (max-width:1100px){.seg.icons .lbl{display:none}.seg.icons button{padding:5px 10px}}
+@media (max-width:1320px){.chip-btn:not([data-f=all]) .t{display:none}.chip-btn i{margin-right:3px}}
+@media (max-width:900px){.live #livetxt{display:none}}
+@media (max-width:700px){
+  .top{gap:8px 6px;padding:8px 10px}
+  .filtersel{max-width:88px;padding-left:9px}.sortsel{padding-left:9px}
+  .top .spacer,.top [data-top=addgroup],.top [data-top=arrange],.top [data-top="view:canvas"]{display:none}   /* canvas is not offered on a narrow screen; it shows as one column */
+  .top input[type=search]{flex:1 1 56px;min-width:56px}
+  #filters .chips{display:none}.filtersel{display:inline-block}
+}
+@media (max-width:520px){.top h1,.live{display:none}}
+.pop{width:min(360px,calc(100vw - 16px))}
+.plabel{font-size:11.5px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:14px 0 7px}
+.plabel:first-of-type{margin-top:6px}.plabel small{font-weight:500;letter-spacing:0;text-transform:none;margin-left:4px}
+.tiles{display:grid;gap:7px}.tiles.t3{grid-template-columns:repeat(3,1fr)}.tiles.t5{grid-template-columns:repeat(3,1fr)}
+.tile{display:flex;flex-direction:column;align-items:center;gap:6px;padding:9px 6px 7px;border:1px solid var(--line);border-radius:11px;background:transparent;color:var(--ink);font:inherit;font-size:12.5px;font-weight:550;cursor:pointer}
+.tile:hover{border-color:var(--mute)}
+.tile[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:color-mix(in srgb,var(--accent) 7%,transparent)}
+.tile svg{width:18px;height:18px}
+.cv{display:grid;place-items:center;width:100%;height:38px;border-radius:7px;font-style:normal;font-weight:800;font-size:17px;color:#fff;letter-spacing:-.01em}
+.cv-file{border:1.5px dashed var(--mute);color:var(--mute);font-weight:600}
+.cv-aurora{background:radial-gradient(circle at 28% 35%,#3be0b0cc,transparent 55%),radial-gradient(circle at 78% 72%,#7a5cffcc,transparent 52%),#0b0d12}
+.cv-deep{background:linear-gradient(135deg,#243a66,#0e1424 58%,#3a2456)}
+.cv-name{background:#d9573b}
+.cv-gradient{background:radial-gradient(circle at 18% 30%,#f6c9b0,transparent 55%),radial-gradient(circle at 82% 70%,#bcd9ef,transparent 55%),#f1ece2}
+.switch{display:flex;align-items:center;justify-content:space-between;margin:14px 0 4px;font-size:13.5px;font-weight:550;cursor:pointer}
+.switch input{position:absolute;opacity:0}
+.switch i{position:relative;width:36px;height:21px;border-radius:999px;background:var(--line);transition:background .15s}
+.switch i::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:var(--panel);box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .15s}
+.switch input:checked+i{background:var(--accent)}.switch input:checked+i::after{transform:translateX(15px)}
+.switch input:focus-visible+i{outline:2px solid var(--info);outline-offset:2px}
+.small{font-size:12px;margin:10px 0 0}
+@media (prefers-reduced-motion:reduce){.switch i,.switch i::after{transition:none}}
 .spacer{flex:1}
 .tool{border:1px solid var(--line);background:transparent;border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer}
 .tool:hover,.chip-btn:hover{border-color:var(--mute)}
@@ -65,9 +105,11 @@ button:focus-visible,input:focus-visible,[contenteditable]:focus-visible{outline
 #recent .card{position:relative}
 
 /* canvas view */
-#viewport{flex:1;position:relative;overflow:hidden;touch-action:none;cursor:grab;
+#viewport{flex:1;position:relative;overflow:hidden;touch-action:none;cursor:default;user-select:none;-webkit-user-select:none;
   background-image:radial-gradient(var(--dot) 1.2px,transparent 1.2px);background-size:24px 24px}
 #viewport.panning{cursor:grabbing}
+.lasso{position:absolute;z-index:50;pointer-events:none;border:1px solid var(--info);background:color-mix(in srgb,var(--info) 14%,transparent);border-radius:3px}
+.card.sel{outline:2px solid var(--info);outline-offset:2px}
 #world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
 .hint{position:absolute;left:12px;bottom:10px;font-size:12px;color:var(--mute);pointer-events:none}
 .zoomctl{position:absolute;right:12px;bottom:12px;display:flex;gap:6px}
@@ -170,6 +212,19 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
 .col .cards{display:flex;flex-direction:column;gap:10px}
 .colempty{color:var(--mute);font-size:13px;padding:18px 6px;text-align:center;margin:0}
 .kanban .card{position:relative}
+.ktabs,.kanban{user-select:none;-webkit-user-select:none}
+.ktabs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:12px 16px 0}
+.ktab{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:4px 13px;border-radius:999px;font:inherit;font-size:13px;cursor:pointer}
+.ktab[aria-pressed=true]{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.ktab.add{color:var(--mute);border-style:dashed}
+.ktab [contenteditable]{outline:none;min-width:2ch;cursor:text;user-select:text;-webkit-user-select:text}
+.colhead .gbtn{margin-left:auto;opacity:0;transition:opacity .12s}
+.colhead .gbtn+b{margin-left:0}
+.col:hover .colhead .gbtn,.colhead .gbtn:focus-visible{opacity:1}
+@media (hover:none){.colhead .gbtn{opacity:1}}
+.colhead [contenteditable]{outline:none;min-width:2ch;cursor:text;user-select:text;-webkit-user-select:text;background:var(--panel);border-radius:4px;padding:0 4px}
+.coladd{flex:0 0 190px;align-self:flex-start;border:1px dashed var(--line);background:transparent;color:var(--mute);border-radius:16px;padding:14px;font:inherit;font-size:14px;cursor:pointer}
+.coladd:hover{color:var(--ink);border-color:var(--mute)}
 .kboard .card{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
 .kboard .card.kdrag{position:fixed;z-index:100000;box-shadow:0 14px 36px rgba(0,0,0,.3);cursor:grabbing}
 [hidden]{display:none!important}
@@ -180,10 +235,11 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
 <div class="top" id="top"></div>
 
 <div id="recent"></div>
+<div id="ktabs" class="ktabs" hidden></div>
 <div id="kanban" class="kanban" hidden></div>
 <div id="viewport" hidden>
   <div id="world"></div>
-  <div class="hint">drag a card anywhere · right-click the canvas for a new group · drag the background to pan · scroll or pinch to zoom</div>
+  <div class="hint">drag a card anywhere · right-click the canvas for a new group · drag the background to select, middle-drag to pan · scroll or pinch to zoom</div>
   <div class="zoomctl"><button id="zout" aria-label="Zoom out">−</button><button id="zin" aria-label="Zoom in">+</button><button id="zfit" aria-label="Reset view">⌂</button></div>
 </div>
 <p class="empty" id="empty" hidden>No repos match.</p>
@@ -203,15 +259,22 @@ const cardW = () => C('canvas.cardWidth', 280), gapX = () => cardW() + C('canvas
 const COLORS = ['g1','g2','g3','g4','g5','g6'];
 
 let repos = [];                       // latest scan, newest activity first
+const sel = new Set();                // canvas: selected repo names (lasso)
 const els = new Map();                // repo name -> {el, sig}
-let layout = {cards:{}, groups:[], vp:{x:30,y:30,k:1}, board:{}};
+let layout = {cards:{}, groups:[], vp:{x:30,y:30,k:1}, boards:[], activeBoard:''};
 let view = 'grid';
 let filter = 'all', query = '', z = 10;
-let sortBy = 'recent', rev = false, kanbanMode = 'status';
-// Server order is newest activity first; A-Z is by name; reverse flips either.
+const SORTS = ['recent', 'activity', 'language', 'alpha'];
+let sortBy = 'recent', rev = false, kanbanMode = 'board';
+// Server order is newest activity first, and sort() is stable, so every mode below falls back to it
+// for ties. alpha: by name. activity: most commits in the last 7 days first. language: grouped by
+// main language A-Z, repos with no recognised language last. Reverse flips any of them.
+const byName = (a, b) => a.name.localeCompare(b.name, undefined, {sensitivity: 'base', numeric: true});
 function sorted(){
   const l = [...repos];
-  if (sortBy === 'alpha') l.sort((a, b) => a.name.localeCompare(b.name, undefined, {sensitivity: 'base', numeric: true}));
+  if (sortBy === 'alpha') l.sort(byName);
+  else if (sortBy === 'activity') l.sort((a, b) => b.commits_7d - a.commits_7d);
+  else if (sortBy === 'language') l.sort((a, b) => !a.language - !b.language || (a.language || '').localeCompare(b.language || ''));
   return rev ? l.reverse() : l;
 }
 
@@ -220,15 +283,15 @@ function ls(k, v){ try { if (v === undefined) return localStorage.getItem('repod
 /* ---------- settings: applying repodash.json ---------- */
 const defaultView = () => { const v = C('defaults.view', 'auto'); return v === 'auto' ? (matchMedia('(max-width:700px)').matches ? 'grid' : 'canvas') : v; };
 function adoptDefaults(){
-  sortBy = C('defaults.sort', 'recent'); rev = !!C('defaults.reverse', false); kanbanMode = C('defaults.kanbanMode', 'status');
+  sortBy = C('defaults.sort', 'recent'); rev = !!C('defaults.reverse', false); kanbanMode = C('defaults.kanbanMode', 'board');
   view = defaultView(); filter = C('defaults.filter', 'all');
   ls('sort', sortBy); ls('rev', rev ? '1' : '0'); ls('kmode', kanbanMode); ls('view', view);
 }
 function restoreDevice(){
   const v = ls('view'); view = v === 'recent' ? 'grid' : (['grid', 'canvas', 'kanban'].includes(v) ? v : defaultView());
-  sortBy = ['recent', 'alpha'].includes(ls('sort')) ? ls('sort') : C('defaults.sort', 'recent');
+  sortBy = SORTS.includes(ls('sort')) ? ls('sort') : C('defaults.sort', 'recent');
   rev = ls('rev') === null ? !!C('defaults.reverse', false) : ls('rev') === '1';
-  kanbanMode = ['status', 'board'].includes(ls('kmode')) ? ls('kmode') : C('defaults.kanbanMode', 'status');
+  kanbanMode = ['status', 'board'].includes(ls('kmode')) ? ls('kmode') : C('defaults.kanbanMode', 'board');
   filter = C('defaults.filter', 'all');
 }
 // View, sort and friends are remembered per browser, until "defaults" in the settings file changes
@@ -397,6 +460,7 @@ const ICON_LANG = svg('<path d="m8 8-5 4 5 4"/><path d="m16 8 5 4-5 4"/><path d=
 const ICON_SUN = svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>');
 const ICON_MOON = svg('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>');
 const ICON_AUTO = svg('<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/>');
+const ICON_PALETTE = svg('<circle cx="7.5" cy="11" r="1.1"/><circle cx="10.5" cy="7" r="1.1"/><circle cx="15" cy="7.5" r="1.1"/><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.9-1 1.5-2-.4-1.1.3-2.2 1.5-2.2H17a4 4 0 0 0 4-4C21 6.9 17 3 12 3z"/>');
 const ICON_GEAR = svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>');
 let liveState = {cls: '', txt: 'connecting'};
 const seg = (items, key) => items.map(([v, label, icon]) => `<button data-top="${key}:${v}" aria-pressed="false" title="${esc(label)}" aria-label="${esc(label)}">${icon || ''}<span class="lbl">${esc(label)}</span></button>`).join('');
@@ -405,7 +469,8 @@ const BAR = {
   title:      () => `<h1>${esc(C('title', 'RepoDash'))}</h1>`,
   live:       () => `<span class="live ${liveState.cls}" id="live"><i></i><span id="livetxt">${esc(liveState.txt)}</span></span>`,
   view:       () => `<div class="seg icons" role="group" aria-label="View">${seg([['grid', L('viewGrid'), ICON_GRID], ['canvas', L('viewCanvas'), ICON_CANVAS], ['kanban', L('viewKanban'), ICON_KANBAN]], 'view')}</div>`,
-  sort:       () => `<div class="seg" data-only="grid" role="group" aria-label="Sort by">${seg([['recent', L('sortRecent')], ['alpha', L('sortAlpha')]], 'sort')}</div>`,
+  sort:       () => { const o = [['recent', L('sortRecent')], ['activity', L('sortActivity')], ['language', L('sortLanguage')], ['alpha', L('sortAlpha')]];
+    return `<div class="seg" data-only="grid" role="group" aria-label="Sort by">${seg(o, 'sort')}</div><select class="tool sortsel" data-only="grid" aria-label="Sort by" title="Sort by">${o.map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join('')}</select>`; },
   reverse:    () => `<button class="tool icon" data-only="grid" data-top="reverse" aria-pressed="false" title="Reverse the order" aria-label="Reverse the order">${ICON_REV}</button>`,
   kanbanMode: () => `<div class="seg" data-only="kanban" role="group" aria-label="Kanban columns">${seg([['status', L('kanbanStatus')], ['board', L('kanbanBoard')]], 'kmode')}</div>`,
   filters:    () => `<span id="filters" role="group" aria-label="Filter"></span>`,
@@ -415,6 +480,7 @@ const BAR = {
   arrange:    () => `<button class="tool" data-only="canvas" data-top="arrange" title="Re-grid the cards that are not in a group, in the current sort order">${esc(L('arrange'))}</button>`,
   cover:      () => `<span class="coverctl"><select id="coverSel" class="tool" title="Cover style for repos without an image (this browser)" aria-label="Cover style">${[['', 'Cover: file default'], ['aurora', 'Aurora'], ['deep', 'Deep gradient'], ['name', 'Big name'], ['gradient', 'Soft gradient']].map(([v, t]) => `<option value="${v}" ${(ls('cover') || '') === v ? 'selected' : ''}>${t}</option>`).join('')}</select><button class="tool icon" data-top="badge" aria-pressed="${badgeOn()}" title="Language badge on covers" aria-label="Language badge">${ICON_LANG}</button></span>`,
   theme:      () => `<button class="tool icon" data-top="theme" id="themebtn" title="" aria-label="Theme"></button>`,
+  appearance: () => `<button class="tool icon" data-top="appearance" id="appbtn" title="Appearance: theme, cover style, language badge" aria-label="Appearance">${ICON_PALETTE}</button>`,
   settings:   () => `<button class="tool icon" data-top="settings" id="cfgbtn" ${CFG_WARN.length ? 'data-warn="1"' : ''} title="Settings" aria-label="Settings">${ICON_GEAR}</button>`,
 };
 function buildTopBar(){
@@ -425,6 +491,7 @@ function syncChrome(){
   document.querySelectorAll('#top [data-only]').forEach(e => e.hidden = e.dataset.only !== view);
   const on = (prefix, val) => document.querySelectorAll(`#top [data-top^="${prefix}:"]`).forEach(b => b.setAttribute('aria-pressed', b.dataset.top === `${prefix}:${val}`));
   on('view', view); on('sort', sortBy); on('kmode', kanbanMode);
+  document.querySelectorAll('#top .sortsel').forEach(s => s.value = sortBy);
   document.querySelectorAll('#top [data-top="reverse"]').forEach(b => b.setAttribute('aria-pressed', rev));
 }
 $('#top').addEventListener('click', e => {
@@ -440,25 +507,61 @@ $('#top').addEventListener('click', e => {
   else if (k === 'arrange') arrangeCards();
   else if (k === 'theme'){ const o = ['auto', 'light', 'dark']; ls('theme', o[(o.indexOf(themeNow()) + 1) % 3]); applyStyle(); }
   else if (k === 'badge'){ ls('badge', badgeOn() ? '0' : '1'); b.setAttribute('aria-pressed', badgeOn()); rerenderCards(); }
+  else if (k === 'appearance') showAppearance(b);
   else if (k === 'settings') showSettings(b);
 });
 $('#top').addEventListener('change', e => {
+  if (e.target.classList.contains('filtersel')){ filter = e.target.value; renderFilters(); applyFilter(); return; }
+  if (e.target.classList.contains('sortsel')){ sortBy = e.target.value; ls('sort', sortBy); syncChrome(); place(); return; }
   if (e.target.id !== 'coverSel') return;
   if (e.target.value) ls('cover', e.target.value); else try { localStorage.removeItem('repodash.cover'); } catch {}
   rerenderCards();
 });
 $('#top').addEventListener('input', e => { if (e.target.id === 'q'){ query = e.target.value.trim().toLowerCase(); applyFilter(); } });
 
+/* Appearance popover: theme, cover style (with little previews) and language badge. Per browser. */
+const COVERS = [['', 'File default'], ['aurora', 'Aurora'], ['deep', 'Deep'], ['name', 'Big name'], ['gradient', 'Soft']];
+const pop = document.createElement('div'); pop.className = 'panel pop'; pop.hidden = true; document.body.appendChild(pop);
+function popHTML(){
+  const t = themeNow(), cv = ls('cover') || '';
+  return `<h3>Appearance</h3><div class="plabel">Theme</div>
+    <div class="tiles t3">${[['auto', 'Auto', ICON_AUTO], ['light', 'Light', ICON_SUN], ['dark', 'Dark', ICON_MOON]].map(([v, n, i]) => `<button class="tile" data-ap="theme:${v}" aria-pressed="${t === v}">${i}<span>${n}</span></button>`).join('')}</div>
+    <div class="plabel">Cover style <small>for repos without an image</small></div>
+    <div class="tiles t5">${COVERS.map(([v, n]) => `<button class="tile" data-ap="cover:${v}" aria-pressed="${cv === v}"><i class="cv cv-${v || 'file'}">${v === 'name' ? 'Aa' : v === '' ? '↺' : ''}</i><span>${n}</span></button>`).join('')}</div>
+    <label class="switch"><span>Language badge</span><input type="checkbox" data-ap="badge" ${badgeOn() ? 'checked' : ''}><i></i></label>
+    <p class="muted small">Saved in this browser. The defaults are <code>theme</code>, <code>card.coverStyle</code> and <code>card.languageBadge</code> in the settings file.</p>`;
+}
+// Drop a panel under its button, right edges aligned, but never past either side of the window.
+function anchor(el, btn){
+  const r = btn.getBoundingClientRect(), w = el.offsetWidth;
+  el.style.right = 'auto'; el.style.top = r.bottom + 8 + 'px'; el.style.left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8)) + 'px';
+}
+function showAppearance(btn){
+  if (!pop.hidden){ pop.hidden = true; return; }
+  panel.hidden = true; pop.innerHTML = popHTML(); pop.hidden = false;
+  anchor(pop, btn);
+}
+pop.addEventListener('click', e => {
+  const b = e.target.closest('button[data-ap]'); if (!b) return;
+  const [k, v] = b.dataset.ap.split(':');
+  if (k === 'theme'){ ls('theme', v); applyStyle(); }
+  else { if (v) ls('cover', v); else try { localStorage.removeItem('repodash.cover'); } catch {} rerenderCards(); }
+  pop.innerHTML = popHTML();
+});
+pop.addEventListener('change', e => { if (e.target.dataset.ap === 'badge'){ ls('badge', e.target.checked ? '1' : '0'); rerenderCards(); } });
+addEventListener('pointerdown', e => { if (!pop.hidden && !e.target.closest('.pop, #appbtn')) pop.hidden = true; }, true);
+addEventListener('keydown', e => { if (e.key === 'Escape') pop.hidden = true; });
+
 const panel = document.createElement('div'); panel.className = 'panel'; panel.hidden = true; document.body.appendChild(panel);
 function showSettings(btn){
   if (!panel.hidden){ panel.hidden = true; return; }
+  pop.hidden = true;
   panel.innerHTML = `<h3>Settings</h3><p>Everything on this page is set in<br><code>${esc(CFG_PATH)}</code></p>
     <p class="muted">Edit the file and the page updates within a second or two. Agents: read AGENTS.md in the repodash repo.</p>
-    <p class="muted">Cover style, language badge and theme live in the top bar (saved per browser). Their defaults are <code>card.coverStyle</code>, <code>card.languageBadge</code> and <code>theme</code> in the file.</p>
+    <p class="muted">Theme, cover style and the language badge live under the palette button in the top bar (saved per browser). Their defaults are <code>card.coverStyle</code>, <code>card.languageBadge</code> and <code>theme</code> in the file.</p>
     <button class="tool" data-p="copy">Copy path</button>` +
     (CFG_WARN.length ? `<ul class="warns">${CFG_WARN.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : '<p class="good">No problems in the settings file.</p>');
-  const r = btn.getBoundingClientRect(); panel.hidden = false;
-  panel.style.top = r.bottom + 8 + 'px'; panel.style.right = Math.max(8, innerWidth - r.right) + 'px';
+  panel.hidden = false; anchor(panel, btn);
 }
 function rerenderCards(){ for (const e of els.values()) e.sig = ''; applyRepos(repos); setView(view); }
 panel.addEventListener('click', async e => { if (e.target.closest('[data-p=copy]')) toast(await copyText(CFG_PATH) ? 'Copied the settings path' : 'Path: ' + CFG_PATH); });
@@ -486,7 +589,7 @@ function applyRepos(list){
       e.el.innerHTML = cardHTML(r);
       e.el.querySelectorAll('details').forEach((d,i) => d.open = !!open[i]);
     }
-    e.el.className = 'card ' + r.level + (view === 'canvas' ? ' on-canvas' : '');
+    e.el.className = 'card ' + r.level + (view === 'canvas' ? ' on-canvas' : '') + (sel.has(r.name) ? ' sel' : '');
   }
   for (const [n,e] of els) if (!seen.has(n)){ e.el.remove(); els.delete(n); }
   renderFilters();
@@ -499,9 +602,10 @@ function renderFilters(){
   const box = $('#filters'); if (!box) return;
   const counts = {bad:0, warn:0, ok:0, stale:0};
   repos.forEach(r => counts[r.level]++);
-  const btn = (f, t, n) => `<button class="chip-btn ${f}" data-f="${f}" aria-pressed="${filter === f}">${f === 'all' ? '' : '<i></i>'}${esc(t)}<b>${n}</b></button>`;
-  box.innerHTML = btn('all', L('all'), repos.length) +
-    C('topbar.filters', []).filter(k => S(k).show !== false && (counts[k] || filter === k)).map(k => ' ' + btn(k, S(k).label, counts[k])).join('');
+  const btn = (f, t, n) => `<button class="chip-btn ${f}" data-f="${f}" aria-pressed="${filter === f}" title="${esc(t)}">${f === 'all' ? '' : '<i></i>'}<span class="t">${esc(t)}</span><b>${n}</b></button>`;
+  const shown = C('topbar.filters', []).filter(k => S(k).show !== false && (counts[k] || filter === k));
+  box.innerHTML = `<span class="chips">${btn('all', L('all'), repos.length) + shown.map(k => ' ' + btn(k, S(k).label, counts[k])).join('')}</span>` +
+    `<select class="tool filtersel" aria-label="Filter by status">${[['all', L('all'), repos.length], ...shown.map(k => [k, S(k).label, counts[k]])].map(([f, t, n]) => `<option value="${f}" ${filter === f ? 'selected' : ''}>${esc(t)} (${n})</option>`).join('')}</select>`;
 }
 function applyFilter(){
   let n = 0;
@@ -514,36 +618,113 @@ function applyFilter(){
 }
 
 /* ---------- views ---------- */
-function setView(v){
-  view = v; ls('view', v);
-  $('#recent').hidden = v !== 'grid'; $('#viewport').hidden = v !== 'canvas'; $('#kanban').hidden = v !== 'kanban';
+function setView(v, persist = true){
+  view = v; if (persist) ls('view', v);
+  $('#recent').hidden = v !== 'grid'; $('#viewport').hidden = v !== 'canvas'; $('#kanban').hidden = v !== 'kanban'; if (v !== 'kanban') $('#ktabs').hidden = true;
   for (const e of els.values()) e.el.classList.toggle('on-canvas', v === 'canvas');
   syncChrome(); place();
 }
 
+// Canvas is free placement and cannot reflow, so on a narrow window it is shown as the one-column grid.
+// The saved choice is left alone, and canvas comes back when the window is wide again.
+const narrowMQ = matchMedia('(max-width:700px)'); let demoted = false;
+function fitView(){
+  if (narrowMQ.matches && view === 'canvas'){ demoted = true; setView('grid', false); }
+  else if (!narrowMQ.matches && demoted){ demoted = false; if (ls('view') === 'canvas') setView('canvas', false); }
+}
+
 /* ---------- kanban ---------- */
-// "status": one column per status, filled automatically. "board": columns from
-// settings (kanban.columns) plus Unsorted; you drag repos between them and the
-// assignment is saved in layout.json. A repo whose column was removed from the
-// settings falls back to Unsorted.
+// "board" (default): your own boards. Each board has columns you name, add, move and delete, and you
+// drag repos between them. Boards, columns and assignments live in layout.json. A repo whose column
+// was deleted, or that was never placed, sits in Unsorted. "status": one read-only column per
+// status, filled automatically.
+const uid = () => Math.random().toString(36).slice(2, 8);
+const newBoard = name => ({id: uid(), name, cols: C('kanban.columns', []).map(t => ({id: uid(), t})), assign: {}});
+function curBoard(){
+  if (!layout.boards.length) layout.boards.push(newBoard('Board'));
+  let b = layout.boards.find(x => x.id === layout.activeBoard);
+  if (!b){ b = layout.boards[0]; layout.activeBoard = b.id; }
+  return b;
+}
 function kanbanColumns(){
   if (kanbanMode === 'status')
     return C('topbar.filters', []).map(k => ({id: k, title: S(k).label, color: `var(--${k})`, has: r => r.level === k}));
-  const names = C('kanban.columns', []), colOf = r => names.includes(layout.board[r.name]) ? layout.board[r.name] : '';
-  return [{id: '', title: C('kanban.unsortedLabel', 'Unsorted'), has: r => colOf(r) === ''}, ...names.map(n => ({id: n, title: n, has: r => colOf(r) === n}))];
+  const b = curBoard(), colOf = r => b.cols.some(c => c.id === b.assign[r.name]) ? b.assign[r.name] : '';
+  return [{id: '', title: C('kanban.unsortedLabel', 'Unsorted'), has: r => colOf(r) === ''}, ...b.cols.map(c => ({id: c.id, title: c.t, own: true, has: r => colOf(r) === c.id}))];
+}
+// Inline rename: the element becomes editable, Enter or blur commits, Escape cancels.
+function editText(el, done){
+  const old = el.textContent; el.contentEditable = 'plaintext-only'; el.focus();
+  const r = document.createRange(); r.selectNodeContents(el); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(r);
+  let over = false;
+  const fin = ok => { if (over) return; over = true; el.removeAttribute('contenteditable'); done(ok ? el.textContent.trim() || old : old); };
+  el.addEventListener('blur', () => fin(true), {once: true});
+  el.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); fin(true); } else if (e.key === 'Escape'){ fin(false); } });
+  el.addEventListener('click', e => e.stopPropagation());
+}
+function renderKTabs(){
+  const box = $('#ktabs'); box.hidden = !(view === 'kanban' && kanbanMode === 'board'); if (box.hidden) return;
+  box.replaceChildren(...layout.boards.map(b => {
+    const t = document.createElement('div'); t.className = 'ktab'; t.tabIndex = 0; t.setAttribute('role', 'button'); t.setAttribute('aria-pressed', b.id === layout.activeBoard);
+    t.dataset.board = b.id; t.innerHTML = `<span>${esc(b.name)}</span>`; return t;
+  }));
+  const add = document.createElement('div'); add.className = 'ktab add'; add.tabIndex = 0; add.setAttribute('role', 'button'); add.dataset.board = '+'; add.title = 'New board'; add.textContent = '+ Board';
+  box.appendChild(add);
+}
+function boardMenu(x, y){
+  const b = curBoard(), i = layout.boards.indexOf(b);
+  openMenu(x, y, [['Rename board', () => editText($(`.ktab[data-board="${b.id}"] span`), n => { b.name = n; save(); renderKTabs(); })],
+    ['Move left', () => { if (i > 0){ layout.boards.splice(i, 1); layout.boards.splice(i - 1, 0, b); save(); renderKTabs(); } }],
+    ['Move right', () => { if (i < layout.boards.length - 1){ layout.boards.splice(i, 1); layout.boards.splice(i + 1, 0, b); save(); renderKTabs(); } }], '-',
+    ['Delete board', () => { if (layout.boards.length < 2) return toast('Keep at least one board');
+      if (!confirm(`Delete board "${b.name}"? The repos stay; only the board is removed.`)) return;
+      layout.boards.splice(i, 1); layout.activeBoard = ''; curBoard(); save(); place(); }]]);
+}
+$('#ktabs').addEventListener('click', e => {
+  const t = e.target.closest('.ktab'); if (!t || t.querySelector('[contenteditable]') && e.target.closest('[contenteditable]')) return;
+  if (t.dataset.board === '+'){
+    const b = newBoard('Board ' + (layout.boards.length + 1)); layout.boards.push(b); layout.activeBoard = b.id; save(); place();
+    editText($(`.ktab[data-board="${b.id}"] span`), n => { b.name = n; save(); renderKTabs(); });
+  } else if (t.dataset.board === layout.activeBoard){ const r = t.getBoundingClientRect(); boardMenu(r.left, r.bottom + 4); }
+  else { layout.activeBoard = t.dataset.board; save(); place(); }
+});
+$('#ktabs').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('ktab')){ e.preventDefault(); e.target.click(); } });
+$('#ktabs').addEventListener('dblclick', e => { const t = e.target.closest('.ktab:not(.add)'); if (!t) return; const b = layout.boards.find(x => x.id === t.dataset.board);
+  editText(t.querySelector('span'), n => { b.name = n; save(); renderKTabs(); }); });
+function colMenu(c, x, y){
+  const b = curBoard(), i = b.cols.indexOf(c), mv = d => { b.cols.splice(i, 1); b.cols.splice(i + d, 0, c); save(); place(); };
+  openMenu(x, y, [['Rename column', () => startColEdit(c.id)], ['Move left', () => i > 0 && mv(-1)], ['Move right', () => i < b.cols.length - 1 && mv(1)], '-',
+    ['Delete column', () => { b.cols.splice(i, 1); save(); place(); }]]);
+}
+function startColEdit(id){
+  const c = curBoard().cols.find(x => x.id === id), t = $(`#kanban .col[data-col="${id}"] .coltitle`); if (!c || !t) return;
+  editText(t, n => { c.t = n; save(); place(); });
 }
 function placeKanban(){
-  const box = $('#kanban'), list = sorted();
-  box.className = 'kanban' + (kanbanMode === 'board' ? ' kboard' : '');
-  box.replaceChildren(...kanbanColumns().map(c => {
+  const box = $('#kanban'), list = sorted(), isBoard = kanbanMode === 'board';
+  box.className = 'kanban' + (isBoard ? ' kboard' : '');
+  renderKTabs();
+  const cols = kanbanColumns().map(c => {
     const col = document.createElement('section'); col.className = 'col'; col.dataset.col = c.id;
     const mine = list.filter(c.has);
-    col.innerHTML = `<div class="colhead">${c.color ? `<i style="--c:${c.color}"></i>` : ''}<span>${esc(c.title)}</span><b>${mine.length}</b></div><div class="cards"></div>`;
+    col.innerHTML = `<div class="colhead">${c.color ? `<i style="--c:${c.color}"></i>` : ''}<span class="coltitle">${esc(c.title)}</span>${c.own ? '<button class="gbtn" data-a="menu" title="Column options" aria-label="Column options">⋯</button>' : ''}<b>${mine.length}</b></div><div class="cards"></div>`;
     const cards = col.querySelector('.cards');
     mine.forEach(r => { const el = els.get(r.name).el; el.style.left = el.style.top = el.style.zIndex = ''; cards.appendChild(el); });
-    if (!mine.length) cards.innerHTML = `<p class="colempty">${kanbanMode === 'board' ? 'Drag a repo here' : 'Nothing here'}</p>`;
+    if (!mine.length) cards.innerHTML = `<p class="colempty">${isBoard ? 'Drag a repo here' : 'Nothing here'}</p>`;
+    if (c.own){
+      const own = curBoard().cols.find(x => x.id === c.id);
+      col.querySelector('.coltitle').addEventListener('dblclick', () => startColEdit(c.id));
+      col.querySelector('.colhead').addEventListener('contextmenu', e => { e.preventDefault(); colMenu(own, e.clientX, e.clientY); });
+      col.querySelector('[data-a=menu]').addEventListener('click', e => { const r = e.currentTarget.getBoundingClientRect(); colMenu(own, r.left, r.bottom + 4); });
+    }
     return col;
-  }));
+  });
+  if (isBoard){
+    const add = document.createElement('button'); add.className = 'coladd'; add.textContent = '+ Column';
+    add.onclick = () => { const c = {id: uid(), t: 'New column'}; curBoard().cols.push(c); save(); place(); startColEdit(c.id); };
+    cols.push(add);
+  }
+  box.replaceChildren(...cols);
 }
 function kanbanDrag(el, e){
   if (e.target.closest('button, summary, a, input') || e.button > 0) return;
@@ -566,7 +747,7 @@ function kanbanDrag(el, e){
     over?.classList.remove('over'); el.classList.remove('kdrag'); el.style.width = el.style.left = el.style.top = '';
     if (on && over && ev.type === 'pointerup'){
       const name = el.dataset.name, id = over.dataset.col;
-      if (id) layout.board[name] = id; else delete layout.board[name];
+      const b = curBoard(); if (id) b.assign[name] = id; else delete b.assign[name];
       save();
     }
     if (on) place();
@@ -635,7 +816,11 @@ $('#zin').onclick = () => { const r = rectOf(); zoomAt(r.width/2, r.height/2, la
 $('#zout').onclick = () => { const r = rectOf(); zoomAt(r.width/2, r.height/2, layout.vp.k / 1.2); };
 $('#zfit').onclick = () => { layout.vp = {x:30,y:30,k:1}; applyVP(); save(); };
 
-vp.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });   // no autoscroll cursor
+vp.addEventListener('mousedown', e => {
+  if (e.button === 1) e.preventDefault();                       // no autoscroll cursor
+  else if (e.button === 0 && !e.target.closest('[contenteditable], input, button')){   // no text selection, so the next drag is not a native drag of it
+    e.preventDefault(); getSelection().removeAllRanges(); if (document.activeElement?.blur) document.activeElement.blur(); }
+});
 vp.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
 const pointers = new Map(); let pinch = null, lp = {t: 0};
 vp.addEventListener('pointerdown', e => {
@@ -643,6 +828,7 @@ vp.addEventListener('pointerdown', e => {
   if (middle) e.preventDefault();
   if ((!middle && e.target.closest('.card, .gbar, .grip, .zoomctl')) || e.button > 1 || (e.button === 1 && e.target.closest('.zoomctl'))) return;
   vp.setPointerCapture(e.pointerId);
+  if (e.pointerType === 'mouse' && !middle) return startLasso(e);   // left button selects; touch still pans
   pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
   vp.classList.add('panning');
   clearTimeout(lp.t);
@@ -666,6 +852,30 @@ vp.addEventListener('pointermove', e => {
 const endPan = e => { clearTimeout(lp.t); if (!pointers.delete(e.pointerId)) return; pinch = null; if (!pointers.size){ vp.classList.remove('panning'); save(); } };
 vp.addEventListener('pointerup', endPan); vp.addEventListener('pointercancel', endPan);
 
+/* lasso: left-drag on empty canvas selects the cards the rectangle touches; shift adds */
+function paintSel(){ for (const [n, e] of els) e.el.classList.toggle('sel', sel.has(n)); }
+function startLasso(e){
+  const r0 = rectOf(), sx = e.clientX, sy = e.clientY, keep = e.shiftKey ? new Set(sel) : new Set();
+  const box = document.createElement('div'); box.className = 'lasso'; let moved = false;
+  const mv = ev => {
+    const x1 = Math.min(sx, ev.clientX), x2 = Math.max(sx, ev.clientX), y1 = Math.min(sy, ev.clientY), y2 = Math.max(sy, ev.clientY);
+    if (!moved && x2 - x1 + y2 - y1 < 6) return;
+    if (!moved){ moved = true; vp.appendChild(box); }
+    box.style.cssText = `left:${x1 - r0.left}px;top:${y1 - r0.top}px;width:${x2 - x1}px;height:${y2 - y1}px`;
+    sel.clear(); keep.forEach(n => sel.add(n));
+    for (const [n, c] of els){ const b = c.el.getBoundingClientRect(); if (b.right >= x1 && b.left <= x2 && b.bottom >= y1 && b.top <= y2) sel.add(n); }
+    paintSel();
+  };
+  const end = ev => {
+    vp.removeEventListener('pointermove', mv); vp.removeEventListener('pointerup', end); vp.removeEventListener('pointercancel', end);
+    try { vp.releasePointerCapture(ev.pointerId); } catch {}
+    box.remove();
+    if (!moved && !e.shiftKey){ sel.clear(); paintSel(); }
+  };
+  vp.addEventListener('pointermove', mv); vp.addEventListener('pointerup', end); vp.addEventListener('pointercancel', end);
+}
+addEventListener('keydown', e => { if (e.key === 'Escape' && sel.size){ sel.clear(); paintSel(); } });
+
 /* ---------- canvas: dragging cards ---------- */
 function drag(el, handleEvent, onMove, onEnd){
   const k = () => layout.vp.k;
@@ -685,10 +895,14 @@ function wireCard(el){
     if (view === 'kanban' && kanbanMode === 'board') return kanbanDrag(el, e);
     if (view !== 'canvas' || e.target.closest('button, summary, a, input') || e.button > 0) return;
     e.preventDefault(); e.stopPropagation();
-    const name = el.dataset.name, p = layout.cards[name], x0 = p.x, y0 = p.y;
-    el.style.zIndex = ++z; el.classList.add('dragging');
-    drag(el, e, (dx,dy) => { p.x = Math.round(x0 + dx); p.y = Math.round(y0 + dy); el.style.left = p.x+'px'; el.style.top = p.y+'px'; },
-      () => { el.classList.remove('dragging'); save(); });
+    const name = el.dataset.name;
+    if (e.shiftKey){ sel.has(name) ? sel.delete(name) : sel.add(name); paintSel(); return; }
+    if (!sel.has(name)){ sel.clear(); paintSel(); }              // grabbing an unselected card drops the selection
+    const mem = (sel.has(name) ? [...sel] : [name]).filter(n => layout.cards[n] && els.get(n))
+      .map(n => [layout.cards[n], layout.cards[n].x, layout.cards[n].y, els.get(n).el]);
+    el.style.zIndex = ++z; mem.forEach(m => m[3].classList.add('dragging'));
+    drag(el, e, (dx,dy) => { for (const [p, x0, y0, ce] of mem){ p.x = Math.round(x0 + dx); p.y = Math.round(y0 + dy); ce.style.left = p.x+'px'; ce.style.top = p.y+'px'; } },
+      () => { mem.forEach(m => m[3].classList.remove('dragging')); save(); });
   });
 }
 
@@ -842,7 +1056,13 @@ function save(){ clearTimeout(saveTimer); saveTimer = setTimeout(() =>
   fetch('/api/layout', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(layout)}).catch(() => {}), 400); }
 async function loadLayout(){
   try { const l = await (await fetch('/api/layout')).json();
-    layout = {cards: l.cards || {}, groups: l.groups || [], vp: l.vp || {x:30,y:30,k:1}, board: l.board || {}}; } catch {}
+    layout = {cards: l.cards || {}, groups: l.groups || [], vp: l.vp || {x:30,y:30,k:1}, boards: Array.isArray(l.boards) ? l.boards : [], activeBoard: l.activeBoard || ''};
+    if (!layout.boards.length && l.board && Object.keys(l.board).length){   // saved by an older version: one board, columns named in the settings file
+      const b = newBoard('Board'); for (const t of new Set(Object.values(l.board))) if (!b.cols.some(c => c.t === t)) b.cols.push({id: uid(), t});
+      for (const [repo, t] of Object.entries(l.board)) b.assign[repo] = b.cols.find(c => c.t === t).id;
+      layout.boards.push(b); layout.activeBoard = b.id;
+    } } catch {}
+  curBoard();
 }
 
 /* ---------- live feed ---------- */
@@ -860,7 +1080,8 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) fetc
   try { applyConfig(await (await fetch('/api/config')).json(), true); }
   catch { document.body.textContent = 'Could not load /api/config. Is repodash running?'; return; }
   await loadLayout();
-  setView(view);
+  setView(view); fitView();
+  narrowMQ.addEventListener('change', fitView);
   connect();
   setInterval(tickAgo, 20000);
 })();

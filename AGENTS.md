@@ -22,7 +22,7 @@ its settings**, and how to **change the code**.
 | Source | `~/gitrepos/repodash` (module `repodash`, Go 1.22+, no dependencies) |
 | Run it | `./repodash` then open <http://127.0.0.1:8092> |
 | Settings file | `repodash.json` **in this repo**, next to the binary (created on first run, tracked in git). Override with `-config FILE` or `$REPODASH_CONFIG` |
-| Card positions, groups, kanban columns | `~/.local/share/repodash/layout.json` (`$XDG_DATA_HOME` respected) |
+| Card positions, groups, kanban boards and columns | `~/.local/share/repodash/layout.json` (`$XDG_DATA_HOME` respected) |
 | Images added in the UI | `~/.local/share/repodash/images/<repo>.<ext>` |
 | Log when started in the background | `~/.local/share/repodash/repodash.log` |
 | Defaults, embedded in the binary | `default-config.json` (`repodash -print-config` prints it) |
@@ -61,14 +61,14 @@ All keys, with their defaults. Lists replace the default list entirely.
 | `scan.intervalSeconds` | 2-3600 | `15` | Rescan interval while a browser tab is open. Nothing is scanned when nobody is watching |
 | `scan.staleDays` | 1-3650 | `30` | A clean repo with no commit for this long is "Quiet" |
 | `defaults.view` | `auto` `grid` `canvas` `kanban` | `auto` | `auto` = canvas on wide screens, grid on phones |
-| `defaults.kanbanMode` | `status` `board` | `status` | Kanban columns by status, or your own board |
-| `defaults.sort` | `recent` `alpha` | `recent` | Grid sort order |
+| `defaults.kanbanMode` | `status` `board` | `board` | Kanban opens on your own boards, or on automatic columns by status |
+| `defaults.sort` | `recent` `activity` `language` `alpha` | `recent` | Grid sort order. `recent` newest commit or edit first; `activity` most commits in the last 7 days first; `language` grouped by main language A-Z (no language last); `alpha` by name. Ties fall back to `recent`. Canvas *Arrange* and Kanban follow the same order |
 | `defaults.reverse` | true/false | `false` | Reverse the sort |
 | `defaults.filter` | `all` `bad` `warn` `ok` `stale` | `all` | Status filter on load |
 | `defaults.remember` | true/false | `true` | Browsers remember their last view/sort. When `defaults.*` changes, the new defaults win once |
 | `topbar.items` | list | see below | Which controls appear, in this order |
 | `topbar.filters` | list of `bad` `warn` `ok` `stale` | all four | Which status buttons and kanban status columns, in this order |
-| `labels.*` | strings | see file | Button text: `viewGrid` `viewCanvas` `viewKanban` `kanbanStatus` `kanbanBoard` `sortRecent` `sortAlpha` `all` `search` `addGroup` `arrange` |
+| `labels.*` | strings | see file | Button text: `viewGrid` `viewCanvas` `viewKanban` `kanbanStatus` `kanbanBoard` `sortRecent` `sortActivity` `sortLanguage` `sortAlpha` `all` `search` `addGroup` `arrange` |
 | `statuses.<bad\|warn\|ok\|stale>.label` | string | Needs action / Loose ends / Clean / Quiet | Name shown on pills, buttons, columns |
 | `statuses.<k>.color`, `.darkColor` | hex `#rgb` or `#rrggbb` | see file | Light and dark theme colour. Text on filled buttons is chosen for contrast automatically |
 | `statuses.<k>.show` | true/false | `true` | Show or hide that status button in the top bar |
@@ -82,7 +82,7 @@ All keys, with their defaults. Lists replace the default list entirely.
 | `canvas.columns` | 1-12 | `4` | Columns when arranging cards |
 | `canvas.cardWidth` | 200-600 | `280` | Card width in px (also kanban column width) |
 | `canvas.gap` | 0-200 | `30` | Space between cards when arranging |
-| `kanban.columns` | list of names | `["Active","Paused","Ideas","Done"]` | Board columns (My board mode). Repos with no column, or whose column was removed, sit in Unsorted |
+| `kanban.columns` | list of names | `["Todo","Doing","Done"]` | Columns a **new** board starts with. Each board then has its own columns, which you add, rename, move and delete in the page (they are saved in `layout.json`, not here). Repos with no column sit in Unsorted |
 | `kanban.unsortedLabel` | string | `"Unsorted"` | Name of that first column |
 | `covers.names` | list of file base names | logo, icon, cover, banner, hero, screenshot, preview, thumbnail, og, social | Cover candidates (`logo.png`, `logo-navbar.png`, ...) |
 | `covers.dirs` | list of folders | assets, docs, public, static, images, img, .github, resources | Folders searched after the repo root |
@@ -93,10 +93,13 @@ All keys, with their defaults. Lists replace the default list entirely.
 | `repos.<name>.hidden` | true/false | `false` | Leave the repo out entirely |
 
 `topbar.items` default: `title live view sort reverse kanbanMode filters search spacer addGroup
-arrange cover theme settings`. Allowed values are exactly those names. Some only show in one view: `sort` and
-`reverse` in Grid, `kanbanMode` in Kanban, `addGroup` and `arrange` in Canvas. `cover` is the cover style
-select plus the language-badge toggle; `theme` cycles auto, light, dark. Both save per browser and override
-`card.coverStyle`, `card.languageBadge` and `theme` in the file until the browser's choice is cleared.
+arrange appearance settings`. Allowed values are exactly those names plus `cover` and `theme`. Some only show in one view: `sort` and
+`reverse` in Grid, `kanbanMode` in Kanban, `addGroup` and `arrange` in Canvas. `appearance` is a palette button that opens
+a popover with the theme (auto, light, dark), the cover style (with previews) and the language-badge toggle. These save per
+browser and override `theme`, `card.coverStyle` and `card.languageBadge` in the file until the browser's choice is cleared.
+(`cover` and `theme` are the older separate controls: a cover-style select with a badge button, and a theme cycle button.)
+On narrower windows the bar adapts by itself: sort buttons become a dropdown below 1640px, status buttons lose their
+text below 1320px, view buttons below 1100px, and below 700px the status buttons become a dropdown, the search box shrinks to fit and Canvas is shown as the one-column Grid (your saved choice returns when the window widens).
 
 The settings file is found next to the executable, so run the binary built in this folder (`go build`, then `./repodash`). `go run` builds into a temporary folder and would look for it there; use `-config` or `$REPODASH_CONFIG` in that case.
 
@@ -148,8 +151,11 @@ comes from the modification times of uncommitted files.
   touch) for *New group here*, *Arrange cards*, *Reset view*. A group frame moves the cards whose
   centre is inside it. Rename a group by double-clicking its title bar. Positions are saved in
   `layout.json`.
-- **Kanban**: *By status* is automatic. *My board* columns come from `kanban.columns`; drag a card
-  to a column. The assignment is saved in `layout.json` under `board`.
+- **Kanban**: *Boards* (the default) are yours: tabs across the top switch boards, **+ Board** adds one, and
+  clicking the active tab opens rename / move / delete. In a board, **+ Column** adds a column, double-click a
+  title to rename it, the **⋯** button (or right-click the title) moves or deletes it, and you drag a repo card
+  to any column. New boards start with the columns in `kanban.columns` (Todo, Doing, Done). Everything is saved
+  in `layout.json` under `boards` and `activeBoard`. *By status* is the automatic read-only alternative.
 - **Card icons**: picture icon sets a cover (or drop an image file on the card); terminal icon
   jumps to that repo's tmux tab, or opens one; copy icon copies `cd <path>`.
 - **Gear button**: shows the settings file path and any problems with it.

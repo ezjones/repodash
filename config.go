@@ -28,7 +28,7 @@ var defaultConfigJSON []byte
 
 var (
 	statusKeys  = []string{"bad", "warn", "ok", "stale"}
-	barItems    = []string{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "spacer", "addGroup", "arrange", "cover", "theme", "settings"}
+	barItems    = []string{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "spacer", "addGroup", "arrange", "cover", "theme", "appearance", "settings"}
 	cardActions = []string{"image", "terminal", "copy"}
 	coverStyles = []string{"aurora", "deep", "gradient", "name"}
 	hexColor    = regexp.MustCompile(`^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$`)
@@ -202,7 +202,7 @@ func validate(m, def map[string]any, w *[]string) {
 	oneOf("theme", "auto", "light", "dark")
 	oneOf("defaults.view", "auto", "grid", "canvas", "kanban")
 	oneOf("defaults.kanbanMode", "status", "board")
-	oneOf("defaults.sort", "recent", "alpha")
+	oneOf("defaults.sort", "recent", "activity", "language", "alpha")
 	oneOf("card.coverStyle", coverStyles...)
 	oneOf("defaults.filter", append([]string{"all"}, statusKeys...)...)
 	num("scan.intervalSeconds", 2, 3600)
