@@ -104,7 +104,11 @@ button:focus-visible,input:focus-visible,[contenteditable]:focus-visible{outline
 .pill.bad{background:var(--bad);color:var(--on-bad)}
 .pill.warn{color:var(--warn);box-shadow:inset 0 0 0 1.5px var(--warn)}
 .pill.ok{color:var(--ok)}
-.cover .rm{z-index:1;position:absolute;right:6px;top:6px;width:26px;height:26px;background:color-mix(in srgb,var(--panel) 85%,transparent);color:var(--ink)}
+.covbtns{position:absolute;z-index:1;top:6px;right:6px;display:flex;gap:4px}
+.covbtns .ib{background:color-mix(in srgb,var(--panel) 82%,transparent);color:var(--ink);backdrop-filter:blur(4px)}
+.covbtns .ib:hover{background:var(--panel)}
+@media (hover:hover){.covbtns{opacity:0;transition:opacity .12s}.card:hover .covbtns,.covbtns:focus-within{opacity:1}}
+@media (prefers-reduced-motion:reduce){.covbtns{transition:none}}
 .card.dropping{outline:2px dashed var(--info);outline-offset:3px}
 .card header{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0 2px;cursor:default}
 .on-canvas{position:absolute;width:var(--card-w,280px)}
@@ -281,11 +285,13 @@ function art(name){
   artCache.set(name, html); return html;
 }
 const pillHTML = (r, cls = '') => `<span class="pill ${r.level} ${cls}"><i></i>${esc(S(r.level).label)}</span>`;
+const imageBtn = r => `<button class="ib" data-act="image" title="Set a cover image" aria-label="Set a cover image for ${esc(r.name)}">${ICON_IMG}</button>`;
 function coverHTML(r){
   if (!C('card.cover', true)) return '';
   const media = r.image ? `<img src="${esc(r.image)}" alt="" loading="lazy" draggable="false">` : art(r.name);
   const rm = r.image_src === 'custom' ? '<button class="ib rm" data-act="rmimg" title="Remove cover image" aria-label="Remove cover image">✕</button>' : '';
-  return `<div class="cover ${r.image ? r.image_fit : 'art'}">${media}${pillHTML(r)}${rm}</div>`;
+  const set = C('card.actions', []).includes('image') ? imageBtn(r) : '';
+  return `<div class="cover ${r.image ? r.image_fit : 'art'}">${media}${pillHTML(r)}${rm || set ? `<span class="covbtns">${rm}${set}</span>` : ''}</div>`;
 }
 
 /* ---------- card markup ---------- */
@@ -318,7 +324,7 @@ function cardHTML(r){
     r.worktrees.map(w => `<li class="${w.merged?'merged':''}">${esc(w.branch)}${w.merged?' <b>merged</b>':''}${w.dirty?` <i>${w.dirty} dirty</i>`:''}</li>`).join('')}</ul></details>` : '';
   const bars = '▮'.repeat(Math.min(r.commits_7d, 12)) || '–';
   const btn = {
-    image: `<button class="ib" data-act="image" title="Set a cover image" aria-label="Set a cover image for ${esc(r.name)}">${ICON_IMG}</button>`,
+    image: C('card.cover', true) ? '' : imageBtn(r),   // with a cover, the image button lives in its corner
     terminal: `<button class="ib" data-act="open" title="Open in tmux (jump to this project's tab)" aria-label="Open ${esc(r.name)} in tmux">${ICON_TERM}</button>`,
     copy: `<button class="ib" data-act="copy" title="Copy: cd ${esc(r.path)}" aria-label="Copy cd command for ${esc(r.name)}">${ICON_COPY}</button>`,
   };

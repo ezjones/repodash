@@ -76,7 +76,7 @@ All keys, with their defaults. Lists replace the default list entirely.
 | `card.cover` | true/false | `true` | Cover image/art on cards. If off, the status pill moves into the header |
 | `card.coverHeight` | 40-300 | `98` | Cover height in px |
 | `card.branch` `note` `chips` `activity` `week` `worktrees` `agent` | true/false | `true` | Show or hide each card section |
-| `card.actions` | list of `image` `terminal` `copy` | all three | Header icon buttons, in this order |
+| `card.actions` | list of `image` `terminal` `copy` | all three | Which buttons a card has. `terminal` and `copy` are header icons, in this order. `image` sits in the top-right corner of the cover (shown on hover; always visible on touch), or in the header if `card.cover` is off |
 | `canvas.columns` | 1-12 | `4` | Columns when arranging cards |
 | `canvas.cardWidth` | 200-600 | `280` | Card width in px (also kanban column width) |
 | `canvas.gap` | 0-200 | `30` | Space between cards when arranging |
