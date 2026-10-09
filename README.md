@@ -131,7 +131,21 @@ Pane options vanish with the pane, so a closed tab never leaves a stale badge be
 
 ## Install and run
 
-You need Go 1.22 or newer and git. tmux is optional (it powers the jump-to-terminal button).
+You need git. tmux is optional (it powers the jump-to-terminal button).
+
+The quickest way is the install script. It picks the right build for your OS and CPU (Linux, macOS,
+or Windows through WSL2; amd64 or arm64), checks its checksum, and puts `repodash` in
+`~/.local/bin` without needing sudo:
+
+```sh
+curl -fsSL https://github.com/ezjones/repodash/releases/latest/download/install.sh | sh
+repodash
+```
+
+Set `VERSION=v0.1.0` to pin a release or `PREFIX=/some/dir` to install somewhere else. Installed
+this way, your settings live in `~/.config/repodash/repodash.json`.
+
+To build from source instead you need Go 1.22 or newer:
 
 ```sh
 git clone https://github.com/ezjones/repodash.git
@@ -149,6 +163,8 @@ By default it scans the folders directly inside `~/gitrepos`. Point it somewhere
 ./repodash -root ~/code
 ```
 
+(If you installed with the script, run `repodash` rather than `./repodash`.)
+
 It is developed and used on Windows through WSL2, which means the Linux build. Plain Linux works the
 same way, and macOS should too. Native Windows (outside WSL) is untested. Under WSL2, `localhost` is
 forwarded, so you can open <http://127.0.0.1:8092> in a Windows browser. See
@@ -161,14 +177,15 @@ forwarded, so you can open <http://127.0.0.1:8092> in a Windows browser. See
 | `-root DIR` | Folder that contains your repos (default `~/gitrepos`) |
 | `-addr HOST:PORT` | Listen address (default `127.0.0.1:8092`) |
 | `-allow-host a,b` | Names the page may be opened by, when it is reachable by name |
-| `-config FILE` | Settings file (default: `repodash.json` next to the binary) |
+| `-config FILE` | Settings file (default: `repodash.json` next to the binary in a source checkout, otherwise `~/.config/repodash/repodash.json`) |
 | `-check` | Validate the settings file, print problems, exit 1 if there are any |
 | `-json` | Scan once and print the result as JSON |
+| `-version` | Print the version and exit |
 | `-print-config` | Print every setting with its default |
 
 ## Settings
 
-The first run creates `repodash.json` next to the binary, with every setting at its default. Edit
+The first run creates `repodash.json` (next to the binary in a source checkout, otherwise in `~/.config/repodash/`), with every setting at its default. Edit
 it while RepoDash is running. Every key is optional, so you can delete anything you do not want to
 change. `./repodash -check` validates the file and explains each problem.
 

@@ -31,6 +31,9 @@ import (
 //go:embed web
 var webFS embed.FS
 
+// version is set at release build time with -ldflags "-X main.buildVersion=...".
+var buildVersion = "dev"
+
 func main() {
 	home, _ := os.UserHomeDir()
 	root := flag.String("root", filepath.Join(home, "gitrepos"), "directory holding the repos")
@@ -39,8 +42,13 @@ func main() {
 	cfgPath := flag.String("config", "", "settings file (default: repodash.json next to the binary, or $REPODASH_CONFIG)")
 	once := flag.Bool("json", false, "scan once, print JSON, exit")
 	check := flag.Bool("check", false, "validate the settings file, print problems, exit 1 if there are any")
+	showVersion := flag.Bool("version", false, "print the version and exit")
 	printCfg := flag.Bool("print-config", false, "print the default settings and exit")
 	flag.Parse()
+	if *showVersion {
+		fmt.Println("repodash", buildVersion)
+		return
+	}
 
 	if *printCfg {
 		os.Stdout.Write(defaultConfigJSON)
@@ -373,9 +381,10 @@ func guard(allowed map[string]bool, next http.Handler) http.Handler {
 }
 
 // settingsPath picks the settings file: -config, then $REPODASH_CONFIG, then
-// repodash.json beside the executable. Beside the executable means the repo
-// checkout when you run ./repodash after `go build`, so the settings are
-// versioned with the code instead of sitting loose in the projects folder.
+// repodash.json beside the executable when that is a source checkout (go.mod
+// next to it) or already has one, so a `go build` in the repo keeps its
+// settings versioned with the code. An installed binary (bin dir) instead uses
+// $XDG_CONFIG_HOME/repodash/repodash.json, so no config lands in a bin folder.
 func settingsPath(flagValue string) string {
 	if flagValue != "" {
 		return flagValue
@@ -383,11 +392,21 @@ func settingsPath(flagValue string) string {
 	if v := os.Getenv("REPODASH_CONFIG"); v != "" {
 		return v
 	}
+	beside := "repodash.json"
 	if exe, err := os.Executable(); err == nil {
 		if real, err := filepath.EvalSymlinks(exe); err == nil {
 			exe = real
 		}
-		return filepath.Join(filepath.Dir(exe), "repodash.json")
+		dir := filepath.Dir(exe)
+		beside = filepath.Join(dir, "repodash.json")
+		for _, marker := range []string{"go.mod", "repodash.json"} {
+			if _, err := os.Stat(filepath.Join(dir, marker)); err == nil {
+				return beside
+			}
+		}
 	}
-	return "repodash.json"
+	if dir, err := os.UserConfigDir(); err == nil {
+		return filepath.Join(dir, "repodash", "repodash.json")
+	}
+	return beside
 }

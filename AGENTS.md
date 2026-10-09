@@ -21,7 +21,7 @@ its settings**, and how to **change the code**.
 |---|---|
 | Source | `~/gitrepos/repodash` (module `repodash`, Go 1.22+, no dependencies) |
 | Run it | `./repodash` then open <http://127.0.0.1:8092> |
-| Settings file | `repodash.json` **in this repo**, next to the binary (created on first run, tracked in git). Override with `-config FILE` or `$REPODASH_CONFIG` |
+| Settings file | `repodash.json` **in this repo**, next to the binary (created on first run, tracked in git; an installed binary uses `~/.config/repodash/repodash.json` instead). Override with `-config FILE` or `$REPODASH_CONFIG` |
 | Card positions, groups, kanban boards and columns | `~/.local/share/repodash/layout.json` (`$XDG_DATA_HOME` respected) |
 | Images added in the UI | `~/.local/share/repodash/images/<repo>.<ext>` |
 | Log when started in the background | `~/.local/share/repodash/repodash.log` |
@@ -257,3 +257,8 @@ break the settings file on purpose (invalid JSON, a bad enum) and confirm the pa
 A command-line table (`repodash -json` is the data source for it), authentication, ordering of
 cards within a kanban column, generated thumbnails (covers load at full size, capped at 4 MB),
 and a real-device check of touch long-press on iOS.
+
+## Releases and install
+
+- `git tag vX.Y.Z && git push --tags` triggers `.github/workflows/release.yml`: it builds linux/darwin x amd64/arm64 (`CGO_ENABLED=0`, version via `-X main.buildVersion`), and publishes tarballs, `checksums.txt` and `install.sh` as release assets.
+- `install.sh` (repo root) is what `curl ... | sh` runs. Test it offline with `BASE_URL=file:///dir PREFIX=/tmp/bin sh install.sh` against a dir holding the tarball and `checksums.txt`.
