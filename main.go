@@ -1,4 +1,4 @@
-// repodash: a live dashboard of every git checkout under ~/gitrepos.
+// RepoDash: a live dashboard of every git checkout under ~/gitrepos.
 //
 //	repodash                       serve the dashboard on 127.0.0.1:8092
 //	repodash -addr :8092           reachable from other devices (tailnet, LAN)
@@ -17,7 +17,9 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,6 +34,7 @@ func main() {
 	home, _ := os.UserHomeDir()
 	root := flag.String("root", filepath.Join(home, "gitrepos"), "directory holding the repos (and repodash.json)")
 	addr := flag.String("addr", "127.0.0.1:8092", "listen address")
+	allowHost := flag.String("allow-host", "", "extra host names the page may be opened by, comma separated (needed when -addr is reachable by name, e.g. a tailnet name)")
 	cfgPath := flag.String("config", "", "settings file (default <root>/repodash.json)")
 	once := flag.Bool("json", false, "scan once, print JSON, exit")
 	check := flag.Bool("check", false, "validate the settings file, print problems, exit 1 if there are any")
@@ -125,11 +128,20 @@ func main() {
 	mux.HandleFunc("GET /api/layout", layout.get)
 	mux.HandleFunc("PUT /api/layout", layout.put)
 
-	log.Printf("repodash: %s  (repos in %s, settings %s)", *addr, *root, cfg.path)
+	log.Printf("RepoDash: %s  (repos in %s, settings %s)", *addr, *root, cfg.path)
 	for _, w := range cfg.get().Warnings {
 		log.Printf("settings: %s", w)
 	}
-	log.Fatal(http.ListenAndServe(*addr, mux))
+	allowed := map[string]bool{}
+	if h, _, err := net.SplitHostPort(*addr); err == nil && h != "" {
+		allowed[strings.ToLower(h)] = true
+	}
+	for _, h := range strings.Split(*allowHost, ",") {
+		if h = strings.ToLower(strings.TrimSpace(h)); h != "" {
+			allowed[h] = true
+		}
+	}
+	log.Fatal(http.ListenAndServe(*addr, guard(allowed, mux)))
 }
 
 type event struct {
@@ -330,4 +342,34 @@ func imageWrite(next http.HandlerFunc) http.HandlerFunc {
 		}
 		next(w, r)
 	}
+}
+
+// guard answers only requests that were really addressed to this server.
+//
+// DNS rebinding lets a web page on evil.example make the victim's browser resolve
+// evil.example to 127.0.0.1 and then talk to us as if it were same-origin, which
+// would defeat the content-type guards on the write routes and let the page read
+// the repo list. The browser still sends Host: evil.example, so we refuse any
+// host name we were not told about. IP literals cannot be rebound, so they pass;
+// so does localhost. A browser also sends Origin on cross-site writes, which must
+// match Host.
+func guard(allowed map[string]bool, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host := r.Host
+		if h, _, err := net.SplitHostPort(host); err == nil {
+			host = h
+		}
+		host = strings.ToLower(strings.Trim(host, "[]"))
+		if host != "localhost" && net.ParseIP(host) == nil && !allowed[host] {
+			http.Error(w, "unrecognised Host header "+r.Host+"; start with -allow-host "+host+" if you meant to use this name", http.StatusForbidden)
+			return
+		}
+		if o := r.Header.Get("Origin"); o != "" && r.Method != http.MethodGet && r.Method != http.MethodHead {
+			if u, err := url.Parse(o); err != nil || !strings.EqualFold(u.Host, r.Host) {
+				http.Error(w, "cross-origin request refused", http.StatusForbidden)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }

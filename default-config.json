@@ -1,7 +1,7 @@
 {
   "_comment": "repodash settings. Edit this file; changes apply live within a couple of seconds. Every key is optional: delete one and its default is used. Keys starting with _ are ignored. Full reference: AGENTS.md in the repodash repo.",
 
-  "title": "Repo Dashboard",
+  "title": "RepoDash",
   "theme": "auto",
 
   "scan": {

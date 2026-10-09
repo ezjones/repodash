@@ -59,7 +59,9 @@ func git(dir string, args ...string) string {
 func gitRaw(dir string, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
+	// A repo's .git/config can name programs git will run (core.fsmonitor runs on every
+	// `git status`), and repos under the root are not all ones we made. Switch that off.
+	cmd := exec.CommandContext(ctx, "git", append([]string{"-c", "core.fsmonitor=false", "-C", dir}, args...)...)
 	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0", "LC_ALL=C")
 	b, err := cmd.Output()
 	return string(b), err
@@ -95,7 +97,7 @@ func defaultBranch(dir string) string {
 }
 
 func isAncestor(dir, a, b string) bool {
-	return exec.Command("git", "-C", dir, "merge-base", "--is-ancestor", a, b).Run() == nil
+	return exec.Command("git", "-c", "core.fsmonitor=false", "-C", dir, "merge-base", "--is-ancestor", a, b).Run() == nil
 }
 
 func worktrees(dir, base string) []Worktree {

@@ -80,6 +80,9 @@ func version(fi os.FileInfo) string {
 }
 
 func customImage(name string) (string, os.FileInfo, bool) {
+	if name != filepath.Base(name) {
+		return "", nil, false
+	}
 	for _, ext := range imgExtPref {
 		p := filepath.Join(imageDir, name+ext)
 		if fi, err := os.Stat(p); err == nil && fi.Mode().IsRegular() {
@@ -172,12 +175,14 @@ func readmeRefs(repoDir string) []string {
 }
 
 func findCover(root, name string) (cover, bool) {
-	if p, fi, ok := customImage(name); ok {
-		return cover{p, "custom", "cover", version(fi)}, true
-	}
+	// Validate first: name comes straight from the URL (/img/{name}) and %2f decodes
+	// to "/", so an unchecked name would walk out of imageDir.
 	dir, ok := validRepo(root, name)
 	if !ok {
 		return cover{}, false
+	}
+	if p, fi, ok := customImage(name); ok {
+		return cover{p, "custom", "cover", version(fi)}, true
 	}
 	s := cfg.get()
 	if rel := s.repos[name].Image; rel != "" { // set in repodash.json
