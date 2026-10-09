@@ -8,6 +8,12 @@ It is a single static Go binary with no dependencies. It scans a folder of repos
 to your browser, and serves one page. Nothing is installed in the repos and nothing in them is
 ever modified: RepoDash only reads.
 
+## Why I made this
+
+I have a lot of git repos, and I kept losing track of where each one was at. I wanted a visual way
+to see every repo's state at a glance, to move repos around on a canvas and group them the way I
+think about them, and to sort them in different ways. So I built RepoDash.
+
 ## What you get
 
 - **Three views**
