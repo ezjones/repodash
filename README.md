@@ -35,7 +35,7 @@ ever modified: RepoDash only reads.
 You need Go 1.22 or newer and git. tmux is optional (it powers the jump-to-terminal button).
 
 ```sh
-git clone https://github.com/<you>/repodash.git
+git clone https://github.com/ezjones/repodash.git
 cd repodash
 CGO_ENABLED=0 go build -o repodash .
 ./repodash
@@ -50,7 +50,9 @@ By default it scans the folders directly inside `~/gitrepos`. Point it somewhere
 ./repodash -root ~/code
 ```
 
-It was developed on Linux. macOS should work. It is untested on Windows.
+It is developed and used on Windows through WSL2, which means the Linux build. Plain Linux works the
+same way, and macOS should too. Native Windows (outside WSL) is untested. Under WSL2, `localhost` is
+forwarded, so you can open <http://127.0.0.1:8092> in a Windows browser.
 
 ### Options
 
