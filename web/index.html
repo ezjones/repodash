@@ -213,17 +213,47 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
 
 .ib.has::after{content:"";position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
 .ib{position:relative}
-.info-bg{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:16px}
+.info-bg{position:fixed;inset:0;z-index:60;background:rgba(10,12,16,.55);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);display:grid;place-items:center;padding:16px}
 .info-bg[hidden]{display:none}
-.infobox{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;width:min(760px,100%);height:min(80vh,720px);display:flex;flex-direction:column;overflow:hidden}
-.infobox header{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
-.infobox header h3{margin:0;font-size:15px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.infobox .tabs{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.infobox .tabs button{border:0;background:transparent;color:inherit;padding:4px 12px;font-size:13px;cursor:pointer}
-.infobox .tabs button[aria-pressed=true]{background:var(--accent);color:var(--bg)}
-.infobox .pane{flex:1;overflow:auto;padding:14px 18px;min-height:0}
-.infobox textarea{width:100%;height:100%;box-sizing:border-box;resize:none;border:0;outline:0;background:transparent;color:inherit;font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
-.infobox .saved{font-size:12px;color:var(--mute);min-width:48px;text-align:right}
+.infobox{background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:16px;width:min(780px,100%);height:min(84vh,760px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.08),0 24px 64px -12px rgba(0,0,0,.45)}
+.infobox header{display:flex;align-items:center;gap:10px;padding:14px 12px 14px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
+.infobox header h3{margin:0;font-size:17px;font-weight:650;letter-spacing:-.01em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.infobox .pane{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.infobox section{display:flex;flex-direction:column;overflow:hidden}
+.infobox .rd{flex:0 0 var(--rdh,45%);min-height:48px;background:var(--bg)}
+.infobox .rd.collapsed,.infobox .rd.noread{flex:none;min-height:0}
+.infobox .rd.collapsed .secbody,.infobox .rd.noread .secbody{display:none}
+.infobox .nt{flex:1 1 0;min-height:130px;background:var(--panel);border-top:2px solid color-mix(in srgb,var(--accent) 60%,var(--line));box-shadow:0 -10px 24px -14px rgba(0,0,0,.35)}
+.infobox .sechead{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;padding:10px 20px;border:0;background:transparent;color:var(--mute);font:inherit;font-size:13px;font-weight:600;text-align:left}
+.infobox .sechead svg{flex:none;opacity:.85}
+.infobox .sechead small{font-weight:500;font-size:12px;opacity:.75;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.infobox .sechead .tag{margin-left:auto;font-size:11px;font-weight:600;letter-spacing:.03em;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mute);background:transparent}
+.infobox .nt .sechead{color:var(--ink)}
+.infobox .saved{margin-left:auto;font-size:12px;font-weight:500;color:var(--mute)}
+.infobox button.sechead{cursor:pointer}.infobox button.sechead:hover{color:var(--ink)}
+.infobox button.sechead i{font-style:normal;transition:transform .15s}
+.infobox .rd.collapsed button.sechead i{transform:rotate(-90deg)}
+.infobox .secbody{flex:1;min-height:0;overflow:auto;padding:2px 20px 16px}
+.infobox .rd .secbody{margin:0 14px 12px;padding:12px 16px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.infobox .split{flex:none;height:14px;position:relative;z-index:2;cursor:row-resize;touch-action:none;background:var(--bg)}
+.infobox .split::after{content:"";position:absolute;left:50%;top:50%;width:44px;height:4px;margin:-2px 0 0 -22px;border-radius:2px;background:var(--line);transition:background .12s,width .12s,margin .12s}
+.infobox .split:hover::after,.infobox .split:focus-visible::after{background:var(--accent);width:64px;margin-left:-32px}
+.infobox .split[hidden]{display:none}
+.noteed .blk{padding:3px 8px;margin:0 -8px 2px;border-radius:6px;border-left:2px solid transparent;cursor:text}
+.noteed .blk:hover{background:color-mix(in srgb,var(--dot) 55%,transparent)}
+.noteed .blk>:last-child{margin-bottom:0}
+.noteed .blk.editing{border-left-color:var(--accent);background:transparent}
+.noteed .blk.new{color:var(--mute);font-size:13px;min-height:1.6em;border:1px dashed var(--line);border-left-width:1px;margin-top:8px;padding:8px 12px}
+.noteed .blk.new:hover{border-color:var(--mute)}
+.noteed .blk.new.editing{color:inherit;font-size:14px;border:0;border-left:2px solid var(--accent);margin-top:0;padding:3px 8px}
+.noteed textarea{display:block;width:100%;box-sizing:border-box;resize:none;overflow:hidden;border:0;outline:0;padding:0;margin:0;background:transparent;color:inherit;font:inherit;line-height:inherit;font-size:1em}
+/* the edit box wears the same type as the rendered block, so nothing jumps when you click in or type a # */
+.noteed textarea.ed-h1,.noteed textarea.ed-h2,.noteed textarea.ed-h3,.noteed textarea.ed-h4{font-weight:700;line-height:1.25;margin:1.1em 0 .4em}
+.noteed textarea.ed-h1{font-size:1.5em}.noteed textarea.ed-h2{font-size:1.25em}.noteed textarea.ed-h3{font-size:1.1em}
+.noteed textarea.ed-li{padding-left:.9em}
+.noteed textarea.ed-q{color:var(--mute);padding-left:12px}
+.noteed textarea.ed-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em}
+.mdbar{position:sticky;top:0;z-index:1;background:var(--panel);padding:2px 0 10px}
 .md{font-size:14px;line-height:1.55;overflow-wrap:anywhere}
 .md h1,.md h2,.md h3,.md h4{margin:1.1em 0 .4em;line-height:1.25}.md h1{font-size:1.5em}.md h2{font-size:1.25em}.md h3{font-size:1.1em}
 .md p,.md ul,.md ol,.md pre{margin:0 0 .8em}.md ul,.md ol{padding-left:1.4em}
@@ -232,7 +262,6 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
 .md a{color:inherit;text-decoration:underline}.md blockquote{margin:0 0 .8em;padding-left:12px;border-left:3px solid var(--line);color:var(--mute)}
 .md hr{border:0;border-top:1px solid var(--line)}
 .mdbar{display:flex;gap:4px;margin:-4px 0 8px}.mdbar button{border:1px solid var(--line);background:transparent;color:inherit;border-radius:6px;min-width:30px;height:28px;font-size:13px;cursor:pointer}
-.infobox .pane:has(textarea){display:flex;flex-direction:column}.infobox textarea{flex:1}
 .md li.task{list-style:none;margin-left:-1.2em}.md li.task input{margin-right:6px;vertical-align:-1px}
 .infobox .none{color:var(--mute);text-align:center;margin-top:30px}
 .ib{display:inline-grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:transparent;color:var(--mute);cursor:pointer}
@@ -297,7 +326,7 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
   <div class="zoomctl"><button id="zout" aria-label="Zoom out">−</button><button id="zin" aria-label="Zoom in">+</button><button id="zfit" aria-label="Reset view">⌂</button></div>
 </div>
 <p class="empty" id="empty" hidden>No repos match.</p>
-<div class="info-bg" id="infobg" hidden><div class="infobox" role="dialog" aria-modal="true" aria-labelledby="infotitle"><header><h3 id="infotitle"></h3><span class="tabs"><button data-tab="readme">README</button><button data-tab="notes">Notes</button></span><button class="chip-btn" id="infoedit" hidden>Edit</button><span class="saved" id="infosaved"></span><button class="ib" id="infoclose" aria-label="Close">✕</button></header><div class="pane" id="infopane"></div></div></div>
+<div class="info-bg" id="infobg" hidden><div class="infobox" role="dialog" aria-modal="true" aria-labelledby="infotitle"><header><h3 id="infotitle"></h3><button class="ib" id="infoclose" aria-label="Close">✕</button></header><div class="pane" id="infopane"></div></div></div>
 <input type="file" id="pick" accept="image/*" hidden>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -1171,10 +1200,11 @@ function mdRender(src, live){
   }
   return h;
 }
-let infoEdit = false, infoRepo = '', infoData = null, infoTab = '', infoTimer = 0;
+let infoRepo = '', infoData = null, infoTimer = 0;
+const setSaved = t => { const e = $('#infosaved'); if (e) e.textContent = t; };
 async function openInfo(name){
   infoRepo = name; infoData = null; $('#infotitle').textContent = ((CFG.repos || {})[name] || {}).title || name;
-  $('#infosaved').textContent = ''; $('#infobg').hidden = false;
+  setSaved(''); $('#infobg').hidden = false;
   try {
     const res = await fetch('/api/info/' + encodeURIComponent(name), {cache: 'no-store'});
     if (!res.ok) throw new Error(res.status + ' ' + ((await res.text()).trim() || res.statusText));
@@ -1182,62 +1212,123 @@ async function openInfo(name){
   } catch (err) {   // never pretend "no README" when the request itself failed
     $('#infopane').innerHTML = `<p class="none">Could not load this repo's info (${esc(err.message)}).<br>If RepoDash was just restarted, reload the page.<br><button class="chip-btn" id="inforetry">Retry</button></p>`;
     $('#inforetry').onclick = () => openInfo(name);
-    document.querySelectorAll('#infobg .tabs button').forEach(b => b.removeAttribute('aria-pressed')); $('#infoedit').hidden = true;
+    
     return;
   }
-  infoEdit = !(infoData.notes || '').trim();
-  showInfoTab(infoData.readme != null ? 'readme' : 'notes');
+  renderInfo();
 }
-function showInfoTab(tab){
-  if (!infoData) return;
-  infoTab = tab; const pane = $('#infopane');
-  document.querySelectorAll('#infobg .tabs button').forEach(b => b.setAttribute('aria-pressed', b.dataset.tab === tab));
-  if (tab === 'readme'){
-    pane.innerHTML = infoData.readme != null ? `<div class="md">${mdRender(infoData.readme)}</div>` : '<p class="none">This repo has no README.<br>Use Notes to write something about it.</p>';
-  } else if (infoEdit){
-    const tb = [['B','**','**','Bold'],['I','*','*','Italic'],['</>','`','`','Code'],['H','## ','','Heading'],['•','- ','','Bullet list'],['☐','- [ ] ','','Task'],['🔗','[','](https://)','Link']];
-    pane.innerHTML = `<div class="mdbar">${tb.map((t, n) => `<button data-t="${n}" title="${t[3]}" aria-label="${t[3]}">${t[0]}</button>`).join('')}</div><textarea id="infota" placeholder="Notes and todos in markdown, e.g. - [ ] next step (saved automatically)" spellcheck="true"></textarea>`;
-    const ta = $('#infota'); ta.value = infoData.notes || ''; ta.focus();
-    const changed = () => { infoData.notes = ta.value; $('#infosaved').textContent = '…'; clearTimeout(infoTimer); infoTimer = setTimeout(saveNotes, 600); };
-    ta.addEventListener('input', changed);
-    pane.querySelector('.mdbar').onclick = e => {
-      const b = e.target.closest('[data-t]'); if (!b) return; const [, a, z] = tb[+b.dataset.t];
-      const st = ta.selectionStart, en = ta.selectionEnd, sel = ta.value.slice(st, en);
-      if (!a.endsWith(' ') || z) ta.setRangeText(a + sel + z, st, en, 'select');
-      else { const ls = ta.value.lastIndexOf('\n', st - 1) + 1; ta.setRangeText(a, ls, ls, 'preserve'); ta.setSelectionRange(st + a.length, en + a.length); }
-      ta.focus(); changed();
+const ICON_DOC = svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>');
+const ICON_PEN = svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>');
+function renderInfo(){
+  const pane = $('#infopane'), has = infoData.readme != null, narrow = innerWidth < 700;
+  const closed = ls('inforead') === null ? narrow : ls('inforead') === '0';
+  pane.innerHTML = `<section class="rd${has ? (closed ? ' collapsed' : '') : ' noread'}" id="inforead">${has
+      ? `<button class="sechead" id="readtoggle" aria-expanded="${!closed}">${ICON_DOC}README <small>${esc(infoData.readme_name)}</small><span class="tag">read only</span><i>▾</i></button><div class="secbody md" id="readbody">${mdRender(infoData.readme)}</div>`
+      : `<div class="sechead">${ICON_DOC}No README in this repo</div>`}</section>
+    <div class="split" id="infosplit" role="separator" aria-orientation="horizontal" aria-label="Resize README and notes" tabindex="0"${has && !closed ? '' : ' hidden'}></div>
+    <section class="nt"><div class="sechead">${ICON_PEN}Your notes<span class="saved" id="infosaved"></span></div><div class="secbody" id="notesbody"><div class="mdbar"></div><div class="md noteed" id="noteed"></div></div></section>`;
+  const rd = $('#inforead'), split = $('#infosplit'), pct = +ls('infosplit') || 45;
+  pane.style.setProperty('--rdh', Math.min(80, Math.max(15, pct)) + '%');
+  if (has){
+    $('#readtoggle').onclick = () => {
+      const c = rd.classList.toggle('collapsed'); ls('inforead', c ? '1' : '0');
+      $('#readtoggle').setAttribute('aria-expanded', !c); split.hidden = c;
     };
-    ta.addEventListener('keydown', e => {   // Enter continues a list or task list
+    const set = v => { v = Math.min(80, Math.max(15, v)); pane.style.setProperty('--rdh', v + '%'); ls('infosplit', Math.round(v)); };
+    split.onpointerdown = e => {
+      split.setPointerCapture(e.pointerId);
+      const move = ev => { const r = pane.getBoundingClientRect(); set((ev.clientY - r.top) / r.height * 100); };
+      split.onpointermove = move; split.onpointerup = () => { split.onpointermove = split.onpointerup = null; };
+    };
+    split.onkeydown = e => { if (e.key === 'ArrowUp' || e.key === 'ArrowDown'){ e.preventDefault(); set((+ls('infosplit') || 45) + (e.key === 'ArrowDown' ? 5 : -5)); } };
+  }
+  buildNotes($('#notesbody'));
+}
+/* Notes: Obsidian-style. Each markdown block shows rendered; click one to edit its source, click away to render it. */
+const NOTE_TOOLS = [['B','**','**','Bold'],['I','*','*','Italic'],['</>','`','`','Code'],['H','## ','','Heading'],['•','- ','','Bullet list'],['☐','- [ ] ','','Task'],['🔗','[','](https://)','Link']];
+function mdBlocks(text){
+  const L = text.replace(/\r/g, '').split('\n'), out = [], start = /^\s*(```|#{1,6}\s|>|[-*+]\s|\d+[.)]\s)/, item = /^\s*([-*+]|\d+[.)])\s+/;
+  for (let i = 0; i < L.length;){
+    if (!L[i].trim()){ i++; continue; }
+    const s = i;
+    if (/^\s*```/.test(L[i])){ i++; while (i < L.length && !/^\s*```/.test(L[i])) i++; i++; }
+    else if (/^\s*#{1,6}\s/.test(L[i]) || /^\s*([-*_]\s*){3,}$/.test(L[i])) i++;
+    else if (/^\s*>/.test(L[i])){ while (i < L.length && /^\s*>/.test(L[i])) i++; }
+    else if (item.test(L[i])){ while (i < L.length && L[i].trim() && (item.test(L[i]) || !start.test(L[i]))) i++; }
+    else { i++; while (i < L.length && L[i].trim() && !start.test(L[i])) i++; }
+    out.push(L.slice(s, i).join('\n'));
+  }
+  return out;
+}
+function buildNotes(pane){
+  const box = $('#noteed');
+  const changed = () => { infoData.notes = [...box.querySelectorAll('.blk:not(.new)')].map(e => e._src).join('\n\n'); setSaved('…'); clearTimeout(infoTimer); infoTimer = setTimeout(saveNotes, 600); };
+  const mkBlock = src => {
+    const e = document.createElement('div'); e.className = 'blk'; e._src = src; e.innerHTML = mdRender(src, true);
+    e.querySelectorAll('input[data-ln]').forEach(c => c.onchange = () => {   // tick a task without entering edit mode
+      const l = e._src.split('\n'), n = +c.dataset.ln; l[n] = l[n].replace(/\[( |x|X)\]/, c.checked ? '[x]' : '[ ]'); e._src = l.join('\n'); changed();
+    });
+    return e;
+  };
+  const mkNew = () => { const e = document.createElement('div'); e.className = 'blk new'; e._src = ''; e.textContent = 'Click here to write notes, todos, links… (markdown)'; return e; };
+  const render = el => {   // turn an edited block back into rendered block(s)
+    const parts = mdBlocks(el._src), fresh = parts.map(mkBlock);
+    el.replaceWith(...fresh);
+    if (!box.lastElementChild || !box.lastElementChild.classList.contains('new')) box.append(mkNew());
+    changed();
+  };
+  const edit = (el, caret) => {
+    if (el.classList.contains('editing')) return;
+    el.classList.add('editing'); el.textContent = '';
+    const ta = document.createElement('textarea'); ta.value = el._src; ta.rows = 1; ta.spellcheck = true; el.append(ta);
+    const kind = () => { const l = ta.value.split('\n')[0], h = /^(#{1,6})\s/.exec(l);
+      return h ? 'ed-h' + Math.min(h[1].length, 4) : /^\s*```/.test(l) ? 'ed-code' : /^\s*>/.test(l) ? 'ed-q' : /^\s*([-*+]|\d+[.)])\s/.test(l) ? 'ed-li' : ''; };
+    const fit = () => { ta.className = kind(); ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
+    fit(); ta.focus(); ta.setSelectionRange(caret ?? ta.value.length, caret ?? ta.value.length);
+    ta.addEventListener('input', () => { el._src = ta.value; fit(); if (!el.classList.contains('new')) changed(); });
+    ta.addEventListener('blur', () => render(el));
+    ta.addEventListener('keydown', e => {
+      if (e.key === 'Escape'){ e.stopPropagation(); ta.blur(); return; }
       if (e.key !== 'Enter' || e.shiftKey || ta.selectionStart !== ta.selectionEnd) return;
       const st = ta.selectionStart, ls = ta.value.lastIndexOf('\n', st - 1) + 1, line = ta.value.slice(ls, st);
-      const m = /^(\s*)([-*+]|\d+[.)])\s+(\[[ xX]\]\s+)?(.*)$/.exec(line); if (!m) return;
+      const m = /^(\s*)([-*+]|\d+[.)])\s+(\[[ xX]\]\s+)?(.*)$/.exec(line); if (!m) return;   // Enter continues a list or task list
       e.preventDefault();
-      if (!m[4]){ ta.setRangeText('', ls, st, 'end'); ta.setRangeText('\n', ls, ls, 'end'); }
+      if (!m[4]) ta.setRangeText('', ls, st, 'end');
       else { const mk = /\d/.test(m[2]) ? (parseInt(m[2]) + 1) + m[2].slice(-1) : m[2]; ta.setRangeText('\n' + m[1] + mk + ' ' + (m[3] ? '[ ] ' : ''), st, st, 'end'); }
-      changed();
+      ta.dispatchEvent(new Event('input'));
     });
-  } else {
-    pane.innerHTML = `<div class="md">${mdRender(infoData.notes, true)}</div>`;
-    pane.querySelectorAll('input[data-ln]').forEach(c => c.onchange = () => {   // tick a task right in the preview
-      const L = infoData.notes.split('\n'), n = +c.dataset.ln;
-      L[n] = L[n].replace(/\[( |x|X)\]/, c.checked ? '[x]' : '[ ]'); infoData.notes = L.join('\n'); saveNotes();
-    });
-  }
-  $('#infoedit').hidden = tab !== 'notes';
-  $('#infoedit').textContent = infoEdit ? 'Preview' : 'Edit';
+  };
+  const blocks = mdBlocks(infoData.notes || '');
+  box.append(...blocks.map(mkBlock), mkNew());
+  box.addEventListener('click', e => {
+    if (e.target.closest('a, input, textarea')) return;
+    const el = e.target.closest('.blk'); if (el) edit(el);
+  });
+  const bar = pane.querySelector('.mdbar');
+  bar.innerHTML = NOTE_TOOLS.map((t, n) => `<button data-t="${n}" title="${t[3]}" aria-label="${t[3]}">${esc(t[0])}</button>`).join('');
+  bar.addEventListener('mousedown', e => e.preventDefault());   // keep the block's focus while using a tool
+  bar.onclick = e => {
+    const b = e.target.closest('[data-t]'); if (!b) return; const [, a, z] = NOTE_TOOLS[+b.dataset.t];
+    let ta = box.querySelector('textarea');
+    if (!ta){ edit(box.querySelector('.blk.new')); ta = box.querySelector('textarea'); }
+    const st = ta.selectionStart, en = ta.selectionEnd, sel = ta.value.slice(st, en);
+    if (!a.endsWith(' ') || z) ta.setRangeText(a + sel + z, st, en, 'select');
+    else { const ls = ta.value.lastIndexOf('\n', st - 1) + 1; ta.setRangeText(a, ls, ls, 'preserve'); ta.setSelectionRange(st + a.length, en + a.length); }
+    ta.focus(); ta.dispatchEvent(new Event('input'));
+  };
+  if (!blocks.length) edit(box.querySelector('.blk.new'));
 }
 async function saveNotes(){
   clearTimeout(infoTimer); infoTimer = 0;
   const name = infoRepo, text = infoData.notes;
   const res = await fetch('/api/notes/' + encodeURIComponent(name), {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text})}).catch(() => null);
-  $('#infosaved').textContent = res && res.ok ? 'saved' : 'not saved';
+  setSaved(res && res.ok ? 'saved' : 'not saved');
   const r = repos.find(x => x.name === name); if (r && res && res.ok){ const had = r.has_notes; r.has_notes = text.trim() !== ''; if (had !== r.has_notes) refreshNow(); }
 }
-function closeInfo(){ if (infoTimer) saveNotes(); $('#infobg').hidden = true; }
+function closeInfo(){ if (document.activeElement && document.activeElement.tagName === 'TEXTAREA') document.activeElement.blur();
+  if (infoTimer) saveNotes(); $('#infobg').hidden = true; }
 $('#infoclose').onclick = closeInfo;
-$('#infoedit').onclick = () => { infoEdit = !infoEdit; showInfoTab('notes'); };
 $('#infobg').addEventListener('mousedown', e => { if (e.target.id === 'infobg') closeInfo(); });
-document.querySelectorAll('#infobg .tabs button').forEach(b => b.onclick = () => showInfoTab(b.dataset.tab));
 addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#infobg').hidden) closeInfo(); });
 let pickTarget = '';
 const refreshNow = () => fetch('/api/refresh', {method:'POST'}).catch(() => {});
