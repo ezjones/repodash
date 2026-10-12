@@ -227,9 +227,8 @@ forwarded, so you can open <http://127.0.0.1:8092> in a Windows browser. See
 
 ## Settings
 
-The first run creates `repodash.json` (next to the binary in a source checkout, otherwise in `~/.config/repodash/`), with every setting at its default. Edit
-it while RepoDash is running. Every key is optional, so you can delete anything you do not want to
-change. `./repodash -check` validates the file and explains each problem.
+The first run creates `repodash.json` (next to the binary in a source checkout, otherwise in `~/.config/repodash/`), as a nearly empty file. Put only the settings you want to change in it, and everything else follows the built-in defaults (`repodash -print-config` lists them all), so new releases add their features without you editing anything. Edit
+it while RepoDash is running. `./repodash -check` validates the file and explains each problem.
 
 ```json
 {

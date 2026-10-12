@@ -215,15 +215,15 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
 .ib{position:relative}
 .info-bg{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:16px}
 .info-bg[hidden]{display:none}
-.info{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;width:min(760px,100%);height:min(80vh,720px);display:flex;flex-direction:column;overflow:hidden}
-.info header{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
-.info header h3{margin:0;font-size:15px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.info .tabs{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.info .tabs button{border:0;background:transparent;color:inherit;padding:4px 12px;font-size:13px;cursor:pointer}
-.info .tabs button[aria-pressed=true]{background:var(--accent);color:var(--bg)}
-.info .pane{flex:1;overflow:auto;padding:14px 18px;min-height:0}
-.info textarea{width:100%;height:100%;box-sizing:border-box;resize:none;border:0;outline:0;background:transparent;color:inherit;font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
-.info .saved{font-size:12px;color:var(--mute);min-width:48px;text-align:right}
+.infobox{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;width:min(760px,100%);height:min(80vh,720px);display:flex;flex-direction:column;overflow:hidden}
+.infobox header{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.infobox header h3{margin:0;font-size:15px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.infobox .tabs{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.infobox .tabs button{border:0;background:transparent;color:inherit;padding:4px 12px;font-size:13px;cursor:pointer}
+.infobox .tabs button[aria-pressed=true]{background:var(--accent);color:var(--bg)}
+.infobox .pane{flex:1;overflow:auto;padding:14px 18px;min-height:0}
+.infobox textarea{width:100%;height:100%;box-sizing:border-box;resize:none;border:0;outline:0;background:transparent;color:inherit;font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+.infobox .saved{font-size:12px;color:var(--mute);min-width:48px;text-align:right}
 .md{font-size:14px;line-height:1.55;overflow-wrap:anywhere}
 .md h1,.md h2,.md h3,.md h4{margin:1.1em 0 .4em;line-height:1.25}.md h1{font-size:1.5em}.md h2{font-size:1.25em}.md h3{font-size:1.1em}
 .md p,.md ul,.md ol,.md pre{margin:0 0 .8em}.md ul,.md ol{padding-left:1.4em}
@@ -232,9 +232,9 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
 .md a{color:inherit;text-decoration:underline}.md blockquote{margin:0 0 .8em;padding-left:12px;border-left:3px solid var(--line);color:var(--mute)}
 .md hr{border:0;border-top:1px solid var(--line)}
 .mdbar{display:flex;gap:4px;margin:-4px 0 8px}.mdbar button{border:1px solid var(--line);background:transparent;color:inherit;border-radius:6px;min-width:30px;height:28px;font-size:13px;cursor:pointer}
-.info .pane:has(textarea){display:flex;flex-direction:column}.info textarea{flex:1}
+.infobox .pane:has(textarea){display:flex;flex-direction:column}.infobox textarea{flex:1}
 .md li.task{list-style:none;margin-left:-1.2em}.md li.task input{margin-right:6px;vertical-align:-1px}
-.info .none{color:var(--mute);text-align:center;margin-top:30px}
+.infobox .none{color:var(--mute);text-align:center;margin-top:30px}
 .ib{display:inline-grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:transparent;color:var(--mute);cursor:pointer}
 .ib:hover{background:color-mix(in srgb,var(--ink) 9%,transparent);color:var(--ink)}
 .ib:disabled{opacity:.5}
@@ -297,7 +297,7 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
   <div class="zoomctl"><button id="zout" aria-label="Zoom out">−</button><button id="zin" aria-label="Zoom in">+</button><button id="zfit" aria-label="Reset view">⌂</button></div>
 </div>
 <p class="empty" id="empty" hidden>No repos match.</p>
-<div class="info-bg" id="infobg" hidden><div class="info" role="dialog" aria-modal="true" aria-labelledby="infotitle"><header><h3 id="infotitle"></h3><span class="tabs"><button data-tab="readme">README</button><button data-tab="notes">Notes</button></span><button class="chip-btn" id="infoedit" hidden>Edit</button><span class="saved" id="infosaved"></span><button class="ib" id="infoclose" aria-label="Close">✕</button></header><div class="pane" id="infopane"></div></div></div>
+<div class="info-bg" id="infobg" hidden><div class="infobox" role="dialog" aria-modal="true" aria-labelledby="infotitle"><header><h3 id="infotitle"></h3><span class="tabs"><button data-tab="readme">README</button><button data-tab="notes">Notes</button></span><button class="chip-btn" id="infoedit" hidden>Edit</button><span class="saved" id="infosaved"></span><button class="ib" id="infoclose" aria-label="Close">✕</button></header><div class="pane" id="infopane"></div></div></div>
 <input type="file" id="pick" accept="image/*" hidden>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 

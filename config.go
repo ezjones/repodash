@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -263,6 +264,54 @@ func strs(m map[string]any, path string) []string {
 	return out
 }
 
+// retiredLists holds earlier releases' default lists. Older versions wrote a full copy of the
+// defaults into the settings file, and a list in the file replaces the default list, so such a
+// file would hide every item added later. A list that still equals a retired default was never
+// edited, so it is dropped and the current default applies. Whenever a default list changes,
+// add the OLD value here.
+var retiredLists = map[string][][]string{
+	"topbar.items": {
+		{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "spacer", "addGroup", "arrange", "settings"},
+		{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "spacer", "addGroup", "arrange", "cover", "theme", "settings"},
+		{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "spacer", "addGroup", "arrange", "appearance", "settings"},
+		{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "agents", "spacer", "addGroup", "arrange", "appearance", "settings"},
+	},
+	"card.actions": {
+		{"image", "terminal", "copy"},
+	},
+}
+
+func dropStaleLists(usr map[string]any) {
+	for path, olds := range retiredLists {
+		parts := strings.Split(path, ".")
+		obj := usr
+		for _, k := range parts[:len(parts)-1] {
+			obj, _ = obj[k].(map[string]any)
+		}
+		if obj == nil {
+			continue
+		}
+		arr, ok := obj[parts[len(parts)-1]].([]any)
+		if !ok {
+			continue
+		}
+		got := make([]string, 0, len(arr))
+		for _, e := range arr {
+			str, ok := e.(string)
+			if !ok {
+				got = nil
+				break
+			}
+			got = append(got, str)
+		}
+		for _, old := range olds {
+			if got != nil && slices.Equal(got, old) {
+				delete(obj, parts[len(parts)-1])
+			}
+		}
+	}
+}
+
 func parseSettings(path string, data []byte) (*settings, error) {
 	def := defaults()
 	var usr map[string]any
@@ -271,6 +320,7 @@ func parseSettings(path string, data []byte) (*settings, error) {
 			return nil, err
 		}
 	}
+	dropStaleLists(usr)
 	warns := []string{}
 	m := merge(def, usr, "", &warns)
 	validate(m, def, &warns)
@@ -348,11 +398,18 @@ func (c *configStore) poll() bool {
 	return true
 }
 
-// ensureFile writes the full default file the first time, so there is something to edit.
+// firstRunConfig is deliberately almost empty. A full copy of the defaults would freeze every list
+// (top-bar items, card buttons) at today's values, so new releases could never add to them.
+const firstRunConfig = `{
+  "_comment": "RepoDash settings. Put only what you want to change here; every other setting follows the built-in default and picks up new features after an upgrade. Changes apply live within a couple of seconds. List every setting with: repodash -print-config. Full reference: AGENTS.md in the repodash repo. Keys starting with _ are ignored."
+}
+`
+
+// ensureConfigFile writes a minimal file the first time, so there is something to edit.
 func ensureConfigFile(path string) {
 	if _, err := os.Stat(path); err == nil {
 		return
 	}
 	os.MkdirAll(filepath.Dir(path), 0o755)
-	os.WriteFile(path, defaultConfigJSON, 0o644)
+	os.WriteFile(path, []byte(firstRunConfig), 0o644)
 }

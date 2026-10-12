@@ -21,7 +21,7 @@ its settings**, and how to **change the code**.
 |---|---|
 | Source | `~/gitrepos/repodash` (module `repodash`, Go 1.22+, no dependencies) |
 | Run it | `./repodash` then open <http://127.0.0.1:8092> |
-| Settings file | `repodash.json` **in this repo**, next to the binary (created on first run, tracked in git; an installed binary uses `~/.config/repodash/repodash.json` instead). Override with `-config FILE` or `$REPODASH_CONFIG` |
+| Settings file | `repodash.json` **in this repo**, next to the binary (created on first run as a near-empty file: only put what you change, because a list you set replaces the default list and would hide items added in later releases; tracked in git; an installed binary uses `~/.config/repodash/repodash.json` instead). Override with `-config FILE` or `$REPODASH_CONFIG` |
 | Card positions, groups, kanban boards and columns | `~/.local/share/repodash/layout.json` (`$XDG_DATA_HOME` respected) |
 | Images added in the UI | `~/.local/share/repodash/images/<repo>.<ext>` |
 | Notes written in the info panel | `~/.local/share/repodash/notes/<repo>.md` (markdown; never inside the repo) |
@@ -210,6 +210,8 @@ Check the page script parses: `node -e "const s=require('fs').readFileSync('web/
 4. Use it in `web/index.html` through `C('path.to.key', fallback)`. Settings reach the page as one
    merged object; `applyConfig()` re-renders everything when they change.
 5. Add a row to the reference table above.
+
+**Changing a default list** (`topbar.items`, `card.actions`): older releases wrote a full copy of the defaults into users' settings files, and a list in the file replaces the default. Add the OLD list to `retiredLists` in `config.go`, so files that never edited it pick up the new default. `go test ./...` checks this.
 
 Conventions: standard library only, `CGO_ENABLED=0`, no JS dependencies. Git is always run with
 `GIT_OPTIONAL_LOCKS=0` so a scan never blocks someone's `git commit`. The app is read-only toward
