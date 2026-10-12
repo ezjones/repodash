@@ -28,9 +28,9 @@ var defaultConfigJSON []byte
 
 var (
 	statusKeys   = []string{"bad", "warn", "ok", "stale"}
-	barItems     = []string{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "agents", "spacer", "addGroup", "arrange", "cover", "theme", "appearance", "settings"}
+	barItems     = []string{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "remote", "search", "agents", "spacer", "addGroup", "arrange", "cover", "theme", "appearance", "settings"}
 	multiplexers = []string{"prefer-tmux", "prefer-herdr", "tmux", "herdr"}
-	cardActions  = []string{"image", "terminal", "copy"}
+	cardActions  = []string{"image", "terminal", "copy", "info"}
 	coverStyles  = []string{"aurora", "deep", "gradient", "name"}
 	hexColor     = regexp.MustCompile(`^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$`)
 	freeForm     = map[string]bool{"repos": true} // maps whose keys are user data, not settings

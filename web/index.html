@@ -35,6 +35,10 @@ button,input{font:inherit;color:inherit}
 .top .seg button{height:100%}
 .top .chip-btn{display:inline-flex;align-items:center;padding-top:0;padding-bottom:0}
 .top button.tool:not(.icon){display:inline-flex;align-items:center}
+#remotef:not(:empty){margin-left:14px;padding-left:14px;border-left:1px solid var(--line);align-self:stretch;display:inline-flex;align-items:center}
+#remotef button{position:relative}
+#remotef button::after{content:attr(data-tip);position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);z-index:70;width:max-content;max-width:240px;white-space:normal;text-align:center;padding:6px 10px;border-radius:8px;background:var(--ink);color:var(--bg);font-size:12px;line-height:1.35;pointer-events:none;opacity:0;transition:opacity .12s}
+#remotef button:hover::after,#remotef button:focus-visible::after{opacity:1}
 #filters,#filters .chips{display:inline-flex;align-items:center;gap:6px;margin:0}
 .top .tool.icon{height:32px}
 .top h1{font-size:16px;margin:0 8px 0 0;font-weight:650}
@@ -206,6 +210,31 @@ details{margin-top:6px;font-size:13px}summary{cursor:pointer;color:var(--mute)}
 ul{margin:4px 0 0;padding-left:18px}li.merged{color:var(--mute)}
 li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
 .hr{display:flex;align-items:center;gap:4px;flex-shrink:0}
+
+.ib.has::after{content:"";position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.ib{position:relative}
+.info-bg{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.45);display:grid;place-items:center;padding:16px}
+.info-bg[hidden]{display:none}
+.info{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;width:min(760px,100%);height:min(80vh,720px);display:flex;flex-direction:column;overflow:hidden}
+.info header{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.info header h3{margin:0;font-size:15px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.info .tabs{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.info .tabs button{border:0;background:transparent;color:inherit;padding:4px 12px;font-size:13px;cursor:pointer}
+.info .tabs button[aria-pressed=true]{background:var(--accent);color:var(--bg)}
+.info .pane{flex:1;overflow:auto;padding:14px 18px;min-height:0}
+.info textarea{width:100%;height:100%;box-sizing:border-box;resize:none;border:0;outline:0;background:transparent;color:inherit;font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+.info .saved{font-size:12px;color:var(--mute);min-width:48px;text-align:right}
+.md{font-size:14px;line-height:1.55;overflow-wrap:anywhere}
+.md h1,.md h2,.md h3,.md h4{margin:1.1em 0 .4em;line-height:1.25}.md h1{font-size:1.5em}.md h2{font-size:1.25em}.md h3{font-size:1.1em}
+.md p,.md ul,.md ol,.md pre{margin:0 0 .8em}.md ul,.md ol{padding-left:1.4em}
+.md code{background:var(--dot);padding:1px 5px;border-radius:4px;font-size:.9em}
+.md pre{background:var(--dot);padding:10px 12px;border-radius:8px;overflow:auto}.md pre code{background:none;padding:0}
+.md a{color:inherit;text-decoration:underline}.md blockquote{margin:0 0 .8em;padding-left:12px;border-left:3px solid var(--line);color:var(--mute)}
+.md hr{border:0;border-top:1px solid var(--line)}
+.mdbar{display:flex;gap:4px;margin:-4px 0 8px}.mdbar button{border:1px solid var(--line);background:transparent;color:inherit;border-radius:6px;min-width:30px;height:28px;font-size:13px;cursor:pointer}
+.info .pane:has(textarea){display:flex;flex-direction:column}.info textarea{flex:1}
+.md li.task{list-style:none;margin-left:-1.2em}.md li.task input{margin-right:6px;vertical-align:-1px}
+.info .none{color:var(--mute);text-align:center;margin-top:30px}
 .ib{display:inline-grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:transparent;color:var(--mute);cursor:pointer}
 .ib:hover{background:color-mix(in srgb,var(--ink) 9%,transparent);color:var(--ink)}
 .ib:disabled{opacity:.5}
@@ -268,6 +297,7 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
   <div class="zoomctl"><button id="zout" aria-label="Zoom out">−</button><button id="zin" aria-label="Zoom in">+</button><button id="zfit" aria-label="Reset view">⌂</button></div>
 </div>
 <p class="empty" id="empty" hidden>No repos match.</p>
+<div class="info-bg" id="infobg" hidden><div class="info" role="dialog" aria-modal="true" aria-labelledby="infotitle"><header><h3 id="infotitle"></h3><span class="tabs"><button data-tab="readme">README</button><button data-tab="notes">Notes</button></span><button class="chip-btn" id="infoedit" hidden>Edit</button><span class="saved" id="infosaved"></span><button class="ib" id="infoclose" aria-label="Close">✕</button></header><div class="pane" id="infopane"></div></div></div>
 <input type="file" id="pick" accept="image/*" hidden>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -288,7 +318,7 @@ const sel = new Set();                // canvas: selected repo names (lasso)
 const els = new Map();                // repo name -> {el, sig}
 let layout = {cards:{}, groups:[], vp:{x:30,y:30,k:1}, boards:[], activeBoard:''};
 let view = 'grid';
-let filter = 'all', query = '', z = 10;
+let filter = 'all', remoteF = 'any', query = '', z = 10;
 const SORTS = ['recent', 'activity', 'language', 'alpha'];
 let sortBy = 'recent', rev = false, kanbanMode = 'board';
 // Server order is newest activity first, and sort() is stable, so every mode below falls back to it
@@ -438,6 +468,7 @@ function coverHTML(r){
 const svg = d => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICON_TERM = svg('<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7.5 9.5 3 2.5-3 2.5"/><path d="M13 15h3.5"/>');
 const ICON_IMG = svg('<rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="9" cy="9" r="1.7"/><path d="m21 15-4.6-4.6L6 21"/>');
+const ICON_INFO = svg('<circle cx="12" cy="12" r="9.5"/><path d="M12 11v5.5"/><circle cx="12" cy="7.6" r=".6"/>');
 const ICON_COPY = svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>');
 function cardHTML(r){
   const rc = (CFG.repos || {})[r.name] || {};
@@ -468,6 +499,7 @@ function cardHTML(r){
     terminal: `<button class="ib" data-act="open" title="Open in ${muxName()} (jump to this project's tab)" aria-label="Open ${esc(r.name)} in ${muxName()}">${ICON_TERM}</button>`,
     copy: `<button class="ib" data-act="copy" title="Copy: cd ${esc(r.path)}" aria-label="Copy cd command for ${esc(r.name)}">${ICON_COPY}</button>`,
   };
+  btn.info = `<button class="ib${r.has_notes ? ' has' : ''}" data-act="info" title="${r.has_readme ? 'README' : 'No README'}${r.has_notes ? ' · has notes' : ''}" aria-label="Info and notes for ${esc(r.name)}">${ICON_INFO}</button>`;
   const acts = C('card.actions', []).map(a => btn[a] || '').join('');
   return `${coverHTML(r)}<div class="body"><header><h2>${esc(rc.title || r.name)}</h2><span class="hr">${agent}${acts}${C('card.cover', true) ? '' : pillHTML(r, 'inline')}</span></header>
     ${C('card.branch', true) ? `<p class="branch"><code>${esc(r.branch)}</code>${r.base && r.base !== r.branch ? ' &nbsp;base '+esc(r.base) : ''}</p>` : ''}
@@ -480,6 +512,7 @@ function cardHTML(r){
 const ICON_GRID = svg('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>');
 const ICON_CANVAS = svg('<rect x="3" y="4" width="9" height="7" rx="1.5"/><rect x="13" y="9" width="8" height="6" rx="1.5"/><rect x="6" y="14" width="8" height="7" rx="1.5"/>');
 const ICON_KANBAN = svg('<rect x="3" y="3" width="5" height="18" rx="1.5"/><rect x="10" y="3" width="5" height="11" rx="1.5"/><rect x="17" y="3" width="4" height="14" rx="1.5"/>');
+const ICON_NOREMOTE = svg('<path d="M18 18H7a4.5 4.5 0 0 1-.9-8.9A6 6 0 0 1 17.6 8 4.5 4.5 0 0 1 18 18Z"/><path d="m3 3 18 18"/>');
 const ICON_REV = svg('<path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/>');
 const ICON_LANG = svg('<path d="m8 8-5 4 5 4"/><path d="m16 8 5 4-5 4"/><path d="m14 5-4 14"/>');
 const ICON_SUN = svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>');
@@ -499,6 +532,7 @@ const BAR = {
   reverse:    () => `<button class="tool icon" data-only="grid" data-top="reverse" aria-pressed="false" title="Reverse the order" aria-label="Reverse the order">${ICON_REV}</button>`,
   kanbanMode: () => `<div class="seg" data-only="kanban" role="group" aria-label="Kanban columns">${seg([['status', L('kanbanStatus')], ['board', L('kanbanBoard')]], 'kmode')}</div>`,
   filters:    () => `<span id="filters" role="group" aria-label="Filter"></span>`,
+  remote:     () => `<span id="remotef" role="group" aria-label="Filter by remote"></span>`,
   search:     () => `<input id="q" type="search" placeholder="${esc(L('search'))}" aria-label="Filter by name" value="${esc(query)}">`,
   agents:     () => `<span class="agentsum" id="agentsum"></span>`,
   spacer:     () => `<span class="spacer"></span>`,
@@ -524,6 +558,8 @@ function syncChrome(){
 $('#top').addEventListener('click', e => {
   const f = e.target.closest('[data-f]');
   if (f){ filter = f.dataset.f; renderFilters(); applyFilter(); return; }
+  const rf = e.target.closest('[data-rf]');
+  if (rf){ remoteF = remoteF === 'no' ? 'any' : 'no'; renderFilters(); applyFilter(); return; }
   const b = e.target.closest('[data-top]'); if (!b) return;
   const [k, v] = b.dataset.top.split(':');
   if (k === 'view') setView(v);
@@ -669,6 +705,12 @@ function applyAgents(m){
 
 /* ---------- filters ---------- */
 function renderFilters(){
+  const rbox = $('#remotef');
+  if (rbox){
+    const n = repos.filter(r => !r.has_remote).length;
+    const t = `${L('remoteNo')}: ${n} repo${n === 1 ? '' : 's'}. Click to show only ${n === 1 ? 'it' : 'them'}, click again to show all.`;
+    rbox.innerHTML = n || remoteF === 'no' ? `<button class="tool icon" data-rf="no" aria-pressed="${remoteF === 'no'}" data-tip="${esc(t)}" aria-label="${esc(t)}">${ICON_NOREMOTE}</button>` : '';
+  }
   const box = $('#filters'); if (!box) return;
   const counts = {bad:0, warn:0, ok:0, stale:0};
   repos.forEach(r => counts[r.level]++);
@@ -680,7 +722,7 @@ function renderFilters(){
 function applyFilter(){
   let n = 0;
   for (const r of repos){
-    const ok = (filter === 'all' || r.level === filter) && (!query || r.name.toLowerCase().includes(query));
+    const ok = (filter === 'all' || r.level === filter) && (remoteF !== 'no' || !r.has_remote) && (!query || r.name.toLowerCase().includes(query));
     els.get(r.name).el.hidden = !ok; n += ok;
   }
   document.querySelectorAll('#kanban .col').forEach(c => { c.querySelector('.colhead b').textContent = c.querySelectorAll('.card:not([hidden])').length; });
@@ -1082,6 +1124,7 @@ async function onAct(e){
     toast(await copyText(cmd) ? 'Copied: ' + cmd : 'Could not copy. Path: ' + r.path);
     return;
   }
+  if (b.dataset.act === 'info'){ openInfo(name); return; }
   if (b.dataset.act === 'image'){ pickTarget = name; $('#pick').value = ''; $('#pick').click(); return; }
   if (b.dataset.act === 'rmimg'){
     const res = await fetch('/api/image/' + encodeURIComponent(name), {method:'DELETE', headers:{'Content-Type':'image/png'}}).catch(() => null);
@@ -1096,6 +1139,106 @@ async function onAct(e){
   } catch (err) { toast('Terminal: ' + err.message); }
   finally { b.disabled = false; }
 }
+
+/* ---------- info panel: README + your own notes ---------- */
+function mdInline(t){
+  t = esc(t);
+  const codes = []; t = t.replace(/`([^`]+)`/g, (_, c) => '\0' + (codes.push(c) - 1) + '\0');
+  t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>');
+  t = t.replace(/!?\[([^\]]*)\]\(([^)\s]+)[^)]*\)/g, (m, txt, u) => /^(https?:|mailto:|#)/i.test(u.replace(/&amp;/g, '&')) && m[0] !== '!' ? `<a href="${u}" target="_blank" rel="noopener noreferrer">${txt}</a>` : txt);
+  return t.replace(/\0(\d+)\0/g, (_, i) => '<code>' + codes[i] + '</code>');
+}
+function mdRender(src, live){
+  const L = src.replace(/\r/g, '').split('\n'); let h = '', i = 0;
+  while (i < L.length){
+    const l = L[i]; let m;
+    if (/^\s*```/.test(l)){ const b = []; i++; while (i < L.length && !/^\s*```/.test(L[i])) b.push(L[i++]); i++; h += `<pre><code>${esc(b.join('\n'))}</code></pre>`; }
+    else if ((m = /^(#{1,6})\s+(.*)/.exec(l))){ const n = Math.min(m[1].length, 4); h += `<h${n}>${mdInline(m[2])}</h${n}>`; i++; }
+    else if (/^\s*([-*_]\s*){3,}$/.test(l)){ h += '<hr>'; i++; }
+    else if (/^\s*[-*+]\s+/.test(l) || /^\s*\d+[.)]\s+/.test(l)){
+      const ol = /^\s*\d/.test(l), it = [];
+      while (i < L.length && (ol ? /^\s*\d+[.)]\s+/ : /^\s*[-*+]\s+/).test(L[i])){
+        const ln = i; let t = L[i++].replace(/^\s*(\d+[.)]|[-*+])\s+/, '');
+        while (i < L.length && L[i].trim() && !/^\s*([-*+]|\d+[.)])\s+|^\s*(```|#{1,6}\s|>)/.test(L[i])) t += ' ' + L[i++].trim();   // wrapped item text
+        const k = /^\[( |x|X)\]\s+(.*)/.exec(t);
+        it.push(k ? `<li class="task"><input type="checkbox" data-ln="${ln}"${k[1] === ' ' ? '' : ' checked'}${live ? '' : ' disabled'}> ${mdInline(k[2])}</li>` : `<li>${mdInline(t)}</li>`);
+      }
+      h += `<${ol ? 'ol' : 'ul'}>${it.join('')}</${ol ? 'ol' : 'ul'}>`;
+    }
+    else if (/^\s*>/.test(l)){ const b = []; while (i < L.length && /^\s*>/.test(L[i])) b.push(L[i++].replace(/^\s*>\s?/, '')); h += `<blockquote>${mdInline(b.join(' '))}</blockquote>`; }
+    else if (!l.trim()) i++;
+    else { const b = []; while (i < L.length && L[i].trim() && !/^\s*(```|#{1,6}\s|>|[-*+]\s|\d+[.)]\s)/.test(L[i])) b.push(L[i++]); if (!b.length) b.push(L[i++]); h += `<p>${mdInline(b.join(' '))}</p>`; }
+  }
+  return h;
+}
+let infoEdit = false, infoRepo = '', infoData = null, infoTab = '', infoTimer = 0;
+async function openInfo(name){
+  infoRepo = name; infoData = null; $('#infotitle').textContent = ((CFG.repos || {})[name] || {}).title || name;
+  $('#infosaved').textContent = ''; $('#infobg').hidden = false;
+  try {
+    const res = await fetch('/api/info/' + encodeURIComponent(name), {cache: 'no-store'});
+    if (!res.ok) throw new Error(res.status + ' ' + ((await res.text()).trim() || res.statusText));
+    infoData = await res.json();
+  } catch (err) {   // never pretend "no README" when the request itself failed
+    $('#infopane').innerHTML = `<p class="none">Could not load this repo's info (${esc(err.message)}).<br>If RepoDash was just restarted, reload the page.<br><button class="chip-btn" id="inforetry">Retry</button></p>`;
+    $('#inforetry').onclick = () => openInfo(name);
+    document.querySelectorAll('#infobg .tabs button').forEach(b => b.removeAttribute('aria-pressed')); $('#infoedit').hidden = true;
+    return;
+  }
+  infoEdit = !(infoData.notes || '').trim();
+  showInfoTab(infoData.readme != null ? 'readme' : 'notes');
+}
+function showInfoTab(tab){
+  if (!infoData) return;
+  infoTab = tab; const pane = $('#infopane');
+  document.querySelectorAll('#infobg .tabs button').forEach(b => b.setAttribute('aria-pressed', b.dataset.tab === tab));
+  if (tab === 'readme'){
+    pane.innerHTML = infoData.readme != null ? `<div class="md">${mdRender(infoData.readme)}</div>` : '<p class="none">This repo has no README.<br>Use Notes to write something about it.</p>';
+  } else if (infoEdit){
+    const tb = [['B','**','**','Bold'],['I','*','*','Italic'],['</>','`','`','Code'],['H','## ','','Heading'],['•','- ','','Bullet list'],['☐','- [ ] ','','Task'],['🔗','[','](https://)','Link']];
+    pane.innerHTML = `<div class="mdbar">${tb.map((t, n) => `<button data-t="${n}" title="${t[3]}" aria-label="${t[3]}">${t[0]}</button>`).join('')}</div><textarea id="infota" placeholder="Notes and todos in markdown, e.g. - [ ] next step (saved automatically)" spellcheck="true"></textarea>`;
+    const ta = $('#infota'); ta.value = infoData.notes || ''; ta.focus();
+    const changed = () => { infoData.notes = ta.value; $('#infosaved').textContent = '…'; clearTimeout(infoTimer); infoTimer = setTimeout(saveNotes, 600); };
+    ta.addEventListener('input', changed);
+    pane.querySelector('.mdbar').onclick = e => {
+      const b = e.target.closest('[data-t]'); if (!b) return; const [, a, z] = tb[+b.dataset.t];
+      const st = ta.selectionStart, en = ta.selectionEnd, sel = ta.value.slice(st, en);
+      if (!a.endsWith(' ') || z) ta.setRangeText(a + sel + z, st, en, 'select');
+      else { const ls = ta.value.lastIndexOf('\n', st - 1) + 1; ta.setRangeText(a, ls, ls, 'preserve'); ta.setSelectionRange(st + a.length, en + a.length); }
+      ta.focus(); changed();
+    };
+    ta.addEventListener('keydown', e => {   // Enter continues a list or task list
+      if (e.key !== 'Enter' || e.shiftKey || ta.selectionStart !== ta.selectionEnd) return;
+      const st = ta.selectionStart, ls = ta.value.lastIndexOf('\n', st - 1) + 1, line = ta.value.slice(ls, st);
+      const m = /^(\s*)([-*+]|\d+[.)])\s+(\[[ xX]\]\s+)?(.*)$/.exec(line); if (!m) return;
+      e.preventDefault();
+      if (!m[4]){ ta.setRangeText('', ls, st, 'end'); ta.setRangeText('\n', ls, ls, 'end'); }
+      else { const mk = /\d/.test(m[2]) ? (parseInt(m[2]) + 1) + m[2].slice(-1) : m[2]; ta.setRangeText('\n' + m[1] + mk + ' ' + (m[3] ? '[ ] ' : ''), st, st, 'end'); }
+      changed();
+    });
+  } else {
+    pane.innerHTML = `<div class="md">${mdRender(infoData.notes, true)}</div>`;
+    pane.querySelectorAll('input[data-ln]').forEach(c => c.onchange = () => {   // tick a task right in the preview
+      const L = infoData.notes.split('\n'), n = +c.dataset.ln;
+      L[n] = L[n].replace(/\[( |x|X)\]/, c.checked ? '[x]' : '[ ]'); infoData.notes = L.join('\n'); saveNotes();
+    });
+  }
+  $('#infoedit').hidden = tab !== 'notes';
+  $('#infoedit').textContent = infoEdit ? 'Preview' : 'Edit';
+}
+async function saveNotes(){
+  clearTimeout(infoTimer); infoTimer = 0;
+  const name = infoRepo, text = infoData.notes;
+  const res = await fetch('/api/notes/' + encodeURIComponent(name), {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text})}).catch(() => null);
+  $('#infosaved').textContent = res && res.ok ? 'saved' : 'not saved';
+  const r = repos.find(x => x.name === name); if (r && res && res.ok){ const had = r.has_notes; r.has_notes = text.trim() !== ''; if (had !== r.has_notes) refreshNow(); }
+}
+function closeInfo(){ if (infoTimer) saveNotes(); $('#infobg').hidden = true; }
+$('#infoclose').onclick = closeInfo;
+$('#infoedit').onclick = () => { infoEdit = !infoEdit; showInfoTab('notes'); };
+$('#infobg').addEventListener('mousedown', e => { if (e.target.id === 'infobg') closeInfo(); });
+document.querySelectorAll('#infobg .tabs button').forEach(b => b.onclick = () => showInfoTab(b.dataset.tab));
+addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#infobg').hidden) closeInfo(); });
 let pickTarget = '';
 const refreshNow = () => fetch('/api/refresh', {method:'POST'}).catch(() => {});
 $('#pick').addEventListener('change', e => { const f = e.target.files[0]; if (f && pickTarget) uploadImage(pickTarget, f); });

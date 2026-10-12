@@ -86,6 +86,7 @@ func main() {
 	}
 	layout := &layoutStore{path: filepath.Join(dataDir, "repodash", "layout.json")}
 	imageDir = filepath.Join(dataDir, "repodash", "images")
+	notesDir = filepath.Join(dataDir, "repodash", "notes")
 	hub := newHub(func() []Repo { return scanAll(*root) })
 	go hub.run()
 
@@ -132,6 +133,8 @@ func main() {
 	mux.HandleFunc("GET /img/{name}", serveImage(*root))
 	mux.HandleFunc("PUT /api/image/{name}", imageWrite(putImage(*root)))
 	mux.HandleFunc("DELETE /api/image/{name}", deleteImage(*root))
+	mux.HandleFunc("GET /api/info/{name}", infoGet(*root))
+	mux.HandleFunc("PUT /api/notes/{name}", notesPut(*root))
 	mux.HandleFunc("GET /events", hub.serveSSE)
 	mux.HandleFunc("GET /api/layout", layout.get)
 	mux.HandleFunc("PUT /api/layout", layout.put)

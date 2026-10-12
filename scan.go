@@ -43,6 +43,8 @@ type Repo struct {
 	Image       string     `json:"image"`     // cover URL, "" when there is none (the page draws generated art)
 	ImageSrc    string     `json:"image_src"` // custom | root | dir | readme
 	ImageFit    string     `json:"image_fit"` // cover | contain
+	HasReadme   bool       `json:"has_readme"`
+	HasNotes    bool       `json:"has_notes"`
 	Tmux        bool       `json:"tmux"`
 	Herdr       bool       `json:"herdr"`
 	Claude      string     `json:"claude"` // waiting | busy | idle | ""
@@ -332,6 +334,8 @@ func scanAll(root string) []Repo {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			repos[i] = inspect(root, n, panes)
+			repos[i].HasReadme = hasReadme(filepath.Join(root, n))
+			repos[i].HasNotes = hasNotes(n)
 		}()
 	}
 	wg.Wait()

@@ -20,7 +20,7 @@
   },
 
   "topbar": {
-    "items": ["title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "agents", "spacer", "addGroup", "arrange", "appearance", "settings"],
+    "items": ["title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "remote", "search", "agents", "spacer", "addGroup", "arrange", "appearance", "settings"],
     "filters": ["bad", "warn", "ok", "stale"]
   },
 
@@ -60,7 +60,7 @@
     "week": true,
     "worktrees": true,
     "agent": true,
-    "actions": ["image", "terminal", "copy"]
+    "actions": ["image", "terminal", "copy", "info"]
   },
 
   "kanban": {

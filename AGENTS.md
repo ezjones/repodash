@@ -24,6 +24,7 @@ its settings**, and how to **change the code**.
 | Settings file | `repodash.json` **in this repo**, next to the binary (created on first run, tracked in git; an installed binary uses `~/.config/repodash/repodash.json` instead). Override with `-config FILE` or `$REPODASH_CONFIG` |
 | Card positions, groups, kanban boards and columns | `~/.local/share/repodash/layout.json` (`$XDG_DATA_HOME` respected) |
 | Images added in the UI | `~/.local/share/repodash/images/<repo>.<ext>` |
+| Notes written in the info panel | `~/.local/share/repodash/notes/<repo>.md` (markdown; never inside the repo) |
 | Log when started in the background | `~/.local/share/repodash/repodash.log` |
 | Defaults, embedded in the binary | `default-config.json` (`repodash -print-config` prints it) |
 
@@ -68,7 +69,7 @@ All keys, with their defaults. Lists replace the default list entirely.
 | `defaults.remember` | true/false | `true` | Browsers remember their last view/sort. When `defaults.*` changes, the new defaults win once |
 | `topbar.items` | list | see below | Which controls appear, in this order |
 | `topbar.filters` | list of `bad` `warn` `ok` `stale` | all four | Which status buttons and kanban status columns, in this order |
-| `labels.*` | strings | see file | Button text: `viewGrid` `viewCanvas` `viewKanban` `kanbanStatus` `kanbanBoard` `sortRecent` `sortActivity` `sortLanguage` `sortAlpha` `all` `search` `addGroup` `arrange` |
+| `labels.*` | strings | see file | Button text: `viewGrid` `viewCanvas` `viewKanban` `kanbanStatus` `kanbanBoard` `sortRecent` `sortActivity` `sortLanguage` `sortAlpha` `all` `remoteNo` `search` `addGroup` `arrange` |
 | `statuses.<bad\|warn\|ok\|stale>.label` | string | Needs action / Loose ends / Clean / Quiet | Name shown on pills, buttons, columns |
 | `statuses.<k>.color`, `.darkColor` | hex `#rgb` or `#rrggbb` | see file | Light and dark theme colour. Text on filled buttons is chosen for contrast automatically |
 | `statuses.<k>.show` | true/false | `true` | Show or hide that status button in the top bar |
@@ -78,7 +79,7 @@ All keys, with their defaults. Lists replace the default list entirely.
 | `card.coverStyle` | `aurora` `deep` `gradient` `name` | `name` | Generated cover for repos with no image. `aurora` glowing colour on near-black, `deep` dark three-stop gradient with grain, `gradient` soft pastel blobs, `name` the repo name big on a flat colour (fixed size, long names are cut off). Drawn from the repo name, so a repo always gets the same art. Per repo: `repos.<name>.coverStyle`. The top bar can override this and the badge for one browser |
 | `card.languageBadge` | true/false | `true` | Small badge in the cover's lower-right corner with the repo's main language (by tracked file count; hidden when none is recognised) |
 | `card.branch` `note` `chips` `activity` `week` `worktrees` `agent` | true/false | `true` | Show or hide each card section |
-| `card.actions` | list of `image` `terminal` `copy` | all three | Which buttons a card has. `terminal` and `copy` are header icons, in this order. `image` sits in the top-right corner of the cover (shown on hover; always visible on touch), or in the header if `card.cover` is off |
+| `card.actions` | list of `image` `terminal` `copy` `info` | all four | Which buttons a card has. `terminal`, `copy` and `info` are header icons, in this order. `info` opens the README / Notes panel (a dot marks repos that have notes). `image` sits in the top-right corner of the cover (shown on hover; always visible on touch), or in the header if `card.cover` is off |
 | `canvas.columns` | 1-12 | `4` | Columns when arranging cards |
 | `canvas.cardWidth` | 200-600 | `280` | Card width in px (also kanban column width) |
 | `canvas.gap` | 0-200 | `30` | Space between cards when arranging |
@@ -93,8 +94,8 @@ All keys, with their defaults. Lists replace the default list entirely.
 | `repos.<name>.image` | path inside the repo | none | Cover for that repo, relative to the repo folder |
 | `repos.<name>.hidden` | true/false | `false` | Leave the repo out entirely |
 
-`topbar.items` default: `title live view sort reverse kanbanMode filters search agents spacer addGroup
-arrange appearance settings`. `agents` is a live summary ("2 working · 1 waiting"). Allowed values are exactly those names plus `cover` and `theme`. Some only show in one view: `sort` and
+`topbar.items` default: `title live view sort reverse kanbanMode filters remote search agents spacer addGroup
+arrange appearance settings`. `remote` is one *No remote* toggle (with a count; hidden when every repo has a remote) that combines with the status filter. `agents` is a live summary ("2 working · 1 waiting"). Allowed values are exactly those names plus `cover` and `theme`. Some only show in one view: `sort` and
 `reverse` in Grid, `kanbanMode` in Kanban, `addGroup` and `arrange` in Canvas. `appearance` is a palette button that opens
 a popover with the theme (auto, light, dark), the cover style (with previews) and the language-badge toggle. These save per
 browser and override `theme`, `card.coverStyle` and `card.languageBadge` in the file until the browser's choice is cleared.
@@ -158,6 +159,7 @@ comes from the modification times of uncommitted files.
   to any column. New boards start with the columns in `kanban.columns` (Todo, Doing, Done). Everything is saved
   in `layout.json` under `boards` and `activeBoard`. *By status* is the automatic read-only alternative.
 - **Agent state**: a card's small icon shows the agent in that repo's tmux/herdr pane: spinning ring = working, pulsing red dot = waiting for you, green dot = idle (hover for the words). Canvas group frames show their worst member; the tab title shows totals. It is fed by a separate 1-second poll of the multiplexers (`pollAgents` in `main.go`, SSE event `agents`), so it follows the agent within about a second without the slow git scan. Hidden by `card.agent: false`.
+- **Info panel** (ⓘ icon): the **README** tab shows the repo's `README.md` (read-only, rendered as markdown, 256 KB cap); the **Notes** tab is your own markdown, with Edit / Preview, a small toolbar and `- [ ]` tasks you can tick in the preview. It opens on the README, or on Notes when the repo has none. Notes autosave to the notes folder.
 - **Card icons**: picture icon sets a cover (or drop an image file on the card); terminal icon
   jumps to that repo's tmux tab or herdr workspace, or opens one; copy icon copies `cd <path>`.
 - **Gear button**: shows the settings file path and any problems with it, and a per-browser choice of tmux or herdr for the terminal button.
@@ -174,6 +176,8 @@ Handy for scripts and tests. All local; see the security notes before exposing t
 | `GET /events` | Server-sent events: `config` and `repos` (each is the full JSON) |
 | `GET /api/layout`, `PUT /api/layout` | Canvas/kanban state. PUT needs `Content-Type: application/json` |
 | `POST /api/open` | `{"name": "<repo>"}`: select or open that repo's tmux window |
+| `GET /api/info/<repo>` | `{readme, readme_name, notes}` for the info panel |
+| `PUT /api/notes/<repo>` | Save notes: JSON `{"text": "..."}` (empty text deletes the file; max 256 KB) |
 | `GET /img/<repo>` | The repo's cover image |
 | `PUT /api/image/<repo>`, `DELETE /api/image/<repo>` | Set (body = image bytes, `Content-Type: image/*`, max 4 MB) or remove a custom cover |
 
@@ -184,6 +188,7 @@ Handy for scripts and tests. All local; see the security notes before exposing t
 | `main.go` | Flags, routes, the hub that rescans and pushes SSE, the layout store |
 | `config.go` | Loads, merges, validates and live-reloads `repodash.json`; global `cfg` |
 | `scan.go` | Runs git per repo (`git status --porcelain=v2`, `log`, `worktree`...), reads tmux panes, classifies status |
+| `notes.go` | README reading and notes storage behind the info panel |
 | `image.go` | Cover discovery and the upload/serve handlers |
 | `tmux.go` | "Open in tmux", and `openInTerminal` which picks tmux or herdr |
 | `herdr.go` | Same for herdr, through its CLI (`herdr pane list`, `workspace focus`, `tab focus`, `workspace create`) |
