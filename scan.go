@@ -241,7 +241,9 @@ func inspect(root, name string, panes []pane) Repo {
 	r.Activity = max(r.LastCommit, r.Edited)
 	r.Base = strings.TrimPrefix(defaultBranch(dir), "origin/")
 	r.HasRemote = git(dir, "remote") != ""
-	r.Stashes = len(strings.Fields(git(dir, "stash", "list")))
+	if out := git(dir, "stash", "list"); out != "" {
+		r.Stashes = strings.Count(out, "\n") + 1 // one line per stash
+	}
 	if n := git(dir, "rev-list", "--count", "--since=7.days.ago", "HEAD"); n != "" {
 		r.Commits7d, _ = strconv.Atoi(n)
 	}
