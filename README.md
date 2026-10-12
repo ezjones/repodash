@@ -27,6 +27,10 @@ think about them, and to sort them in different ways. So I built RepoDash.
 - **Status at a glance**: *Needs action* (no remote, unpushed commits, unpushed branch, merge
   conflicts), *Loose ends* (uncommitted files, behind upstream, merged worktrees to clean up),
   *Clean*, and *Quiet* (clean and untouched for a while).
+- **Info and notes**: the ⓘ icon on a card opens its README (rendered as markdown, read-only) and a
+  notes tab of your own: a small markdown editor with a toolbar, a preview, and `- [ ]` tasks you
+  can tick. Notes are saved under `~/.local/share/repodash/notes/`, never inside the repo.
+- **Find repos with no remote**: one icon in the top bar shows only the repos that have no remote.
 - **Live**: the page updates by itself while it is open, and idle costs nothing because nothing is
   scanned when no browser is watching.
 - **A cover for every card**: an image you add, a logo or screenshot found in the repo, the first
