@@ -269,9 +269,6 @@ func plural(n int, s string) string {
 
 func classify(r *Repo) {
 	var bad, warn []string
-	if !r.HasRemote {
-		bad = append(bad, "no remote")
-	}
 	if r.Ahead > 0 {
 		bad = append(bad, strconv.Itoa(r.Ahead)+" unpushed")
 	} else if r.HasRemote && !r.HasUpstream && r.LastCommit > 0 {

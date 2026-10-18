@@ -502,7 +502,6 @@ const ICON_COPY = svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d=
 function cardHTML(r){
   const rc = (CFG.repos || {})[r.name] || {};
   const chips = [];
-  if (!r.has_remote) chips.push(['bad','no remote']);
   if (r.ahead) chips.push(['bad','↑'+r.ahead+' unpushed']);
   else if (r.has_remote && !r.has_upstream && r.last_commit) chips.push(['bad','not pushed']);
   if (r.conflicts) chips.push(['bad', r.conflicts+' conflict'+(r.conflicts>1?'s':'')]);

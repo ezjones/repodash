@@ -137,10 +137,12 @@ http), then generated art (`card.coverStyle`). Images over 4 MB and anything out
 
 Computed in `scan.go` (`classify`); only `scan.staleDays` is configurable.
 
-- **Needs action** (`bad`): no remote, unpushed commits, a branch that was never pushed, or merge conflicts.
+- **Needs action** (`bad`): unpushed commits, a branch that was never pushed, or merge conflicts.
 - **Loose ends** (`warn`): uncommitted files, commits behind upstream, or worktrees whose branch is already merged.
 - **Clean** (`ok`): none of the above.
 - **Quiet** (`stale`): clean, and the last commit is older than `scan.staleDays`.
+
+A repo with no remote is not flagged (not everything needs one); the *No remote* top-bar toggle finds them.
 
 "Behind" is only as fresh as each repo's last `git fetch`; RepoDash never fetches. "Edited" time
 comes from the modification times of uncommitted files.

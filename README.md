@@ -1,7 +1,7 @@
 # RepoDash
 
 A live dashboard for every git repository in one folder. See at a glance which repos have
-uncommitted work, unpushed commits, no remote, or branches that are already merged, then jump
+uncommitted work, unpushed commits, or branches that are already merged, then jump
 straight to the one you want.
 
 It is a single static Go binary with no dependencies. It scans a folder of repos, streams changes
@@ -24,7 +24,7 @@ think about them, and to sort them in different ways. So I built RepoDash.
     frames, pan with the middle mouse button, zoom with the wheel or a pinch.
   - **Kanban:** columns by status, or your own columns (Active, Paused, Ideas, ...) that you drag
     repos between.
-- **Status at a glance**: *Needs action* (no remote, unpushed commits, unpushed branch, merge
+- **Status at a glance**: *Needs action* (unpushed commits, unpushed branch, merge
   conflicts), *Loose ends* (uncommitted files, behind upstream, merged worktrees to clean up),
   *Clean*, and *Quiet* (clean and untouched for a while).
 - **Info and notes**: the ⓘ icon on a card opens one panel with the repo's README (rendered as
