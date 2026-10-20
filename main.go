@@ -180,6 +180,7 @@ type hub struct {
 	scanning bool
 	dirs     map[string]string // repo name -> path, from the last scan
 	agents   []byte            // last agent-state event
+	issues   issueFeed         // GitHub issues feed (issues.go)
 }
 
 func newHub(scan func() []Repo) *hub {
@@ -204,6 +205,9 @@ func (h *hub) run() {
 		h.mu.Unlock()
 		if n > 0 {
 			h.pollAgents()
+		}
+		if n > 0 && cfg.get().issuesOn && h.issues.due() {
+			go h.pollIssues()
 		}
 		if n > 0 && time.Since(lastScan) >= cfg.get().interval {
 			h.refresh()
@@ -321,6 +325,11 @@ func (h *hub) serveSSE(w http.ResponseWriter, r *http.Request) {
 	send(event{"config", cfg.get().payload()})
 	if stale {
 		go h.refresh()
+	}
+	if cfg.get().issuesOn {
+		if iss := h.issues.current(); iss != nil {
+			send(event{"issues", iss})
+		}
 	}
 	if cur != nil {
 		send(event{"repos", cur})

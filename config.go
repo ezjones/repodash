@@ -58,6 +58,7 @@ type settings struct {
 	coverDirs   []string
 	coverReadme bool
 	multiplexer string // prefer-tmux | prefer-herdr | tmux | herdr
+	issuesOn    bool   // card.issues: poll GitHub issues through gh
 	repos       map[string]repoCfg
 }
 
@@ -334,6 +335,7 @@ func parseSettings(path string, data []byte) (*settings, error) {
 	s.coverNames, s.coverDirs = strs(m, "covers.names"), strs(m, "covers.dirs")
 	s.coverReadme, _ = get(m, "covers.readme").(bool)
 	s.multiplexer, _ = get(m, "terminal.multiplexer").(string)
+	s.issuesOn, _ = get(m, "card.issues").(bool)
 	for name, v := range m["repos"].(map[string]any) {
 		e := v.(map[string]any)
 		rc := repoCfg{}

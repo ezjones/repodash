@@ -79,6 +79,7 @@ All keys, with their defaults. Lists replace the default list entirely.
 | `card.coverStyle` | `aurora` `deep` `gradient` `name` | `name` | Generated cover for repos with no image. `aurora` glowing colour on near-black, `deep` dark three-stop gradient with grain, `gradient` soft pastel blobs, `name` the repo name big on a flat colour (fixed size, long names are cut off). Drawn from the repo name, so a repo always gets the same art. Per repo: `repos.<name>.coverStyle`. The top bar can override this and the badge for one browser |
 | `card.languageBadge` | true/false | `true` | Small badge in the cover's lower-right corner with the repo's main language (by tracked file count; hidden when none is recognised) |
 | `card.branch` `note` `chips` `activity` `week` `worktrees` `agent` | true/false | `true` | Show or hide each card section |
+| `card.issues` | true/false | `true` | GitHub issues on the card (see Using the app). Needs the `gh` CLI, logged in. Off = `gh` is never run |
 | `card.actions` | list of `image` `terminal` `copy` `info` | all four | Which buttons a card has. `terminal`, `copy` and `info` are header icons, in this order. `info` opens the README / Notes panel (a dot marks repos that have notes). `image` sits in the top-right corner of the cover (shown on hover; always visible on touch), or in the header if `card.cover` is off |
 | `canvas.columns` | 1-12 | `4` | Columns when arranging cards |
 | `canvas.cardWidth` | 200-600 | `280` | Card width in px (also kanban column width) |
@@ -161,6 +162,7 @@ comes from the modification times of uncommitted files.
   to any column. New boards start with the columns in `kanban.columns` (Todo, Doing, Done). Everything is saved
   in `layout.json` under `boards` and `activeBoard`. *By status* is the automatic read-only alternative.
 - **Agent state**: a card's small icon shows the agent in that repo's tmux/herdr pane: spinning ring = working, pulsing red dot = waiting for you, green dot = idle (hover for the words). Canvas group frames show their worst member; the tab title shows totals. It is fed by a separate 1-second poll of the multiplexers (`pollAgents` in `main.go`, SSE event `agents`), so it follows the agent within about a second without the slow git scan. Hidden by `card.agent: false`.
+- **GitHub issues** (`issues.go`): for a repo whose `origin` is on github.com, the card shows **Done** (the most recently closed issue, with how long ago) and **Next** (the oldest open issue, lowest number); each links to the issue on GitHub in a new tab. Pull requests are not counted. Repos with no issues show nothing. The data comes from the `gh` CLI (its own login; RepoDash stores no token) every 5 minutes while a browser tab is open, as a separate feed (SSE event `issues`) so the git scan stays fast. If `gh` is missing or logged out, the gear button shows a red dot with the reason. Read-only: it never creates or edits issues. Turn it off with `card.issues: false`.
 - **Info panel** (ⓘ icon): one panel, no tabs. The repo's `README.md` is on top (read-only, rendered as markdown, 256 KB cap, collapsible, and the divider between the two can be dragged; the split is remembered per browser). Your own **Notes** are underneath, ready to type in. Notes are markdown, Obsidian-style: every block shows rendered, click one to edit its raw markdown, click away to render it. A small toolbar inserts bold, italic, code, heading, list, task and link, Enter continues a list, and `- [ ] ` tasks tick with a click. Notes autosave to the notes folder.
 - **Card icons**: picture icon sets a cover (or drop an image file on the card); terminal icon
   jumps to that repo's tmux tab or herdr workspace, or opens one; copy icon copies `cd <path>`.
@@ -192,6 +194,7 @@ Handy for scripts and tests. All local; see the security notes before exposing t
 | `scan.go` | Runs git per repo (`git status --porcelain=v2`, `log`, `worktree`...), reads tmux panes, classifies status |
 | `notes.go` | README reading and notes storage behind the info panel |
 | `image.go` | Cover discovery and the upload/serve handlers |
+| `issues.go` | GitHub issues feed: `gh api` per github.com repo, slow poll, SSE event `issues` |
 | `tmux.go` | "Open in tmux", and `openInTerminal` which picks tmux or herdr |
 | `herdr.go` | Same for herdr, through its CLI (`herdr pane list`, `workspace focus`, `tab focus`, `workspace create`) |
 | `default-config.json` | Every setting and its default; embedded with `go:embed` |

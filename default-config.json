@@ -65,6 +65,7 @@
     "week": true,
     "worktrees": true,
     "agent": true,
+    "issues": true,
     "actions": ["image", "terminal", "copy", "info"]
   },
 
