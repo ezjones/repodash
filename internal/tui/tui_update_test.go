@@ -27,26 +27,34 @@ func newUpdFake(t *testing.T) *updFake {
 	return f
 }
 
-func TestUpdateOfferInTopBar(t *testing.T) {
+func TestUpdateOfferInFooter(t *testing.T) {
+	old := core.Version
+	core.Version = "v1.0.0"
+	t.Cleanup(func() { core.Version = old })
 	f := newUpdFake(t)
-	if strings.Contains(f.m.topBar(), "U update") {
+	footer := func() string {
+		ls := strings.Split(f.m.View().Content, "\n")
+		return ls[len(ls)-1]
+	}
+	if strings.Contains(footer(), "U update") {
 		t.Fatal("offer shown before any check")
 	}
 	f.send(updateMsg{tag: "v9.9.9"})
-	if bar := f.m.topBar(); !strings.Contains(bar, "↑ v9.9.9 · U update") {
-		t.Errorf("no offer in %q", bar)
+	if l := footer(); !strings.Contains(l, "↑ v9.9.9 · U update") || !strings.Contains(l, "v1.0.0") || strings.Contains(f.m.topBar(), "U update") {
+		t.Fatalf("offer not beside the version: %q", l)
 	}
-	found := false
-	for _, z := range f.m.barZones {
-		found = found || z.act == "update"
+	// a click on the chip acts like U
+	if cmd := f.send(tea.MouseClickMsg{X: f.m.updX0 + 2, Y: f.m.height - 1, Button: tea.MouseLeft}); cmd != nil {
+		cmd()
 	}
-	if !found {
-		t.Error("no clickable update zone")
+	if f.applies != 1 {
+		t.Fatalf("click on the offer: %d applies", f.applies)
 	}
-	// narrow: the offer goes, the sort stays
+	// narrow: the offer goes, the keys stay
+	f.m.msg = ""
 	sized(f.fakeTUI, 40, 20)
-	if bar := f.m.topBar(); strings.Contains(bar, "U update") || !strings.Contains(bar, "sort") {
-		t.Errorf("narrow bar: %q", bar)
+	if l := footer(); strings.Contains(l, "U update") || !strings.Contains(l, "help") {
+		t.Errorf("narrow footer: %q", l)
 	}
 }
 

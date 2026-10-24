@@ -93,27 +93,28 @@ type tuiModel struct {
 	panes  []core.Pane
 	titles map[string]string
 
-	sel         int
-	sortBy      string
-	rev         bool
-	filter      string // all | bad | warn | ok | stale
-	filters     []string
-	query       string
-	searching   bool
-	panel       bool
-	help        bool
-	prompt      string // repo name awaiting y/n, "" when none
-	promptMux   string
-	promptDir   string // folder the prompt will open on y
-	promptLabel string // what the prompt calls it
-	msg         string
-	newTag      string // newest release tag when newer than this one, "" when none is known
-	restart     bool   // an update was installed: restart the new binary after quitting
-	width       int
-	height      int
-	scroll      int // first visible card row
-	panelScroll int
-	loaded      bool
+	sel          int
+	sortBy       string
+	rev          bool
+	filter       string // all | bad | warn | ok | stale
+	filters      []string
+	query        string
+	searching    bool
+	panel        bool
+	help         bool
+	prompt       string // repo name awaiting y/n, "" when none
+	promptMux    string
+	promptDir    string // folder the prompt will open on y
+	promptLabel  string // what the prompt calls it
+	msg          string
+	newTag       string // newest release tag when newer than this one, "" when none is known
+	restart      bool   // an update was installed: restart the new binary after quitting
+	updX0, updX1 int    // footer cells of the update offer, -1 when not drawn; set by withVersion
+	width        int
+	height       int
+	scroll       int // first visible card row
+	panelScroll  int
+	loaded       bool
 
 	spin        int  // frame of the busy-agent spinner
 	spinPending bool // a "spin" tick is on its way; ticks never stack

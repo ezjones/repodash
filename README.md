@@ -82,7 +82,7 @@ A few keys get you going:
 | `/` | Search by name |
 | `s` / `f` | Change the sort / filter by status |
 | `w` | Open the web page (canvas, kanban) in your browser |
-| `U` | Update to the new release (shown in the top bar when there is one) |
+| `U` | Update to the new release (offered at the bottom right, next to the version) |
 | `?` | Every key |
 | `q` | Quit |
 
@@ -158,7 +158,7 @@ It scans the repos in the folder you run it from, or `~/gitrepos` (see
 | Tab | Move into the inspector (it opens if hidden): `j`/`k` move over its commits, issues and worktrees, Enter opens one, Tab or Esc goes back to the cards |
 | `J` / `K`, `o` | The same without leaving the cards: next / previous inspector line, open it |
 | `w` | Open the web page in your browser, starting the web server in the background if it isn't running |
-| `U` | Update to the new release, when the top bar offers one |
+| `U` | Update to the new release, when the bottom right offers one |
 | `e` | Edit the selected repo's notes in `$VISUAL` / `$EDITOR` (else `nano` or `vi`); the inspector shows them all |
 | `r` | Rescan now |
 | `?` | All keys |
@@ -433,8 +433,8 @@ forwarded, so you can open <http://127.0.0.1:8092> in a Windows browser. See
 
 ### Updates
 
-Once a day RepoDash asks GitHub whether a newer release exists. If so, the terminal UI's top bar
-shows a yellow `↑ vX.Y.Z · U update`. Press `U` (or click it): it downloads the release for your
+Once a day RepoDash asks GitHub whether a newer release exists. If so, the terminal UI shows a yellow
+`↑ vX.Y.Z · U update` at the bottom right, next to the running version. Press `U` (or click it): it downloads the release for your
 system, checks it against the published SHA-256 checksum, replaces the running binary and restarts
 in the same terminal. With no notice showing, `U` checks right away and tells you if you are up to
 date (press it again to install what it finds).

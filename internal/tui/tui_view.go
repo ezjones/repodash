@@ -395,6 +395,9 @@ func (m *tuiModel) click(ms tea.Mouse) tea.Cmd {
 	if ms.Button != tea.MouseLeft {
 		return nil
 	}
+	if ms.Y == m.height-1 && m.updX0 >= 0 && ms.X >= m.updX0 && ms.X < m.updX1 {
+		return m.updateKey()
+	}
 	if ms.Y == 0 && !m.help {
 		return m.barClick(ms.X)
 	}
@@ -861,12 +864,7 @@ func (m *tuiModel) topBar() string {
 		}
 		return o
 	}
-	var upd []bseg
-	if m.newTag != "" {
-		upd = []bseg{{seg{" ↑ " + m.newTag + " · U update ", sty("#1a1b26", cYellow, true)}, "update"}, sp}
-	}
 	try := [][]bseg{
-		cat(head, sortSeg, filt(0), search, warn, upd),
 		cat(head, sortSeg, filt(0), search, warn),
 		cat(head, sortSeg, filt(1), search, warn),
 		cat(head, sortSeg, filt(2), search),
@@ -876,7 +874,7 @@ func (m *tuiModel) topBar() string {
 	extra := ""
 	for i, c := range try {
 		w := segsWidth(plain(c))
-		if i <= 1 && agents != "" && w+lipgloss.Width(agents) <= m.width {
+		if i == 0 && agents != "" && w+lipgloss.Width(agents) <= m.width {
 			pick, extra = c, agents
 			break
 		}
@@ -976,13 +974,28 @@ func (m *tuiModel) footerLine() string {
 	return m.withVersion(seg{" ?", key}, seg{" help  ", desc}, seg{"q", key}, seg{" close", desc})
 }
 
-// withVersion draws the footer segments with the running version at the right edge, when it fits.
+// withVersion draws the footer segments with the running version at the right edge, and the
+// update offer (a yellow chip, clickable) just left of it, as far as they fit.
 func (m *tuiModel) withVersion(segs ...seg) string {
-	v := core.Version + " "
-	if gap := m.width - segsWidth(segs) - lipgloss.Width(v); gap >= 2 {
-		segs = append(segs, seg{strings.Repeat(" ", gap), lipgloss.NewStyle()}, seg{v, fg(cMuted)})
+	m.updX0, m.updX1 = -1, -1
+	v := seg{core.Version + " ", fg(cMuted)}
+	right := []seg{v}
+	if m.newTag != "" {
+		chip := seg{" ↑ " + m.newTag + " · U update ", sty("#1a1b26", cYellow, true)}
+		if m.width-segsWidth(segs)-segsWidth([]seg{chip, v})-1 >= 2 {
+			right = []seg{chip, {" ", lipgloss.NewStyle()}, v}
+		}
 	}
-	return line(m.width, segs...)
+	gap := m.width - segsWidth(segs) - segsWidth(right)
+	if gap < 2 {
+		return line(m.width, segs...)
+	}
+	if len(right) == 3 {
+		m.updX0 = m.width - segsWidth(right)
+		m.updX1 = m.updX0 + segsWidth(right[:1])
+	}
+	segs = append(segs, seg{strings.Repeat(" ", gap), lipgloss.NewStyle()})
+	return line(m.width, append(segs, right...)...)
 }
 
 var helpText = [][2]string{
@@ -997,7 +1010,7 @@ var helpText = [][2]string{
 	{"f / F", "next / previous status filter"},
 	{"e", "edit the repo's notes in $VISUAL / $EDITOR"},
 	{"r", "rescan now"},
-	{"U", "update to the new release, when the top bar offers one"},
+	{"U", "update to the new release, when the bottom right offers one"},
 	{"w", "open the web page (starts the server if needed)"},
 	{"i", "show / hide the inspector (beside the cards, or full screen when narrow)"},
 	{"Tab", "move into the inspector (opens it); j/k move, Enter opens, Tab or Esc back"},
