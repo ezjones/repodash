@@ -58,7 +58,9 @@ func openInTmux(dir string) (action, window string, err error) {
 	if sess == "" {
 		sess, _, _ = strings.Cut(strings.SplitN(out, "\n", 2)[0], "\t")
 	}
-	idx, err := tmux("new-window", "-t", sess+":", "-c", dir, "-P", "-F", "#{window_index}")
+	// tmux expands formats in -c, and #(...) would run a command: double every # so a folder
+	// name is only ever a folder name.
+	idx, err := tmux("new-window", "-t", sess+":", "-c", strings.ReplaceAll(dir, "#", "##"), "-P", "-F", "#{window_index}")
 	if err != nil {
 		return "", "", err
 	}
