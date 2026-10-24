@@ -101,7 +101,7 @@ func TestInspectorShowsAllNotes(t *testing.T) {
 			t.Errorf("%s missing from the panel", l)
 		}
 	}
-	if strings.Contains(pl, "e: add notes") {
+	if strings.Contains(pl, "n: add notes") {
 		t.Error("hint shown although notes exist")
 	}
 }
@@ -110,7 +110,7 @@ func TestInspectorNotesHint(t *testing.T) {
 	f, _ := panelFake(t)
 	f.m.d.Notes = func(string) string { return " \n\n" }
 	pl := strings.Join(panelLines(f.m, 44), "\n")
-	if !strings.Contains(pl, "NOTES") || !strings.Contains(pl, "e: add notes") {
+	if !strings.Contains(pl, "NOTES") || !strings.Contains(pl, "n: add notes") {
 		t.Errorf("no hint:\n%s", pl)
 	}
 }

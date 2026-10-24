@@ -1586,7 +1586,7 @@ for (const id of ['#recent', '#world', '#kanban']) $(id).addEventListener('click
 /* ---------- keyboard: the same vim-style keys as the terminal UI ---------- */
 const HELP_KEYS = [
   ['h j k l / arrows', 'move between cards'], ['g / G', 'first / last card'], ['ctrl-d / ctrl-u', 'half a screen down / up'],
-  ['Enter / n', "jump to the repo's terminal"], ['/', 'search by name (Enter keeps, Esc clears)'], ['s / S', 'next sort / reverse'],
+  ['Enter / c', "jump to the repo's terminal"], ['n', 'README and notes of the selected repo'], ['/', 'search by name (Enter keeps, Esc clears)'], ['s / S', 'next sort / reverse'],
   ['f / F', 'next / previous status filter'], ['r', 'rescan now'], ['J / K', 'inspector: next / previous commit or issue'], ['o', 'inspector: expand the commit, open the issue, jump to the worktree'], ['i', 'show / hide the inspector'], ['?', 'this help'],
 ];
 const helpbg = document.createElement('div'); helpbg.className = 'info-bg'; helpbg.hidden = true;
@@ -1663,7 +1663,8 @@ addEventListener('keydown', e => {
   else if (k === 'i') toggleInsp();
   else if (k === 'J' || k === 'K'){ if (!(inspOn && rowMove(k === 'J' ? 1 : -1))) used = false; }
   else if (k === 'o'){ const rw = inspOn && document.activeElement.closest && document.activeElement.closest('#insp .row'); if (rw) rowActivate(rw); else used = false; }
-  else if (k === 'Enter' || k === 'n'){ if (inspName && repos.some(r => r.name === inspName)) openTerminal(inspName, null); else used = false; }
+  else if (k === 'Enter' || k === 'c'){ if (inspName && repos.some(r => r.name === inspName)) openTerminal(inspName, null); else used = false; }
+  else if (k === 'n'){ if (inspName && repos.some(r => r.name === inspName)) openInfo(inspName); else used = false; }
   else if (k === 's'){ sortBy = kbCycle(SORTS, sortBy, 1); ls('sort', sortBy); syncChrome(); place(); }
   else if (k === 'S'){ rev = !rev; ls('rev', rev ? '1' : '0'); syncChrome(); place(); }
   else if (k === 'f' || k === 'F'){

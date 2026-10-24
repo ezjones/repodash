@@ -698,7 +698,7 @@ func panelLines(m *tuiModel, w int) []string {
 				add(seg{" " + n, fg(cText2)})
 			}
 		} else {
-			add(seg{" e: add notes", fg(cDim)})
+			add(seg{" n: add notes", fg(cDim)})
 		}
 	}
 	return out
@@ -951,7 +951,7 @@ func (m *tuiModel) footerLine() string {
 	key, desc := fg(cInfo).Bold(true), fg(cDim)
 	sp := seg{"  ", lipgloss.NewStyle()}
 	var full []seg
-	for _, h := range [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "new workspace"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"w", "web"}, {"?", "help"}, {"q", "close"}} {
+	for _, h := range [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "notes"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"w", "web"}, {"?", "help"}, {"q", "close"}} {
 		full = append(full, seg{h[0], key}, seg{" " + h[1], desc}, sp)
 	}
 	if segsWidth(full)+1 <= m.width {
@@ -965,7 +965,8 @@ var helpText = [][2]string{
 	{"g / G", "first / last card"},
 	{"ctrl-d / ctrl-u", "half a page down / up"},
 	{"Enter", "jump to the repo's workspace"},
-	{"n", "new workspace, no question"},
+	{"c", "new workspace, no question"},
+	{"n", "notes dialog: view, add or edit (Ctrl+S saves)"},
 	{"/", "search by name (Enter keeps, Esc clears)"},
 	{"s / S", "next sort / reverse"},
 	{"f / F", "next / previous status filter"},
@@ -1071,6 +1072,9 @@ func (m *tuiModel) View() tea.View {
 	}
 	for len(body) < h {
 		body = append(body, "")
+	}
+	if m.dlg != nil {
+		body = m.overlayDialog(body, h)
 	}
 	all := append([]string{m.topBar()}, body...)
 	all = append(all, m.footerLine())

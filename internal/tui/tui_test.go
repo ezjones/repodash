@@ -229,10 +229,10 @@ func TestTUIJumpPrompt(t *testing.T) {
 		t.Fatalf("opens: %v", f.opens)
 	}
 
-	// n outside a prompt creates without asking.
+	// c outside a prompt creates without asking.
 	g := newFakeTUI(t, false)
 	g.selectName(t, "notes-cli")
-	if cmd := g.keys("n"); cmd == nil || g.m.prompt != "" {
+	if cmd := g.keys("c"); cmd == nil || g.m.prompt != "" {
 		t.Fatal("n should open directly")
 	}
 }

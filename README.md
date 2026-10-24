@@ -107,7 +107,8 @@ It scans the repos in the folder you run it from, or `~/gitrepos` (see
 | `h` `j` `k` `l` / arrows | Move between cards |
 | `g` / `G`, `ctrl-d` / `ctrl-u` | First / last card, half a page down / up |
 | Enter | Jump to the repo's herdr workspace or tmux window; asks before creating one |
-| `n` | Create a workspace without asking |
+| `c` | Create a workspace without asking |
+| `n` | Notes dialog for the repo: read, add or edit (`e` or Enter edits, Ctrl+S saves, `o` opens `$EDITOR`) |
 | `/` | Search by name (Enter keeps it, Esc clears) |
 | `s` / `S` | Next sort (recent, activity, language, alpha, issues) / reverse |
 | `f` / `F` | Next / previous status filter |
@@ -147,7 +148,7 @@ Press Enter on a card (or double-click it) and RepoDash looks through herdr's pa
 1. **A pane in the repo folder** wins: its workspace and tab are focused.
 2. **A pane in a subfolder** (`my-app/src`, say) comes next, if no pane sits at the repo root.
 3. **No pane at all**: RepoDash asks *Create a workspace for my-app? y/n*. `y` creates a herdr
-   workspace named after the repo, in the repo folder, and focuses it. Press `n` on a card instead of
+   workspace named after the repo, in the repo folder, and focuses it. Press `c` on a card instead of
    Enter to create it without the question.
 
 The RepoDash tab stays where it was, so the plugin key takes you straight back to pick the next one.

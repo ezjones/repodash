@@ -25,8 +25,10 @@ type tuiDeps struct {
 	Commits       func(dir string) []core.CommitLine
 	CommitDetail  func(dir, hash string) (core.CommitInfo, error)
 	OpenURL       func(url string)
-	Notes         func(name string) string    // the repo's whole notes text, "" when none
-	EditCmd       func(path string) *exec.Cmd // the editor on path; nil when there is none
+	Notes         func(name string) string         // the repo's whole notes text, "" when none
+	ReadNotes     func(name string) (string, bool) // for the notes dialog; core.ReadNotes when nil
+	SaveNotes     func(name, text string) error    // for the notes dialog; core.SaveNotes when nil
+	EditCmd       func(path string) *exec.Cmd      // the editor on path; nil when there is none
 	Now           func() time.Time
 	Web           func() (url string, err error) // open the web page, starting the server if needed
 	QuitAfterJump bool                           // in a herdr popup, which blocks herdr until it closes
@@ -101,6 +103,7 @@ type tuiModel struct {
 	spinPending bool // a "spin" tick is on its way; ticks never stack
 
 	notes map[string]notesCache
+	dlg   *notesDialog // the notes dialog, nil when closed
 
 	cols     int // cards per row; set by relayout
 	pageRows int // rows per page, for ctrl+d / ctrl+u
@@ -341,8 +344,11 @@ func (m *tuiModel) notesText(name string) string {
 }
 
 // editNotes opens the selected repo's notes in the user's editor; the screen is suspended meanwhile.
-func (m *tuiModel) editNotes() tea.Cmd {
+func (m *tuiModel) editNotes(names ...string) tea.Cmd {
 	r, ok := m.selected()
+	if len(names) > 0 {
+		r, ok = core.Repo{Name: names[0]}, true
+	}
 	if !ok || m.d.EditCmd == nil {
 		return nil
 	}
@@ -391,9 +397,30 @@ func (m *tuiModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	defer m.relayout()
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
+		if m.dlg != nil {
+			m.dialogClick(tea.Mouse(msg))
+			return m, nil
+		}
 		return m, m.click(tea.Mouse(msg))
 	case tea.MouseWheelMsg:
+		if m.dlg != nil {
+			if !m.dlg.edit {
+				switch msg.Button {
+				case tea.MouseWheelUp:
+					m.dialogScroll(-3)
+				case tea.MouseWheelDown:
+					m.dialogScroll(3)
+				}
+			}
+			return m, nil
+		}
 		m.wheel(tea.Mouse(msg))
+	case tea.PasteMsg:
+		if m.dlg != nil && m.dlg.edit && !m.dlg.confirm {
+			var cmd tea.Cmd
+			m.dlg.ta, cmd = m.dlg.ta.Update(msg)
+			return m, cmd
+		}
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 	case scanMsg:
@@ -442,11 +469,15 @@ func (m *tuiModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		// a notes file left empty is removed, as the web page's empty save does
-		if t, ok := core.ReadNotes(msg.name); ok && strings.TrimSpace(t) == "" {
-			if err := core.SaveNotes(msg.name, ""); err != nil {
+		if t, ok := m.d.readOrCore(msg.name); ok && strings.TrimSpace(t) == "" {
+			if err := m.saveNotes(msg.name, ""); err != nil {
 				m.msg = err.Error()
 				return m, nil
 			}
+		}
+		if m.dlg != nil && m.dlg.name == msg.name { // back from the editor: show what it wrote
+			m.dlg.text = m.readNotes(msg.name)
+			m.dlg.edit, m.dlg.confirm, m.dlg.scroll = false, false, 0
 		}
 		m.msg = "notes saved"
 	case webMsg:
@@ -495,6 +526,10 @@ func cycle(l []string, cur string, step int) string {
 func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := k.String()
 	m.msg = ""
+
+	if m.dlg != nil {
+		return m.dialogKey(k)
+	}
 
 	if m.prompt != "" {
 		name, mux, dir := m.prompt, m.promptMux, m.promptDir
@@ -607,8 +642,10 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	case "e":
 		return m, m.editNotes()
-	case "enter", "n":
-		return m, m.jump(s == "n")
+	case "n":
+		m.openDialog()
+	case "enter", "c":
+		return m, m.jump(s == "c")
 	}
 	return m, nil
 }
@@ -620,7 +657,7 @@ func (m *tuiModel) half() int {
 	return 1
 }
 
-// jump handles Enter (ask if there is no tab yet) and n (create without asking).
+// jump handles Enter (ask if there is no tab yet) and c (create without asking).
 func (m *tuiModel) jump(force bool) tea.Cmd {
 	r, ok := m.selected()
 	if !ok {
@@ -749,4 +786,12 @@ func Run(root string, web func() (string, error)) error {
 	}()
 	_, err := p.Run()
 	return err
+}
+
+// readOrCore reads a repo's notes through the injected reader, else from disk.
+func (d tuiDeps) readOrCore(name string) (string, bool) {
+	if d.ReadNotes != nil {
+		return d.ReadNotes(name)
+	}
+	return core.ReadNotes(name)
 }
