@@ -82,7 +82,7 @@ A few keys get you going:
 | `/` | Search by name |
 | `s` / `f` | Change the sort / filter by status |
 | `w` | Open the web page (canvas, kanban) in your browser |
-| `U` | Update to the new release (offered at the bottom right, next to the version) |
+| `U` | Check for a new release now and update to it (once a day it also checks by itself and offers it at the bottom right) |
 | `?` | Every key |
 | `q` | Quit |
 
@@ -158,7 +158,7 @@ It scans the repos in the folder you run it from, or `~/gitrepos` (see
 | Tab | Move into the inspector (it opens if hidden): `j`/`k` move over its commits, issues and worktrees, Enter opens one, Tab or Esc goes back to the cards |
 | `J` / `K`, `o` | The same without leaving the cards: next / previous inspector line, open it |
 | `w` | Open the web page in your browser, starting the web server in the background if it isn't running |
-| `U` | Update to the new release, when the bottom right offers one |
+| `U` | Check GitHub for a new release now and update to it |
 | `e` | Edit the selected repo's notes in `$VISUAL` / `$EDITOR` (else `nano` or `vi`); the inspector shows them all |
 | `r` | Rescan now |
 | `H` | Hide or show the key hints at the bottom (remembered between runs) |
