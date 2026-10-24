@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"fmt"
@@ -34,10 +34,10 @@ func webUp(u string) bool {
 	return r.StatusCode == http.StatusOK
 }
 
-// openWeb opens the web dashboard in the browser. When no server answers on addr it first
+// OpenWeb opens the web dashboard in the browser. When no server answers on addr it first
 // starts one in the background (repodash -web plus args), detached so it outlives the TUI,
 // logging to logPath.
-func openWeb(addr string, args []string, logPath string) (string, error) {
+func OpenWeb(addr string, args []string, logPath string) (string, error) {
 	u := webURL(addr)
 	if !webUp(u) {
 		exe, err := os.Executable()

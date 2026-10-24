@@ -16,6 +16,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/ezjones/repodash/internal/core"
+	"github.com/ezjones/repodash/internal/server"
 	"github.com/ezjones/repodash/internal/tui"
 	"log"
 	"os"
@@ -102,14 +103,14 @@ func main() {
 			args = append(args, "-allow-host", *allowHost)
 		}
 		openWebPage := func() (string, error) {
-			return openWeb(*addr, args, filepath.Join(dataDir, "repodash", "repodash.log"))
+			return server.OpenWeb(*addr, args, filepath.Join(dataDir, "repodash", "repodash.log"))
 		}
 		if err := tui.Run(*root, openWebPage); err != nil {
 			log.Fatal(err)
 		}
 		return
 	}
-	log.Fatal(serve(serveOptions{
+	log.Fatal(server.Serve(server.Options{
 		Root:       *root,
 		Addr:       *addr,
 		AllowHost:  *allowHost,

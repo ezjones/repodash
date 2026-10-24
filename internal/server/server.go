@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"embed"
@@ -19,14 +19,14 @@ import (
 //go:embed web
 var webFS embed.FS
 
-// serveOptions configures serve.
-type serveOptions struct {
+// Options configures Serve.
+type Options struct {
 	Root, Addr, AllowHost, LayoutPath string
 	NoOpen                            bool
 }
 
-// serve runs the web dashboard until the listener fails.
-func serve(o serveOptions) error {
+// Serve runs the web dashboard until the listener fails.
+func Serve(o Options) error {
 	layout := &layoutStore{path: o.LayoutPath}
 	hub := newHub(func() []core.Repo { return core.ScanAll(o.Root) })
 	go hub.run()
