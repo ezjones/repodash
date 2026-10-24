@@ -10,15 +10,15 @@ import (
 
 // tuiDeps is everything the terminal UI touches outside itself, so tests can fake it.
 type tuiDeps struct {
-	Scan    func() []Repo
-	Panes   func() []pane                // agent refresh, every 1 s
-	Issues  func() map[string]repoIssues // current issues; may return nil
-	Find    func(dir string) (mux string, exists bool, err error)
-	Open    func(mux, dir string) (action, window string, err error)
-	Commits func(dir string) []commitLine
-	Notes   func(name string) []string
-	Now     func() time.Time
-	InHerdr bool // quit after a successful jump
+	Scan          func() []Repo
+	Panes         func() []pane                // agent refresh, every 1 s
+	Issues        func() map[string]repoIssues // current issues; may return nil
+	Find          func(dir string) (mux string, exists bool, err error)
+	Open          func(mux, dir string) (action, window string, err error)
+	Commits       func(dir string) []commitLine
+	Notes         func(name string) []string
+	Now           func() time.Time
+	QuitAfterJump bool // in a herdr popup, which blocks herdr until it closes
 }
 
 type (
@@ -289,7 +289,7 @@ func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.msg = msg.err.Error()
 			return m, nil
 		}
-		if m.d.InHerdr {
+		if m.d.QuitAfterJump {
 			return m, tea.Quit
 		}
 		verb := "opened"
@@ -504,12 +504,12 @@ func runTUI(root string) error {
 			defer mu.Unlock()
 			return issues
 		},
-		Find:    func(dir string) (string, bool, error) { return findTarget(dir, mode()) },
-		Open:    openWith,
-		Commits: func(dir string) []commitLine { return recentCommits(dir, 5) },
-		Notes:   func(name string) []string { return notesExcerpt(name, 5) },
-		Now:     time.Now,
-		InHerdr: inHerdr(),
+		Find:          func(dir string) (string, bool, error) { return findTarget(dir, mode()) },
+		Open:          openWith,
+		Commits:       func(dir string) []commitLine { return recentCommits(dir, 5) },
+		Notes:         func(name string) []string { return notesExcerpt(name, 5) },
+		Now:           time.Now,
+		QuitAfterJump: inHerdrPopup(),
 	}
 	p := tea.NewProgram(newTUIModel(d))
 

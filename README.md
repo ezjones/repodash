@@ -164,7 +164,7 @@ same user as the herdr server.
 herdr workspace, and offers to create one if there is none. The mouse works too: click to select,
 double-click to jump. It fits phone-width terminals.
 
-To open it as a full-screen popup inside herdr, link this folder as a plugin (it needs Go, or a
+To open it in its own tab inside herdr, link this folder as a plugin (it needs Go, or a
 release binary, to build `./repodash`):
 
 ```sh
@@ -183,7 +183,8 @@ command = "repodash.open"
 description = "repodash"
 ```
 
-Inside the popup, Enter jumps with herdr and closes the popup; `q` closes it without jumping.
+The tab stays open while you work: Enter jumps to the repo's workspace, and the same key brings you
+back to the RepoDash tab instead of opening another. `q` closes it.
 
 ## Install and run
 

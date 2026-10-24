@@ -25,6 +25,7 @@ type herdrPane struct {
 	FgCwd       string `json:"foreground_cwd"`
 	TabID       string `json:"tab_id"`
 	WorkspaceID string `json:"workspace_id"`
+	Title       string `json:"terminal_title_stripped"`
 }
 
 func listHerdrPanes() ([]herdrPane, error) {

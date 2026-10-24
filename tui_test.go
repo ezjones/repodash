@@ -32,8 +32,8 @@ func newFakeTUI(t *testing.T, inHerdr bool) *fakeTUI {
 			f.opens = append(f.opens, [2]string{mux, dir})
 			return "jumped", "w", f.openE
 		},
-		Now:     func() time.Time { return time.Unix(1000, 0) },
-		InHerdr: inHerdr,
+		Now:           func() time.Time { return time.Unix(1000, 0) },
+		QuitAfterJump: inHerdr,
 	})
 	f.send(scanMsg(repos))
 	return f

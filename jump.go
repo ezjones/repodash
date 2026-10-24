@@ -68,3 +68,34 @@ func openWith(mux, dir string) (action, window string, err error) {
 func inHerdr() bool {
 	return os.Getenv("HERDR_PANE_ID") != "" || os.Getenv("HERDR_ENV") != ""
 }
+
+// inHerdrPopup reports a herdr popup: herdr sets HERDR_ENV there but no pane id.
+func inHerdrPopup() bool {
+	return os.Getenv("HERDR_PANE_ID") == "" && os.Getenv("HERDR_ENV") != ""
+}
+
+// tuiTitle is the terminal title the TUI sets, so herdrOpenTUI can find its tab again.
+const tuiTitle = "RepoDash"
+
+// herdrOpenTUI is the plugin's open action: focus the tab already showing the TUI, or open
+// it in a new tab. A tab, not a popup: herdr popups take all input until they close.
+func herdrOpenTUI() error {
+	ps, err := listHerdrPanes()
+	if err != nil {
+		return errors.New("no herdr server running")
+	}
+	for _, p := range ps {
+		if p.Title == tuiTitle {
+			if _, err := herdr("workspace", "focus", p.WorkspaceID); err != nil {
+				return err
+			}
+			_, err := herdr("tab", "focus", p.TabID)
+			return err
+		}
+	}
+	// Start in the home folder so the tab's cwd never matches a repo card.
+	home, _ := os.UserHomeDir()
+	_, err = herdr("plugin", "pane", "open", "--plugin", "repodash", "--entrypoint", "grid",
+		"--placement", "tab", "--cwd", home, "--focus")
+	return err
+}

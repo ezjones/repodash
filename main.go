@@ -43,6 +43,7 @@ func main() {
 	once := flag.Bool("json", false, "scan once, print JSON, exit")
 	check := flag.Bool("check", false, "validate the settings file, print problems, exit 1 if there are any")
 	tui := flag.Bool("tui", false, "open the terminal UI (no web server)")
+	herdrOpen := flag.Bool("herdr-open", false, "herdr plugin action: focus the RepoDash tab, or open one")
 	noOpen := flag.Bool("no-open", false, "do not open the page in a browser on start")
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	printCfg := flag.Bool("print-config", false, "print the default settings and exit")
@@ -89,6 +90,12 @@ func main() {
 	}
 
 	layout := &layoutStore{path: filepath.Join(dataDir, "repodash", "layout.json")}
+	if *herdrOpen {
+		if err := herdrOpenTUI(); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	if *tui {
 		if err := runTUI(*root); err != nil {
 			log.Fatal(err)

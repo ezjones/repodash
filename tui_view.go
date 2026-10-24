@@ -778,6 +778,7 @@ func (m *tuiModel) View() tea.View {
 	all = append(all, m.footerLine())
 	v := tea.NewView(strings.Join(all, "\n"))
 	v.AltScreen = true
+	v.WindowTitle = tuiTitle
 	v.MouseMode = tea.MouseModeCellMotion
 	return v
 }
