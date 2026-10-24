@@ -1,4 +1,4 @@
-package main
+package tui
 
 import (
 	"fmt"
@@ -524,8 +524,8 @@ func (m *tuiModel) footer() string {
 	return m.msg
 }
 
-// runTUI runs the interface against the real repos and terminals. Settings must be loaded.
-func runTUI(root string, web func() (string, error)) error {
+// Run runs the interface against the real repos and terminals. Settings must be loaded.
+func Run(root string, web func() (string, error)) error {
 	var mu sync.Mutex
 	var last []core.Repo
 	var issues map[string]core.RepoIssues

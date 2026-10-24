@@ -16,6 +16,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/ezjones/repodash/internal/core"
+	"github.com/ezjones/repodash/internal/tui"
 	"log"
 	"os"
 	"path/filepath"
@@ -33,7 +34,7 @@ func main() {
 	cfgPath := flag.String("config", "", "settings file (default: repodash.json next to the binary, or $REPODASH_CONFIG)")
 	once := flag.Bool("json", false, "scan once, print JSON, exit")
 	check := flag.Bool("check", false, "validate the settings file, print problems, exit 1 if there are any")
-	tui := flag.Bool("tui", false, "open the terminal UI (the default when run from a terminal)")
+	tuiFlag := flag.Bool("tui", false, "open the terminal UI (the default when run from a terminal)")
 	web := flag.Bool("web", false, "serve the web dashboard (the default when not run from a terminal)")
 	herdrOpen := flag.Bool("herdr-open", false, "herdr plugin action: focus the RepoDash tab, or open one")
 	noOpen := flag.Bool("no-open", false, "do not open the page in a browser on start")
@@ -95,7 +96,7 @@ func main() {
 			serverFlag = true
 		}
 	})
-	if *tui || (!serverFlag && core.Interactive() && core.StdinTerminal()) {
+	if *tuiFlag || (!serverFlag && core.Interactive() && core.StdinTerminal()) {
 		args := []string{"-root", *root, "-config", core.ConfigPath()}
 		if *allowHost != "" {
 			args = append(args, "-allow-host", *allowHost)
@@ -103,7 +104,7 @@ func main() {
 		openWebPage := func() (string, error) {
 			return openWeb(*addr, args, filepath.Join(dataDir, "repodash", "repodash.log"))
 		}
-		if err := runTUI(*root, openWebPage); err != nil {
+		if err := tui.Run(*root, openWebPage); err != nil {
 			log.Fatal(err)
 		}
 		return
