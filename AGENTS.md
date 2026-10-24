@@ -81,7 +81,7 @@ All keys, with their defaults. Lists replace the default list entirely.
 | `card.coverStyle` | `aurora` `deep` `gradient` `name` | `name` | Generated cover for repos with no image. `aurora` glowing colour on near-black, `deep` dark three-stop gradient with grain, `gradient` soft pastel blobs, `name` the repo name big on a flat colour (fixed size, long names are cut off). Drawn from the repo name, so a repo always gets the same art. Per repo: `repos.<name>.coverStyle`. The top bar can override this and the badge for one browser |
 | `card.languageBadge` | true/false | `true` | Small badge in the cover's lower-right corner with the repo's main language (by tracked file count; hidden when none is recognised) |
 | `card.branch` `note` `chips` `activity` `week` `worktrees` `agent` | true/false | `true` | Show or hide each card section |
-| `updates.check` | true/false | `true` | Once a day, ask GitHub whether a newer release exists, and offer it in the TUI (`U`) and on the page. Off = no request is made |
+| `updates.check` | true/false | `true` | Once a day, ask GitHub whether a newer release exists, and offer it in the TUI (`U`) and on the page. Off = no automatic request (pressing `U` or the page's Update still checks once). Applies live |
 | `card.issues` | true/false | `true` | GitHub issues on the card (see Using the app). Needs the `gh` CLI, logged in. Off = `gh` is never run |
 | `card.actions` | list of `image` `terminal` `copy` `info` | all four | Which buttons a card has. `terminal`, `copy` and `info` are header icons, in this order. `info` opens the README / Notes panel (a dot marks repos that have notes). `image` sits in the top-right corner of the cover (shown on hover; always visible on touch), or in the header if `card.cover` is off |
 | `canvas.columns` | 1-12 | `4` | Columns when arranging cards |
@@ -188,7 +188,7 @@ Handy for scripts and tests. All local; see the security notes before exposing t
 | `POST /api/open` | `{"name": "<repo>", "worktree": "<path>"}`: select or open that repo's tmux window. With `worktree` (the `path` of one of the repo's `worktrees` in `/api/repos`) it opens that folder instead; any other path is refused with 404 |
 | `GET /api/info/<repo>` | `{readme, readme_name, notes}` for the info panel |
 | `GET /api/update` | `{version, latest, blocker, restart?}`: running version, newer release tag if known (else empty), why it cannot self-update (else empty); `restart: "failed"` after a failed restart. Also pushed as SSE event `update` |
-| `POST /api/update` | Update the binary the server runs to `latest` and restart in place. JSON content type; **loopback clients only** (403 otherwise); 409 when blocked, up to date or already running; 502 on a failed download; 200 `{updated: tag}` then restarts after ~300 ms |
+| `POST /api/update` | Update the binary the server runs to `latest` and restart in place. JSON content type; **loopback only**: the client address and the `Host` name must both be this machine, so a local reverse proxy (`tailscale serve`) cannot pass it on (403 otherwise); 409 when blocked, up to date or already running; 502 on a failed download; 200 `{updated: tag}` then restarts after ~300 ms |
 | `GET /api/commits/<repo>` | `{commits: [{hash, at, subject}], web?}`: the 5 newest commits, for the inspector |
 | `PUT /api/notes/<repo>` | Save notes: JSON `{"text": "..."}` (empty text deletes the file; max 256 KB) |
 | `GET /img/<repo>` | The repo's cover image |
@@ -294,6 +294,7 @@ break the settings file on purpose (invalid JSON, a bad enum) and confirm the pa
   `git status`, and not every folder under the root is a repo we created.
 - State-changing routes require a JSON or `image/*` content type. A web page on another origin
   cannot send those without a CORS preflight, which the server never answers.
+- **Self-update** downloads only from the project's GitHub releases (redirects followed, never https to http), installs only a file whose SHA-256 matches the release's `checksums.txt` and that answers `-version` with the expected tag, writes it beside the binary and renames it over (never half-written). `POST /api/update` needs a loopback client *and* a loopback `Host`. A cover upload landing in the ~300 ms before the restart could be cut short (covers are written in place).
 - Repo names are validated (`validRepo`): a plain folder under the root containing `.git`. Cover
   paths are resolved through symlinks and must stay inside the repo.
 

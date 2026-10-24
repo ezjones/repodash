@@ -434,10 +434,14 @@ forwarded, so you can open <http://127.0.0.1:8092> in a Windows browser. See
 ### Updates
 
 Once a day RepoDash asks GitHub whether a newer release exists. If so, the terminal UI's top bar
-shows `↑ vX.Y.Z · U update`. Press `U` (or click it): it downloads the release for your system,
-checks it against the published SHA-256 checksum, replaces the running binary and restarts in the
-same terminal. The web page shows the same notice (`↑ vX.Y.Z` with an Update button, or the `U` key); it only works
-from the machine RepoDash runs on, so a phone can see the notice but not start the update.
+shows a yellow `↑ vX.Y.Z · U update`. Press `U` (or click it): it downloads the release for your
+system, checks it against the published SHA-256 checksum, replaces the running binary and restarts
+in the same terminal. With no notice showing, `U` checks right away and tells you if you are up to
+date (press it again to install what it finds).
+
+The web page shows the same notice, an amber `↑ vX.Y.Z` with an Update button (or the `U` key). It
+only works when the browser and RepoDash are on the same machine (opened as `localhost` or
+`127.0.0.1`), so a phone can see the notice but not start the update.
 Where it cannot update itself it says why instead:
 
 - Built from source (`dev`): `git pull` and rebuild.
@@ -446,7 +450,8 @@ Where it cannot update itself it says why instead:
   install command.
 
 To turn the check off, set `"updates": {"check": false}` in the [settings](#settings); then no
-request is made. `U` still checks on demand.
+automatic request is made (pressing `U` still checks once, on demand). The change applies
+without a restart.
 
 ### Options
 

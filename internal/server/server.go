@@ -33,9 +33,7 @@ func Serve(o Options) error {
 	go hub.run()
 	upd := newUpdater(hub)
 	hub.upd = upd
-	if core.Config().UpdateCheck {
-		go upd.loop()
-	}
+	go upd.loop()
 
 	sub, _ := fs.Sub(webFS, "web")
 	mux := http.NewServeMux()

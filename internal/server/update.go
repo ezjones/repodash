@@ -74,11 +74,15 @@ func (u *updater) poll() {
 	u.hub.broadcast("update", u.payload())
 }
 
+// loop checks 5 s after start and then hourly; core's cache keeps it to one request a day.
+// The setting is read each time, so turning it on or off applies without a restart.
 func (u *updater) loop() {
 	time.Sleep(5 * time.Second)
 	for {
-		u.poll()
-		time.Sleep(24 * time.Hour)
+		if core.Config().UpdateCheck {
+			u.poll()
+		}
+		time.Sleep(time.Hour)
 	}
 }
 
@@ -88,6 +92,20 @@ func isLoopback(remote string) bool {
 		h = remote
 	}
 	ip := net.ParseIP(strings.Trim(h, "[]"))
+	return ip != nil && ip.IsLoopback()
+}
+
+// loopbackHost reports whether the Host header names this machine (localhost or a loopback IP).
+func loopbackHost(host string) bool {
+	h, _, err := net.SplitHostPort(host)
+	if err != nil {
+		h = host
+	}
+	h = strings.Trim(h, "[]")
+	if strings.EqualFold(h, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(h)
 	return ip != nil && ip.IsLoopback()
 }
 
@@ -102,7 +120,9 @@ func (u *updater) post(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "content type must be application/json", http.StatusUnsupportedMediaType)
 		return
 	}
-	if !isLoopback(r.RemoteAddr) {
+	// Both ends must be this machine: a local reverse proxy (tailscale serve) connects from
+	// loopback but carries the outside name in Host.
+	if !isLoopback(r.RemoteAddr) || !loopbackHost(r.Host) {
 		http.Error(w, "update only from the machine RepoDash runs on", http.StatusForbidden)
 		return
 	}

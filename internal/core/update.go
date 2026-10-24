@@ -72,10 +72,28 @@ func NewerVersion(cur, latest string) bool {
 	return false
 }
 
+// updateClient asks where /latest points; it must not follow the redirect.
 func updateClient() *http.Client {
 	return &http.Client{
 		Timeout:       15 * time.Second,
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+}
+
+// downloadClient fetches release files. GitHub answers them with a 302 to its asset host, so it
+// follows a few redirects, never from https down to http. The checksum vouches for the bytes.
+func downloadClient() *http.Client {
+	return &http.Client{
+		Timeout: 5 * time.Minute,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 5 {
+				return errors.New("too many redirects")
+			}
+			if via[0].URL.Scheme == "https" && req.URL.Scheme != "https" {
+				return errors.New("redirect away from https refused")
+			}
+			return nil
+		},
 	}
 }
 
@@ -177,7 +195,7 @@ func UpdateBlocker(exe string) string {
 }
 
 func download(url string, limit int64) ([]byte, error) {
-	resp, err := updateClient().Get(url)
+	resp, err := downloadClient().Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +287,11 @@ func ApplyUpdate(tag, exe string) error {
 		f.Close()
 		return err
 	}
-	if err := f.Chmod(0o755); err != nil {
+	mode := os.FileMode(0o755)
+	if st, err := os.Stat(exe); err == nil {
+		mode = st.Mode().Perm() | 0o100
+	}
+	if err := f.Chmod(mode); err != nil {
 		f.Close()
 		return err
 	}

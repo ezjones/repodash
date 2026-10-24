@@ -35,6 +35,7 @@ func post(u *updater, ct, remote string) *httptest.ResponseRecorder {
 		r.Header.Set("Content-Type", ct)
 	}
 	r.RemoteAddr = remote
+	r.Host = "127.0.0.1:8092"
 	w := httptest.NewRecorder()
 	u.post(w, r)
 	return w
@@ -59,6 +60,15 @@ func TestUpdatePostGuards(t *testing.T) {
 	}
 	if w := post(u, "application/json", "100.64.0.5:1"); w.Code != http.StatusForbidden {
 		t.Fatal(w.Code)
+	}
+	// A local reverse proxy connects from loopback but carries the outside name.
+	r := httptest.NewRequest("POST", "/api/update", strings.NewReader("{}"))
+	r.Header.Set("Content-Type", "application/json")
+	r.RemoteAddr, r.Host = "127.0.0.1:5", "myhost.example.ts.net"
+	pw := httptest.NewRecorder()
+	u.post(pw, r)
+	if pw.Code != http.StatusForbidden {
+		t.Fatal("proxied request allowed:", pw.Code)
 	}
 	f.blocker = "built from source"
 	if w := post(u, "application/json", "[::1]:1"); w.Code != http.StatusConflict || !strings.Contains(w.Body.String(), "built from source") {

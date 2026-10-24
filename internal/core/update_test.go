@@ -31,7 +31,7 @@ func tarballWith(t *testing.T, script string) []byte {
 	return buf.Bytes()
 }
 
-// releaseServer serves /latest as a 302 to tag, plus the tarball and checksums.
+// releaseServer serves /latest as a 302 to tag, plus the tarball and checksums behind a redirect.
 func releaseServer(t *testing.T, tag string, tarball []byte, sumOf []byte, hits *atomic.Int32) string {
 	t.Helper()
 	asset := "repodash_" + runtime.GOOS + "_" + runtime.GOARCH + ".tar.gz"
@@ -43,8 +43,12 @@ func releaseServer(t *testing.T, tag string, tarball []byte, sumOf []byte, hits 
 		}
 		http.Redirect(w, r, "/tag/"+tag, http.StatusFound)
 	})
-	mux.HandleFunc("/download/"+tag+"/"+asset, func(w http.ResponseWriter, r *http.Request) { w.Write(tarball) })
-	mux.HandleFunc("/download/"+tag+"/checksums.txt", func(w http.ResponseWriter, r *http.Request) {
+	// Like GitHub, release downloads answer 302 to an asset host; the files live elsewhere.
+	mux.HandleFunc("/download/"+tag+"/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/assets/"+strings.TrimPrefix(r.URL.Path, "/download/"+tag+"/"), http.StatusFound)
+	})
+	mux.HandleFunc("/assets/"+asset, func(w http.ResponseWriter, r *http.Request) { w.Write(tarball) })
+	mux.HandleFunc("/assets/checksums.txt", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "%x  %s\n", sum, asset)
 	})
 	srv := httptest.NewServer(mux)
