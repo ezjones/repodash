@@ -28,6 +28,7 @@ type issueRef struct {
 }
 
 type repoIssues struct {
+	Open int       `json:"open"`           // open issue count (filled by the feed from Task 2 on)
 	Done *issueRef `json:"done,omitempty"` // most recently closed issue
 	Next *issueRef `json:"next,omitempty"` // oldest open issue
 }
