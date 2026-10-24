@@ -2,7 +2,11 @@ package tui
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,7 +25,8 @@ type tuiDeps struct {
 	Commits       func(dir string) []core.CommitLine
 	CommitDetail  func(dir, hash string) (core.CommitInfo, error)
 	OpenURL       func(url string)
-	Notes         func(name string) []string
+	Notes         func(name string) string    // the repo's whole notes text, "" when none
+	EditCmd       func(path string) *exec.Cmd // the editor on path; nil when there is none
 	Now           func() time.Time
 	Web           func() (url string, err error) // open the web page, starting the server if needed
 	QuitAfterJump bool                           // in a herdr popup, which blocks herdr until it closes
@@ -39,12 +44,23 @@ type (
 		url string
 		err error
 	}
-	tickMsg string // "scan", "panes" or "issues"
+	editedMsg struct {
+		name string
+		err  error
+	}
+	tickMsg string // "scan", "panes", "issues" or "spin"
 )
+
+const spinEvery = 120 * time.Millisecond
 
 type detailCache struct {
 	ci  core.CommitInfo
 	err error
+}
+
+type notesCache struct {
+	at   time.Time
+	text string
 }
 
 type commitCache struct {
@@ -80,6 +96,11 @@ type tuiModel struct {
 	scroll      int // first visible card row
 	panelScroll int
 	loaded      bool
+
+	spin        int  // frame of the busy-agent spinner
+	spinPending bool // a "spin" tick is on its way; ticks never stack
+
+	notes map[string]notesCache
 
 	cols     int // cards per row; set by relayout
 	pageRows int // rows per page, for ctrl+d / ctrl+u
@@ -274,7 +295,99 @@ func (m *tuiModel) panesCmd() tea.Cmd {
 	return func() tea.Msg { return panesMsg(panes()) }
 }
 
+// anyBusy reports whether a visible repo has an agent working.
+func (m *tuiModel) anyBusy() bool {
+	for _, r := range m.view {
+		if r.Claude == "busy" {
+			return true
+		}
+	}
+	return false
+}
+
+// spinCmd starts the spinner tick when something is busy and none is pending. The tick stops
+// rescheduling itself when nothing is busy, so an idle dashboard costs no CPU.
+func (m *tuiModel) spinCmd() tea.Cmd {
+	if m.spinPending || !m.anyBusy() {
+		return nil
+	}
+	m.spinPending = true
+	return tick("spin", spinEvery)
+}
+
 func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	mod, cmd := m.update(msg)
+	if sc := m.spinCmd(); sc != nil {
+		cmd = tea.Batch(cmd, sc)
+	}
+	return mod, cmd
+}
+
+// notesText returns the repo's notes, read at most every couple of seconds.
+func (m *tuiModel) notesText(name string) string {
+	if m.d.Notes == nil {
+		return ""
+	}
+	now := m.d.Now()
+	if c, ok := m.notes[name]; ok && now.Sub(c.at) < 2*time.Second {
+		return c.text
+	}
+	if m.notes == nil {
+		m.notes = map[string]notesCache{}
+	}
+	t := m.d.Notes(name)
+	m.notes[name] = notesCache{now, t}
+	return t
+}
+
+// editNotes opens the selected repo's notes in the user's editor; the screen is suspended meanwhile.
+func (m *tuiModel) editNotes() tea.Cmd {
+	r, ok := m.selected()
+	if !ok || m.d.EditCmd == nil {
+		return nil
+	}
+	path := core.NotesPath(r.Name)
+	if path == "" {
+		m.msg = "cannot edit notes for this name"
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		m.msg = err.Error()
+		return nil
+	}
+	cmd := m.d.EditCmd(path)
+	if cmd == nil {
+		m.msg = "no editor: set $VISUAL or $EDITOR"
+		return nil
+	}
+	name := r.Name
+	return tea.ExecProcess(cmd, func(err error) tea.Msg { return editedMsg{name, err} })
+}
+
+// editorCmd picks $VISUAL, else $EDITOR, else nano or vi; nil when none is found.
+func editorCmd(path string) *exec.Cmd {
+	var argv []string
+	for _, v := range []string{"VISUAL", "EDITOR"} {
+		if f := strings.Fields(os.Getenv(v)); len(f) > 0 {
+			argv = f
+			break
+		}
+	}
+	if argv == nil {
+		for _, n := range []string{"nano", "vi"} {
+			if p, err := exec.LookPath(n); err == nil {
+				argv = []string{p}
+				break
+			}
+		}
+	}
+	if argv == nil {
+		return nil
+	}
+	return exec.Command(argv[0], append(argv[1:], path)...)
+}
+
+func (m *tuiModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	defer m.relayout()
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
@@ -305,6 +418,14 @@ func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.rebuild()
 			}
 			return m, tea.Batch(m.panesCmd(), tick("panes", time.Second))
+		case "spin":
+			m.spinPending = false
+			if m.anyBusy() {
+				m.spin++
+				m.spinPending = true
+				return m, tick("spin", spinEvery)
+			}
+			return m, nil
 		case "issues":
 			if m.d.Issues != nil {
 				if is := m.d.Issues(); is != nil {
@@ -314,6 +435,20 @@ func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, tick("issues", 30*time.Second)
 		}
+	case editedMsg:
+		m.notes = nil
+		if msg.err != nil {
+			m.msg = msg.err.Error()
+			return m, nil
+		}
+		// a notes file left empty is removed, as the web page's empty save does
+		if t, ok := core.ReadNotes(msg.name); ok && strings.TrimSpace(t) == "" {
+			if err := core.SaveNotes(msg.name, ""); err != nil {
+				m.msg = err.Error()
+				return m, nil
+			}
+		}
+		m.msg = "notes saved"
 	case webMsg:
 		if msg.err != nil {
 			m.msg = msg.err.Error()
@@ -470,6 +605,8 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			u, err := web()
 			return webMsg{u, err}
 		}
+	case "e":
+		return m, m.editNotes()
 	case "enter", "n":
 		return m, m.jump(s == "n")
 	}
@@ -557,12 +694,16 @@ func Run(root string, web func() (string, error)) error {
 			defer mu.Unlock()
 			return issues
 		},
-		Find:          func(dir string) (string, bool, error) { return core.FindTarget(dir, mode()) },
-		Open:          core.OpenWith,
-		Commits:       func(dir string) []core.CommitLine { return core.RecentCommits(dir, 5) },
-		CommitDetail:  core.CommitDetail,
-		OpenURL:       core.OpenBrowser,
-		Notes:         func(name string) []string { return core.NotesExcerpt(name, 5) },
+		Find:         func(dir string) (string, bool, error) { return core.FindTarget(dir, mode()) },
+		Open:         core.OpenWith,
+		Commits:      func(dir string) []core.CommitLine { return core.RecentCommits(dir, 5) },
+		CommitDetail: core.CommitDetail,
+		OpenURL:      core.OpenBrowser,
+		Notes: func(name string) string {
+			t, _ := core.ReadNotes(name)
+			return t
+		},
+		EditCmd:       editorCmd,
 		Now:           time.Now,
 		QuitAfterJump: core.InHerdrPopup(),
 		Web:           web,

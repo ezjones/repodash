@@ -41,7 +41,7 @@ func longRepo() core.Repo {
 
 func TestRenderCardWidth(t *testing.T) {
 	now := time.Unix(1000, 0)
-	c := renderCard(longRepo(), "a-really-long-title-for-the-card-band-xxxxxxxx", nil, false, 36, now)
+	c := renderCard(longRepo(), "a-really-long-title-for-the-card-band-xxxxxxxx", nil, false, 36, now, 0)
 	for _, l := range strings.Split(c, "\n") {
 		if w := lipgloss.Width(l); w != 38 {
 			t.Errorf("line width %d: %q", w, l)
@@ -57,7 +57,7 @@ func TestRenderCardWidth(t *testing.T) {
 	old := core.Config()
 	core.SetConfig(s)
 	defer core.SetConfig(old)
-	if c := renderCard(longRepo(), "x", nil, false, 36, now); strings.Contains(c, "this week") {
+	if c := renderCard(longRepo(), "x", nil, false, 36, now, 0); strings.Contains(c, "this week") {
 		t.Error("card.week=false still shows the week line")
 	}
 }
@@ -175,7 +175,7 @@ func TestRenderCardHostileText(t *testing.T) {
 	r := longRepo()
 	r.LastSubject, r.Branch = evil, evil
 	iss := &core.RepoIssues{Open: 1, Done: &core.IssueRef{Number: 1, Title: evil}, Next: &core.IssueRef{Number: 2, Title: evil}}
-	c := renderCard(r, evil, iss, false, 32, time.Unix(1000, 0))
+	c := renderCard(r, evil, iss, false, 32, time.Unix(1000, 0), 0)
 	for _, l := range strings.Split(c, "\n") {
 		if w := lipgloss.Width(l); w != 34 {
 			t.Errorf("line width %d: %q", w, l)
@@ -190,7 +190,7 @@ func TestRenderCardHostileText(t *testing.T) {
 
 func TestCardBandKeepsName(t *testing.T) {
 	r := core.Repo{Name: "pixel-forge-x", Level: "bad", Language: "TypeScript"}
-	c := renderCard(r, r.Name, nil, false, 28, time.Unix(1000, 0))
+	c := renderCard(r, r.Name, nil, false, 28, time.Unix(1000, 0), 0)
 	first := strings.Split(c, "\n")[1]
 	if !strings.Contains(first, "pixel-forge-x") || !strings.Contains(first, "●") {
 		t.Errorf("band lost the name or dot: %q", first)

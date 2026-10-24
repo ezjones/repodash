@@ -114,6 +114,7 @@ It scans the repos in the folder you run it from, or `~/gitrepos` (see
 | `i` or Tab | Show or hide the [inspector](#inspector) |
 | `J` / `K`, `o` | Move over the inspector's commits, issues and worktrees, and open the one you're on |
 | `w` | Open the web page in your browser, starting the web server in the background if it isn't running |
+| `e` | Edit the selected repo's notes in `$VISUAL` / `$EDITOR` (else `nano` or `vi`); the inspector shows them all |
 | `r` | Rescan now |
 | `?` | All keys |
 | `q` / Esc | Quit |

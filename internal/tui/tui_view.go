@@ -170,10 +170,16 @@ func closedAgo(now time.Time, at string) string {
 	return shortAgo(now, t.Unix())
 }
 
-func agentIcon(claude string) (string, string) {
+var spinFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
+const cChip = "#1a1b26" // the dark chip behind the agent icon, so it reads on any band colour
+
+// agentIcon is the glyph and colour of an agent state: a braille spinner while it works, a dot
+// otherwise. Empty when there is no agent.
+func agentIcon(claude string, spin int) (string, string) {
 	switch claude {
 	case "busy":
-		return "◌", cYellow
+		return spinFrames[((spin%len(spinFrames))+len(spinFrames))%len(spinFrames)], cYellow
 	case "waiting":
 		return "●", cRed
 	case "idle":
@@ -183,7 +189,7 @@ func agentIcon(claude string) (string, string) {
 }
 
 // cardBody is the card's lines without the border, each exactly inner cells wide.
-func cardBody(r core.Repo, title string, iss *core.RepoIssues, inner int, now time.Time) []string {
+func cardBody(r core.Repo, title string, iss *core.RepoIssues, inner int, now time.Time, spin int) []string {
 	raw := tuiSettings().Raw
 	var out []string
 	add := func(segs ...seg) { out = append(out, line(inner, segs...)) }
@@ -193,8 +199,8 @@ func cardBody(r core.Repo, title string, iss *core.RepoIssues, inner int, now ti
 	lbl, col := statusInfo(raw, r.Level)
 	var icon seg
 	if cardOn(raw, "agent") {
-		if g, c := agentIcon(r.Claude); g != "" {
-			icon = seg{" " + g, sty(c, bg, true)}
+		if g, c := agentIcon(r.Claude, spin); g != "" {
+			icon = seg{" " + g + " ", sty(c, cChip, true)}
 		}
 	}
 	pillFull := seg{" ● " + lbl + " ", sty(cInk, col, true)}
@@ -206,7 +212,7 @@ func cardBody(r core.Repo, title string, iss *core.RepoIssues, inner int, now ti
 	var right []seg
 	// the name gets its room first; then drop the badge, then the label, and cut the name last
 	need := 1 + lipgloss.Width(cleanText(title))
-	for _, try := range [][]seg{{icon, pillFull, badge}, {icon, pillFull}, {icon, pillDot}, {pillDot}} {
+	for _, try := range [][]seg{{icon, pillFull, badge}, {icon, pillFull}, {icon, pillDot}} {
 		right = try
 		if inner-segsWidth(try)-1 >= need {
 			break
@@ -315,8 +321,8 @@ func wrapCard(body []string, h, inner int, sel bool) string {
 	return strings.Join(out, "\n")
 }
 
-func renderCard(r core.Repo, title string, iss *core.RepoIssues, sel bool, inner int, now time.Time) string {
-	return wrapCard(cardBody(r, title, iss, inner, now), 0, inner, sel)
+func renderCard(r core.Repo, title string, iss *core.RepoIssues, sel bool, inner int, now time.Time, spin int) string {
+	return wrapCard(cardBody(r, title, iss, inner, now, spin), 0, inner, sel)
 }
 
 // ---------- layout ----------
@@ -344,7 +350,7 @@ func (m *tuiModel) relayout() {
 	h := 3
 	now := m.d.Now()
 	for _, r := range m.view {
-		h = max(h, len(cardBody(r, m.title(r), m.issueFor(r.Name), inner, now)))
+		h = max(h, len(cardBody(r, m.title(r), m.issueFor(r.Name), inner, now, m.spin)))
 	}
 	m.cardH = h + 2
 	m.vis = max(1, m.bodyH()/m.cardH)
@@ -610,16 +616,17 @@ func panelLines(m *tuiModel, w int) []string {
 		br += "  base " + r.Base
 	}
 	add(seg{"branch  ", fg(cDim)}, seg{br, fg(cText)})
-	agent := "no agent"
+	agent, agentCol := "no agent", cText
 	switch r.Claude {
 	case "busy":
-		agent = "working"
+		g, _ := agentIcon("busy", m.spin)
+		agent, agentCol = g+" working", cYellow
 	case "waiting":
-		agent = "waiting for you"
+		agent, agentCol = "waiting for you", cRed
 	case "idle":
-		agent = "idle"
+		agent, agentCol = "idle", cGreen
 	}
-	add(seg{"agent   ", fg(cDim)}, seg{agent, fg(cText)})
+	add(seg{"agent   ", fg(cDim)}, seg{agent, fg(agentCol)})
 	tabs := "no workspace open"
 	switch {
 	case r.Herdr && r.Tmux:
@@ -685,12 +692,41 @@ func panelLines(m *tuiModel, w int) []string {
 		}
 	}
 	if m.d.Notes != nil {
-		if ns := m.d.Notes(r.Name); len(ns) > 0 {
-			head("NOTES", "")
+		head("NOTES", "")
+		if ns := noteLines(m.notesText(r.Name), w-1); len(ns) > 0 {
 			for _, n := range ns {
 				add(seg{" " + n, fg(cText2)})
 			}
+		} else {
+			add(seg{" e: add notes", fg(cDim)})
 		}
+	}
+	return out
+}
+
+// noteLines is the whole notes text as plain lines wrapped to w cells, markdown untouched.
+// Leading indentation is kept, blank lines stay but never twice in a row, and the ends are trimmed.
+func noteLines(text string, w int) []string {
+	w = max(w, 1)
+	var out []string
+	for _, l := range strings.Split(strings.ReplaceAll(text, "\r", ""), "\n") {
+		l = strings.TrimRight(cleanText(l), " ")
+		if l == "" {
+			if len(out) > 0 && out[len(out)-1] != "" {
+				out = append(out, "")
+			}
+			continue
+		}
+		ind := l[:len(l)-len(strings.TrimLeft(l, " "))]
+		if lipgloss.Width(ind) > w/2 {
+			ind = ""
+		}
+		for _, p := range wrapWords(l, w-lipgloss.Width(ind)) {
+			out = append(out, ind+p)
+		}
+	}
+	for len(out) > 0 && out[len(out)-1] == "" {
+		out = out[:len(out)-1]
 	}
 	return out
 }
@@ -933,6 +969,7 @@ var helpText = [][2]string{
 	{"/", "search by name (Enter keeps, Esc clears)"},
 	{"s / S", "next sort / reverse"},
 	{"f / F", "next / previous status filter"},
+	{"e", "edit the repo's notes in $VISUAL / $EDITOR"},
 	{"r", "rescan now"},
 	{"w", "open the web page (starts the server if needed)"},
 	{"J / K", "inspector: next / previous commit or issue"},
@@ -972,7 +1009,7 @@ func (m *tuiModel) gridBody(h int) []string {
 				break
 			}
 			r := m.view[i]
-			body := cardBody(r, m.title(r), m.issueFor(r.Name), inner, now)
+			body := cardBody(r, m.title(r), m.issueFor(r.Name), inner, now, m.spin)
 			cards = append(cards, strings.Split(wrapCard(body, m.cardH-2, inner, i == m.sel), "\n"))
 		}
 		if len(cards) == 0 {

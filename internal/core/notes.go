@@ -23,6 +23,15 @@ var (
 
 func notesPath(name string) string { return filepath.Join(notesDir, name+".md") }
 
+// NotesPath is where the repo's notes file lives (it may not exist yet), or "" when name is not a
+// plain folder name: the same names the page accepts, nothing with a separator or dots only.
+func NotesPath(name string) string {
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\\x00") {
+		return ""
+	}
+	return notesPath(name)
+}
+
 func hasNotes(name string) bool {
 	fi, err := os.Stat(notesPath(name))
 	return err == nil && fi.Size() > 0
