@@ -29,7 +29,7 @@ its settings**, and how to **change the code**.
 | Log when started in the background | `~/.local/share/repodash/repodash.log` |
 | Defaults, embedded in the binary | `default-config.json` (`repodash -print-config` prints it) |
 
-Flags: `-root DIR` (repos folder, default `~/gitrepos`), `-addr HOST:PORT` (default `127.0.0.1:8092`; use `:8092` to
+Flags: `-root DIR` (repos folder; default: the current folder if it holds git repos directly, except the home folder, else `~/gitrepos`; `defaultRoot` in scan.go), `-addr HOST:PORT` (default `127.0.0.1:8092`; use `:8092` to
 reach it from other devices, only on a trusted network such as the tailnet), `-allow-host a,b`
 (host names the page may be opened by, see Security notes), `-config FILE`, `-json` (scan once,
 print JSON, exit), `-check` (validate settings, exit 1 on problems), `-print-config`, `-web` (web server; also implied by `-addr`, `-allow-host`, `-no-open` or no terminal), `-tui` (terminal UI, the default from a terminal), `-herdr-open` (the herdr plugin's open action).

@@ -366,3 +366,19 @@ func scanAll(root string) []Repo {
 	})
 	return repos
 }
+
+// defaultRoot is the repos folder when -root is not given: the current folder if it holds git
+// repos directly, else ~/gitrepos. The home folder itself never counts: it often holds a stray
+// repo (dotfiles), and the herdr tab starts there.
+func defaultRoot(cwd, home string) string {
+	if cwd != "" && filepath.Clean(cwd) != filepath.Clean(home) {
+		if es, err := os.ReadDir(cwd); err == nil {
+			for _, e := range es {
+				if _, ok := validRepo(cwd, e.Name()); ok && e.IsDir() {
+					return cwd
+				}
+			}
+		}
+	}
+	return filepath.Join(home, "gitrepos")
+}

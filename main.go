@@ -37,7 +37,8 @@ var buildVersion = "dev"
 
 func main() {
 	home, _ := os.UserHomeDir()
-	root := flag.String("root", filepath.Join(home, "gitrepos"), "directory holding the repos")
+	cwd, _ := os.Getwd()
+	root := flag.String("root", defaultRoot(cwd, home), "directory holding the repos (default: the current folder if it holds git repos, else ~/gitrepos)")
 	addr := flag.String("addr", "127.0.0.1:8092", "listen address")
 	allowHost := flag.String("allow-host", "", "extra host names the page may be opened by, comma separated (needed when -addr is reachable by name, e.g. a tailnet name)")
 	cfgPath := flag.String("config", "", "settings file (default: repodash.json next to the binary, or $REPODASH_CONFIG)")

@@ -237,7 +237,8 @@ To start only the web server, run `repodash -web`; it opens the page in your bro
 from a terminal (pass `-no-open` to stop that). Started without a terminal (`nohup`, systemd, a
 login script), plain `repodash` is the web server too.
 
-By default it scans the folders directly inside `~/gitrepos`. Point it somewhere else with
+It scans the repos directly inside the folder you run it from, when that folder has any (your
+home folder itself never counts); otherwise it scans `~/gitrepos`. Point it somewhere else with
 `-root`:
 
 ```sh
@@ -255,7 +256,7 @@ forwarded, so you can open <http://127.0.0.1:8092> in a Windows browser. See
 
 | Flag | Meaning |
 |---|---|
-| `-root DIR` | Folder that contains your repos (default `~/gitrepos`) |
+| `-root DIR` | Folder that contains your repos (default: the current folder if it holds repos, else `~/gitrepos`) |
 | `-web` | Web server instead of the terminal UI (also implied by `-addr`, `-allow-host`, `-no-open`, or no terminal) |
 | `-tui` | Terminal UI (the default from a terminal) |
 | `-addr HOST:PORT` | Listen address (default `127.0.0.1:8092`) |
