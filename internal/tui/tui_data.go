@@ -12,7 +12,7 @@ import (
 
 var tuiSorts = []string{"recent", "activity", "language", "alpha", "issues"}
 
-// sortRepos returns a sorted copy. The input is scanAll order (newest activity first) and every
+// sortRepos returns a sorted copy. The input is core.ScanAll order (newest activity first) and every
 // sort is stable, so ties keep that order, as on the page.
 func sortRepos(rs []core.Repo, by string, rev bool, iss map[string]core.RepoIssues) []core.Repo {
 	l := append([]core.Repo(nil), rs...)

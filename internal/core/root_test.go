@@ -22,7 +22,7 @@ func TestDefaultRoot(t *testing.T) {
 		"":                             want,
 	} {
 		if got := DefaultRoot(cwd, home); got != exp {
-			t.Errorf("defaultRoot(%q) = %q, want %q", cwd, got, exp)
+			t.Errorf("DefaultRoot(%q) = %q, want %q", cwd, got, exp)
 		}
 	}
 }

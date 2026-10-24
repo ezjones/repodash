@@ -75,7 +75,7 @@ func InHerdrPopup() bool {
 	return os.Getenv("HERDR_PANE_ID") == "" && os.Getenv("HERDR_ENV") != ""
 }
 
-// TUITitle is the terminal title the TUI sets, so herdrOpenTUI can find its tab again.
+// TUITitle is the terminal title the TUI sets, so HerdrOpenTUI can find its tab again.
 const TUITitle = "RepoDash"
 
 // HerdrOpenTUI is the plugin's open action: focus the tab already showing the TUI, or open
