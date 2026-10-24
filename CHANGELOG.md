@@ -1,7 +1,6 @@
 # Changelog
 
-What each release added. The release workflow copies the section for the tag it builds onto the
-GitHub release page, so write it for people using RepoDash, not for its code.
+What each release added. The release workflow copies the section for the tag it builds onto the GitHub release page, so write it for people using RepoDash, not for its code. One line per item: GitHub shows every line break.
 
 ## Unreleased
 
@@ -9,8 +8,7 @@ GitHub release page, so write it for people using RepoDash, not for its code.
 
 ## v0.7.7
 
-- Terminal UI: `H` hides the key hints at the bottom and gives the cards that row back. RepoDash
-  remembers the choice. The row still appears for a search, a question, a message or an update offer.
+- Terminal UI: `H` hides the key hints at the bottom and gives the cards that row back. RepoDash remembers the choice. The row still appears for a search, a question, a message or an update offer.
 
 ## v0.7.6
 
@@ -23,9 +21,7 @@ GitHub release page, so write it for people using RepoDash, not for its code.
 
 ## v0.7.4
 
-- Self-update. Once a day RepoDash checks for a new release. `U` in the terminal UI, or the Update
-  button on the web page, downloads it, checks it against the release's checksums, replaces the
-  binary and restarts. A herdr install is told to use `herdr plugin update` instead.
+- Self-update. Once a day RepoDash checks for a new release. `U` in the terminal UI, or the Update button on the web page, downloads it, checks it against the release's checksums, replaces the binary and restarts. A herdr install is told to use `herdr plugin update` instead.
 
 ## v0.7.3
 
@@ -33,12 +29,10 @@ GitHub release page, so write it for people using RepoDash, not for its code.
 
 ## v0.7.2
 
-- Terminal UI: `n` opens a notes window to read, add or edit a repo's notes; `c` creates a
-  workspace without asking.
+- Terminal UI: `n` opens a notes window to read, add or edit a repo's notes; `c` creates a workspace without asking.
 
 ## v0.7.1
 
-- Terminal UI: an animated agent badge on each card; `e` edits notes in `$EDITOR`, and the
-  inspector shows all of them.
+- Terminal UI: an animated agent badge on each card; `e` edits notes in `$EDITOR`, and the inspector shows all of them.
 - Plain `repodash` scans the current folder when it holds repos, else `~/gitrepos`.
 - `go install github.com/ezjones/repodash@latest` works.
