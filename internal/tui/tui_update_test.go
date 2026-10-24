@@ -136,3 +136,17 @@ func TestUpdateCheckErrorSilent(t *testing.T) {
 		t.Errorf("msg %q", f.m.msg)
 	}
 }
+
+func TestUpdateKeyAsksFresh(t *testing.T) {
+	f := newUpdFake(t)
+	nows := 0
+	f.m.d.CheckUpdateNow = func() (string, error) { nows++; return "v9.9.9", nil }
+	cmd := f.keys("U") // nothing offered yet: U checks, skipping the daily cache
+	if cmd == nil {
+		t.Fatal("U ran no check")
+	}
+	f.send(cmd())
+	if nows != 1 || f.checks != 0 || f.m.newTag != "v9.9.9" {
+		t.Fatalf("now %d, daily %d, tag %q", nows, f.checks, f.m.newTag)
+	}
+}

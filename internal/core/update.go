@@ -32,10 +32,16 @@ const (
 	maxBinary          = 128 << 20
 )
 
+// testReleasesURL points tests at a fake server while keeping the cache in use.
+var testReleasesURL string
+
 var tagRe = regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
 
 // releasesURL is the release source; REPODASH_UPDATE_URL replaces it (tests only).
 func releasesURL() string {
+	if testReleasesURL != "" {
+		return testReleasesURL
+	}
 	if u := os.Getenv("REPODASH_UPDATE_URL"); u != "" {
 		return strings.TrimRight(u, "/")
 	}
@@ -130,7 +136,13 @@ func updateCachePath() string {
 
 // CheckUpdate returns the newest release tag when it is newer than Version, else "". It asks
 // the network at most once a day (REPODASH_UPDATE_URL set: always, and the cache is not used).
-func CheckUpdate(now time.Time) (string, error) {
+func CheckUpdate(now time.Time) (string, error) { return checkUpdate(now, true) }
+
+// CheckUpdateNow is CheckUpdate for an explicit request (the U key, the Update button): it
+// always asks the network, and refreshes the cache.
+func CheckUpdateNow(now time.Time) (string, error) { return checkUpdate(now, false) }
+
+func checkUpdate(now time.Time, trustCache bool) (string, error) {
 	if _, ok := parseVersion(Version); !ok {
 		return "", nil
 	}
@@ -141,7 +153,7 @@ func CheckUpdate(now time.Time) (string, error) {
 	}
 	latest := ""
 	fresh := false
-	if path != "" {
+	if path != "" && trustCache {
 		var c updateCache
 		if b, err := os.ReadFile(path); err == nil && json.Unmarshal(b, &c) == nil &&
 			!c.At.After(now) && now.Sub(c.At) < updateEvery {

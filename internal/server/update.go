@@ -15,6 +15,7 @@ import (
 // updater holds the server's self-update state. The core calls are fields so tests can fake them.
 type updater struct {
 	check      func(time.Time) (string, error)
+	checkNow   func(time.Time) (string, error) // for a click: skips the once-a-day cache
 	blockerFn  func(exe string) string
 	apply      func(tag, exe string) error
 	restart    func(exe string) error
@@ -31,7 +32,7 @@ type updater struct {
 
 func newUpdater(h *hub) *updater {
 	return &updater{
-		check: core.CheckUpdate, blockerFn: core.UpdateBlocker, apply: core.ApplyUpdate,
+		check: core.CheckUpdate, checkNow: core.CheckUpdateNow, blockerFn: core.UpdateBlocker, apply: core.ApplyUpdate,
 		restart: core.Restart, executable: core.Executable, hub: h, delay: 300 * time.Millisecond,
 	}
 }
@@ -156,7 +157,11 @@ func (u *updater) post(w http.ResponseWriter, r *http.Request) {
 	tag := u.latest
 	u.mu.Unlock()
 	if tag == "" {
-		if t, err := u.check(time.Now()); err == nil {
+		now := u.check
+		if u.checkNow != nil {
+			now = u.checkNow
+		}
+		if t, err := now(time.Now()); err == nil {
 			tag = t
 		}
 		if tag == "" {

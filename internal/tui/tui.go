@@ -33,9 +33,10 @@ type tuiDeps struct {
 	Web           func() (url string, err error) // open the web page, starting the server if needed
 	QuitAfterJump bool                           // in a herdr popup, which blocks herdr until it closes
 
-	CheckUpdate   func() (string, error) // newest release tag when newer than this one, else ""
-	UpdateBlocker func() string          // why this binary cannot update itself, "" when it can
-	ApplyUpdate   func(tag string) error // download, verify and replace the binary
+	CheckUpdate    func() (string, error) // newest release tag when newer than this one, else ""
+	CheckUpdateNow func() (string, error) // the same for U, skipping the once-a-day cache
+	UpdateBlocker  func() string          // why this binary cannot update itself, "" when it can
+	ApplyUpdate    func(tag string) error // download, verify and replace the binary
 }
 
 type (
@@ -318,6 +319,9 @@ func (m *tuiModel) updateTick() tea.Cmd {
 // checkUpdateCmd runs the update check off the UI goroutine.
 func (m *tuiModel) checkUpdateCmd(ask bool) tea.Cmd {
 	check := m.d.CheckUpdate
+	if ask && m.d.CheckUpdateNow != nil {
+		check = m.d.CheckUpdateNow
+	}
 	if check == nil {
 		return nil
 	}
@@ -882,6 +886,7 @@ func Run(root string, web func() (string, error)) error {
 	}
 	exe, exeErr := core.Executable()
 	d.CheckUpdate = func() (string, error) { return core.CheckUpdate(time.Now()) }
+	d.CheckUpdateNow = func() (string, error) { return core.CheckUpdateNow(time.Now()) }
 	d.UpdateBlocker = func() string {
 		if exeErr != nil {
 			return exeErr.Error()

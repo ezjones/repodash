@@ -212,3 +212,25 @@ func TestCheckUpdateCache(t *testing.T) {
 		t.Errorf("server hit %d times despite a fresh cache", hits.Load())
 	}
 }
+
+func TestCheckUpdateNowSkipsCache(t *testing.T) {
+	old := Version
+	defer func() { Version = old; testReleasesURL = "" }()
+	Version = "v1.0.0"
+	var hits atomic.Int32
+	testReleasesURL = releaseServer(t, "v1.1.0", nil, nil, &hits)
+	t.Setenv("REPODASH_UPDATE_URL", "") // the cache is in use, in a temp folder
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	now := time.Now()
+	os.MkdirAll(filepath.Dir(updateCachePath()), 0o755)
+	os.WriteFile(updateCachePath(), []byte(fmt.Sprintf(`{"at":%q,"latest":"v1.0.0"}`, now.Add(-time.Hour).Format(time.RFC3339))), 0o600)
+	if tag, _ := CheckUpdate(now); tag != "" || hits.Load() != 0 {
+		t.Fatalf("daily check: %q, %d requests (the fresh cache should answer)", tag, hits.Load())
+	}
+	if tag, err := CheckUpdateNow(now); tag != "v1.1.0" || err != nil || hits.Load() != 1 {
+		t.Fatalf("explicit check: %q %v, %d requests", tag, err, hits.Load())
+	}
+	if tag, _ := CheckUpdate(now); tag != "v1.1.0" || hits.Load() != 1 {
+		t.Fatalf("cache not refreshed by the explicit check: %q, %d requests", tag, hits.Load())
+	}
+}
