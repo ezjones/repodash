@@ -72,4 +72,4 @@ case ":$PATH:" in
   *":$PREFIX:"*) ;;
   *) say "Note: $PREFIX is not on your PATH. Add it, or run $PREFIX/repodash directly." ;;
 esac
-say "Run: repodash   then open http://127.0.0.1:8092"
+say "Run: repodash   (terminal UI; press w for the web page at http://127.0.0.1:8092)"
