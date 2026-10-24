@@ -2,8 +2,8 @@
   <img src="https://github.com/user-attachments/assets/906d3625-d899-4a2a-a346-d881c93ca7e5" alt="RepoDash" width="260">
 </p>
 
-Your gitrepos folder is chaos. RepoDash is a live dashboard of all your git repos at a glance:
-which ones have uncommitted work, unpushed commits, open GitHub issues, branches that are already
+Your gitrepos folder is chaos. RepoDash turns it into one live dashboard where you see every repo at
+a glance: which ones have uncommitted work, unpushed commits, open GitHub issues, branches that are already
 merged or an AI agent waiting for you. Then jump straight into the one you want. It runs in your
 terminal and in your browser.
 
