@@ -46,6 +46,10 @@ button,input{font:inherit;color:inherit}
 .live i{width:8px;height:8px;border-radius:50%;background:var(--stale)}
 .live.on i{background:var(--ok);box-shadow:0 0 0 0 var(--ok);animation:pulse 2.4s infinite}
 .live.off i{background:var(--bad)}
+.updnote{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink);margin-right:6px;white-space:nowrap}
+.updnote[hidden]{display:none}
+.updnote .tool{padding:3px 10px;font-size:12px}
+.updnote.err{color:var(--bad)}
 @keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 55%,transparent)}70%,100%{box-shadow:0 0 0 7px transparent}}
 @media (prefers-reduced-motion:reduce){.live.on i{animation:none}}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
@@ -77,6 +81,10 @@ button,input{font:inherit;color:inherit}
 @media (max-width:1320px){.chip-btn:not([data-f=all]) .t{display:none}.chip-btn i{margin-right:3px}}
 @media (max-width:900px){.live #livetxt{display:none}}
 @media (max-width:700px){
+  .updnote .updtag,.updnote .updarrow,.updnote .updmsg{display:none}
+  .updnote{margin-right:0}.updnote .tool{font-size:0;padding:3px 4px;min-width:0}.updnote .tool::after{content:'↑';font-size:14px}
+  .live:has(+ .updnote:not([hidden])){display:none}
+  .top:has(.updnote:not([hidden])) h1{margin-right:2px}
   .top{gap:8px 6px;padding:8px 10px}
   .filtersel{max-width:88px;padding-left:9px}.sortsel{padding-left:9px}
   .top .spacer,.top [data-top=addgroup],.top [data-top=arrange],.top [data-top="view:canvas"]{display:none}   /* canvas is not offered on a narrow screen; it shows as one column */
@@ -610,7 +618,7 @@ const seg = (items, key) => items.map(([v, label, icon]) => `<button data-top="$
 // data-only="grid|canvas|kanban" shows a control in that view only.
 const BAR = {
   title:      () => `<h1>${esc(C('title', 'RepoDash'))}</h1>`,
-  live:       () => `<span class="live ${liveState.cls}" id="live"><i></i><span id="livetxt">${esc(liveState.txt)}</span></span>`,
+  live:       () => `<span class="live ${liveState.cls}" id="live"><i></i><span id="livetxt">${esc(liveState.txt)}</span></span><span class="updnote" id="upd" hidden></span>`,
   view:       () => `<div class="seg icons" role="group" aria-label="View">${seg([['grid', L('viewGrid'), ICON_GRID], ['canvas', L('viewCanvas'), ICON_CANVAS], ['kanban', L('viewKanban'), ICON_KANBAN]], 'view')}</div>`,
   sort:       () => { const o = [['recent', L('sortRecent')], ['activity', L('sortActivity')], ['language', L('sortLanguage')], ['alpha', L('sortAlpha')]];
     return `<div class="seg" data-only="grid" role="group" aria-label="Sort by">${seg(o, 'sort')}</div><select class="tool sortsel" data-only="grid" aria-label="Sort by" title="Sort by">${o.map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join('')}</select>`; },
@@ -632,7 +640,7 @@ const BAR = {
 function buildTopBar(){
   $('#top').innerHTML = C('topbar.items', []).map(i => BAR[i] ? BAR[i]() : '').join('');
   syncChrome(); renderFilters(); syncTheme();
-  paintAgents();
+  paintAgents(); paintUpdate();
 }
 function syncChrome(){
   document.querySelectorAll('#top [data-only]').forEach(e => e.hidden = e.dataset.only !== view);
@@ -1584,10 +1592,51 @@ function cardClick(e){
 }
 for (const id of ['#recent', '#world', '#kanban']) $(id).addEventListener('click', cardClick);
 /* ---------- keyboard: the same vim-style keys as the terminal UI ---------- */
+/* ---------- self-update: notice in the top bar, U key ---------- */
+let upd = {version: '', latest: '', blocker: ''}, updBusy = '', updMsg = '';
+function paintUpdate(){
+  const el = $('#upd'); if (!el) return;
+  el.hidden = !upd.latest; el.classList.toggle('err', !!updMsg);
+  if (!upd.latest) return;
+  const tip = updMsg || upd.blocker || ('Update RepoDash ' + (upd.version || '') + ' to ' + upd.latest + ' (U)');
+  el.title = tip;
+  let h = `<span class="updarrow" aria-hidden="true">↑</span><span class="updtag">${esc(upd.latest)}${updBusy ? ' · ' + esc(updBusy) : upd.blocker ? ' available' : ''}</span>`;
+  if (!upd.blocker && !updBusy) h += `<button class="tool" data-top="update" title="${esc(tip)}">Update</button>`;
+  if (updMsg) h += `<span class="updmsg">${esc(updMsg)}</span>`;
+  el.innerHTML = h;
+}
+function applyUpdate(u){
+  upd = u;
+  if (u.restart === 'failed' && updBusy){ updBusy = ''; updMsg = 'Restart failed; the old version keeps running'; }
+  paintUpdate();
+}
+async function doUpdate(){
+  if (!upd.latest || upd.blocker || updBusy) return;
+  const tag = upd.latest;
+  if (!confirm('Update RepoDash to ' + tag + ' and restart it?')) return;
+  updMsg = ''; updBusy = 'Updating…'; paintUpdate();
+  try {
+    const r = await fetch('/api/update', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
+    if (!r.ok) throw new Error((await r.text()).trim() || ('HTTP ' + r.status));
+  } catch (err) {
+    updBusy = ''; updMsg = err.message; paintUpdate(); toast('Update: ' + err.message); return;
+  }
+  updBusy = 'Restarting…'; paintUpdate();
+  for (let i = 0; i < 30; i++){
+    await new Promise(res => setTimeout(res, 1000));
+    try {
+      const u = await (await fetch('/api/update', {cache: 'no-store'})).json();
+      if (u.version === tag){ location.reload(); return; }
+      if (u.restart === 'failed'){ applyUpdate(u); toast('Update: ' + updMsg); return; }
+    } catch {}
+  }
+  updBusy = ''; updMsg = 'The server did not come back on ' + tag; paintUpdate(); toast('Update: ' + updMsg);
+}
+$('#top').addEventListener('click', e => { if (e.target.closest('[data-top=update]')) doUpdate(); });
 const HELP_KEYS = [
   ['h j k l / arrows', 'move between cards'], ['g / G', 'first / last card'], ['ctrl-d / ctrl-u', 'half a screen down / up'],
   ['Enter / c', "jump to the repo's terminal"], ['n', 'README and notes of the selected repo'], ['/', 'search by name (Enter keeps, Esc clears)'], ['s / S', 'next sort / reverse'],
-  ['f / F', 'next / previous status filter'], ['r', 'rescan now'], ['J / K', 'inspector: next / previous commit or issue'], ['o', 'inspector: expand the commit, open the issue, jump to the worktree'], ['i', 'show / hide the inspector'], ['?', 'this help'],
+  ['f / F', 'next / previous status filter'], ['r', 'rescan now'], ['J / K', 'inspector: next / previous commit or issue'], ['o', 'inspector: expand the commit, open the issue, jump to the worktree'], ['i', 'show / hide the inspector'], ['U', 'update RepoDash when a newer release is offered'], ['?', 'this help'],
 ];
 const helpbg = document.createElement('div'); helpbg.className = 'info-bg'; helpbg.hidden = true;
 helpbg.innerHTML = `<div class="infobox helpbox" role="dialog" aria-modal="true" aria-labelledby="helptitle"><header><h3 id="helptitle">Keyboard shortcuts</h3><button class="ib" data-help="close" aria-label="Close">✕</button></header><div class="pane helppane">${HELP_KEYS.map(([k, t]) => `<div class="hk"><kbd>${esc(k)}</kbd><span>${esc(t)}</span></div>`).join('')}</div></div>`;
@@ -1672,6 +1721,7 @@ addEventListener('keydown', e => {
     filter = kbCycle(['all', ...shownFilters(counts)], filter, k === 'f' ? 1 : -1); renderFilters(); applyFilter();
   }
   else if (k === 'r') refreshNow();
+  else if (k === 'U'){ if (upd.latest && !upd.blocker && !updBusy) doUpdate(); else used = false; }
   else used = false;
   if (used) e.preventDefault();
 });
@@ -1690,6 +1740,7 @@ function connect(){
   es.addEventListener('repos', e => { setLive('on', 'live'); applyRepos(JSON.parse(e.data)); });
   es.addEventListener('agents', e => applyAgents(JSON.parse(e.data)));
   es.addEventListener('issues', e => applyIssues(JSON.parse(e.data)));
+  es.addEventListener('update', e => applyUpdate(JSON.parse(e.data)));
   es.onerror = () => setLive('off', 'reconnecting');
   es.onopen = () => setLive('on', 'live');
 }
@@ -1702,6 +1753,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) fetc
   setView(view); fitView();
   narrowMQ.addEventListener('change', fitView);
   connect();
+  fetch('/api/update').then(r => r.json()).then(applyUpdate).catch(() => {});
   setInterval(tickAgo, 20000);
 })();
 </script>

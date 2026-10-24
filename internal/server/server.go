@@ -31,6 +31,11 @@ func Serve(o Options) error {
 	layout := &layoutStore{path: o.LayoutPath}
 	hub := newHub(func() []core.Repo { return core.ScanAll(o.Root) })
 	go hub.run()
+	upd := newUpdater(hub)
+	hub.upd = upd
+	if core.Config().UpdateCheck {
+		go upd.loop()
+	}
 
 	sub, _ := fs.Sub(webFS, "web")
 	mux := http.NewServeMux()
@@ -89,6 +94,8 @@ func Serve(o Options) error {
 	mux.HandleFunc("GET /api/commits/{name}", commitsGet(o.Root))
 	mux.HandleFunc("GET /api/commit/{name}/{hash}", commitGet(o.Root))
 	mux.HandleFunc("PUT /api/notes/{name}", notesPut(o.Root))
+	mux.HandleFunc("GET /api/update", upd.get)
+	mux.HandleFunc("POST /api/update", upd.post)
 	mux.HandleFunc("GET /events", hub.serveSSE)
 	mux.HandleFunc("GET /api/layout", layout.get)
 	mux.HandleFunc("PUT /api/layout", layout.put)

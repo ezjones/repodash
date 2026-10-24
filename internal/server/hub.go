@@ -30,6 +30,7 @@ type hub struct {
 	dirs     map[string]string // repo name -> path, from the last scan
 	agents   []byte            // last agent-state event
 	issues   issueFeed         // GitHub issues feed (issues.go)
+	upd      *updater          // self-update state (update.go); nil in tests
 }
 
 func newHub(scan func() []core.Repo) *hub {
@@ -179,6 +180,9 @@ func (h *hub) serveSSE(w http.ResponseWriter, r *http.Request) {
 		if iss := h.issues.current(); iss != nil {
 			send(event{"issues", iss})
 		}
+	}
+	if h.upd != nil && h.upd.known() {
+		send(event{"update", h.upd.payload()})
 	}
 	if cur != nil {
 		send(event{"repos", cur})
