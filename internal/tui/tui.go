@@ -38,8 +38,8 @@ type tuiDeps struct {
 	UpdateBlocker  func() string          // why this binary cannot update itself, "" when it can
 	ApplyUpdate    func(tag string) error // download, verify and replace the binary
 
-	HideHints     bool            // the footer's key hints start hidden (remembered from last time)
-	SaveHideHints func(hide bool) // remember H's choice; nil keeps it for this run only
+	Prefs     core.TUIPrefs       // choices remembered from last time (H, the Appearance menu)
+	SavePrefs func(core.TUIPrefs) // remember them; nil keeps them for this run only
 }
 
 type (
@@ -105,8 +105,8 @@ type tuiModel struct {
 	searching    bool
 	panel        bool
 	help         bool
-	hideHints    bool   // H: no key hints; the footer row only appears for prompts, messages and updates
-	prompt       string // repo name awaiting y/n, "" when none
+	prefs        core.TUIPrefs // H and the Appearance menu; saved through d.SavePrefs
+	prompt       string        // repo name awaiting y/n, "" when none
 	promptMux    string
 	promptDir    string // folder the prompt will open on y
 	promptLabel  string // what the prompt calls it
@@ -122,6 +122,11 @@ type tuiModel struct {
 
 	spin        int  // frame of the busy-agent spinner
 	spinPending bool // a "spin" tick is on its way; ticks never stack
+
+	lookOpen  bool       // the Appearance menu is open
+	lookRow   int        // its focused row
+	lookZones []lookZone // its clickable cells on screen; set when drawn
+	lookBox   [4]int     // its x, y, w, h on screen; set when drawn
 
 	notes map[string]notesCache
 	dlg   *notesDialog // the notes dialog, nil when closed
@@ -162,7 +167,7 @@ func newTUIModel(d tuiDeps) *tuiModel {
 	if d.Now == nil {
 		d.Now = time.Now
 	}
-	m := &tuiModel{d: d, cols: 1, pageRows: 6, lastIdx: -1, commits: map[string]commitCache{}, details: map[string]detailCache{}, panelCur: -1, hideHints: d.HideHints}
+	m := &tuiModel{d: d, cols: 1, pageRows: 6, lastIdx: -1, commits: map[string]commitCache{}, details: map[string]detailCache{}, panelCur: -1, prefs: d.Prefs}
 	m.applySettings(true)
 	if d.Issues != nil {
 		if is := d.Issues(); is != nil {
@@ -483,6 +488,10 @@ func (m *tuiModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.dialogClick(tea.Mouse(msg))
 			return m, nil
 		}
+		if m.lookOpen {
+			m.lookClick(tea.Mouse(msg))
+			return m, nil
+		}
 		return m, m.click(tea.Mouse(msg))
 	case tea.MouseWheelMsg:
 		if m.dlg != nil {
@@ -634,6 +643,10 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.dlg != nil {
 		return m.dialogKey(k)
 	}
+	if m.lookOpen {
+		m.lookKey(s)
+		return m, nil
+	}
 
 	if m.prompt != "" {
 		name, mux, dir := m.prompt, m.promptMux, m.promptDir
@@ -727,14 +740,14 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "?":
 		m.help = true
+	case "a":
+		m.openLook()
 	case "H":
-		m.hideHints = !m.hideHints
-		if m.hideHints {
+		m.prefs.HideHints = !m.prefs.HideHints
+		if m.prefs.HideHints {
 			m.msg = "key hints hidden · H shows them"
 		}
-		if m.d.SaveHideHints != nil {
-			m.d.SaveHideHints(m.hideHints)
-		}
+		m.savePrefs()
 	case "/":
 		m.searching = true
 	case "i":
@@ -908,12 +921,8 @@ func Run(root string, web func() (string, error)) error {
 	}
 	d.ApplyUpdate = func(tag string) error { return core.ApplyUpdate(tag, exe) }
 	if prefsPath := core.TUIPrefsPath(); prefsPath != "" {
-		d.HideHints = core.ReadTUIPrefs(prefsPath).HideHints
-		d.SaveHideHints = func(hide bool) {
-			p := core.ReadTUIPrefs(prefsPath)
-			p.HideHints = hide
-			core.WriteTUIPrefs(prefsPath, p)
-		}
+		d.Prefs = core.ReadTUIPrefs(prefsPath)
+		d.SavePrefs = func(p core.TUIPrefs) { core.WriteTUIPrefs(prefsPath, p) }
 	}
 	p := tea.NewProgram(newTUIModel(d))
 

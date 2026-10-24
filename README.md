@@ -79,6 +79,7 @@ A few keys get you going:
 | `i` | Show or hide the inspector: commits, issues, worktrees and notes |
 | Tab | Move into the inspector and back (`j`/`k` and Enter work inside it) |
 | `n` | Read or write notes for the repo |
+| `a` | Appearance: themes, your own card colours, status dot, language badge |
 | `/` | Search by name |
 | `s` / `f` | Change the sort / filter by status |
 | `w` | Open the web page (canvas, kanban) in your browser |
@@ -161,6 +162,7 @@ It scans the repos in the folder you run it from, or `~/gitrepos` (see
 | `U` | Check GitHub for a new release now and update to it |
 | `e` | Edit the selected repo's notes in `$VISUAL` / `$EDITOR` (else `nano` or `vi`); the inspector shows them all |
 | `r` | Rescan now |
+| `a` | Appearance menu (or click ◐ in the top bar): card theme, status as words or a dot, language badge on or off, and a colour of the selected repo's own. Works with the mouse; click cards behind it to colour several. Remembered between runs |
 | `H` | Hide or show the key hints at the bottom (remembered between runs) |
 | `?` | All keys |
 | `q` / Esc | Quit |

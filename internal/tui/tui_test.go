@@ -320,7 +320,7 @@ func TestTUIWebKey(t *testing.T) {
 func TestHideHints(t *testing.T) {
 	f := newFakeTUI(t, false)
 	var saved []bool
-	f.m.d.SaveHideHints = func(hide bool) { saved = append(saved, hide) }
+	f.m.d.SavePrefs = func(p core.TUIPrefs) { saved = append(saved, p.HideHints) }
 	f.send(tea.WindowSizeMsg{Width: 200, Height: 30})
 	rows := func() []string { return strings.Split(f.m.View().Content, "\n") }
 	if r := rows(); len(r) != 30 || !strings.Contains(r[29], "help") {

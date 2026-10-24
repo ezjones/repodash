@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -189,13 +190,13 @@ func agentIcon(claude string, spin int) (string, string) {
 }
 
 // cardBody is the card's lines without the border, each exactly inner cells wide.
-func cardBody(r core.Repo, title string, iss *core.RepoIssues, inner int, now time.Time, spin int) []string {
+func cardBody(r core.Repo, title string, iss *core.RepoIssues, inner int, now time.Time, spin int, lk look) []string {
 	raw := tuiSettings().Raw
 	var out []string
 	add := func(segs ...seg) { out = append(out, line(inner, segs...)) }
 
 	// band
-	bg, ink := bandColors(r.Name)
+	bg, ink := bandFor(r, lk)
 	lbl, col := statusInfo(raw, r.Level)
 	var icon seg
 	if cardOn(raw, "agent") {
@@ -206,13 +207,17 @@ func cardBody(r core.Repo, title string, iss *core.RepoIssues, inner int, now ti
 	pillFull := seg{" ● " + lbl + " ", sty(cInk, col, true)}
 	pillDot := seg{" ● ", sty(cInk, col, true)}
 	var badge seg
-	if cardOn(raw, "languageBadge") && r.Language != "" {
+	if cardOn(raw, "languageBadge") && !lk.noLang && r.Language != "" {
 		badge = seg{" " + r.Language + " ", sty("#ffffff", langBadgeColor(r.Language), true)}
 	}
 	var right []seg
 	// the name gets its room first; then drop the badge, then the label, and cut the name last
 	need := 1 + lipgloss.Width(cleanText(title))
-	for _, try := range [][]seg{{icon, pillFull, badge}, {icon, pillFull}, {icon, pillDot}} {
+	tries := [][]seg{{icon, pillFull, badge}, {icon, pillFull}, {icon, pillDot}}
+	if lk.dot {
+		tries = [][]seg{{icon, pillDot, badge}, {icon, pillDot}}
+	}
+	for _, try := range tries {
 		right = try
 		if inner-segsWidth(try)-1 >= need {
 			break
@@ -322,7 +327,7 @@ func wrapCard(body []string, h, inner int, sel bool) string {
 }
 
 func renderCard(r core.Repo, title string, iss *core.RepoIssues, sel bool, inner int, now time.Time, spin int) string {
-	return wrapCard(cardBody(r, title, iss, inner, now, spin), 0, inner, sel)
+	return wrapCard(cardBody(r, title, iss, inner, now, spin, look{}), 0, inner, sel)
 }
 
 // ---------- layout ----------
@@ -346,7 +351,7 @@ func (m *tuiModel) bodyH() int {
 // footerShown says whether the bottom row is drawn. With the hints hidden (H) it only appears
 // when it has something to say: a prompt, a message, the search or an update offer.
 func (m *tuiModel) footerShown() bool {
-	return !m.hideHints || m.help || m.footer() != "" || m.newTag != ""
+	return !m.prefs.HideHints || m.help || m.footer() != "" || m.newTag != ""
 }
 
 // relayout recomputes columns, card height and scroll for the current size.
@@ -361,7 +366,7 @@ func (m *tuiModel) relayout() {
 	h := 3
 	now := m.d.Now()
 	for _, r := range m.view {
-		h = max(h, len(cardBody(r, m.title(r), m.issueFor(r.Name), inner, now, m.spin)))
+		h = max(h, len(cardBody(r, m.title(r), m.issueFor(r.Name), inner, now, m.spin, m.lookFor(r))))
 	}
 	m.cardH = h + 2
 	m.vis = max(1, m.bodyH()/m.cardH)
@@ -613,7 +618,7 @@ func panelLines(m *tuiModel, w int) []string {
 		acts = append(acts, "")
 		add(seg{t, fg(cInfo).Bold(true)}, seg{extra, fg(cDim)})
 	}
-	bg, ink := bandColors(r.Name)
+	bg, ink := bandFor(r, m.lookFor(r))
 	add(seg{" " + m.title(r) + " ", sty(ink, bg, true)})
 	lbl, col := statusInfo(raw, r.Level)
 	segs := []seg{{" ● " + lbl + " ", sty(cInk, col, true)}}
@@ -867,7 +872,7 @@ func (m *tuiModel) topBar() string {
 	if n := len(tuiSettings().Warnings); n > 0 {
 		warn = []bseg{{seg: seg{fmt.Sprintf("⚠ %d ", n), fg(cRed)}}}
 	}
-	sortSeg := []bseg{{seg{"sort " + m.sortBy, fg(cMuted)}, "sort"}, sp, {seg{arrow, fg(cMuted)}, "reverse"}, sp, sp}
+	sortSeg := []bseg{{seg{"sort " + m.sortBy, fg(cMuted)}, "sort"}, sp, {seg{arrow, fg(cMuted)}, "reverse"}, sp, {seg{"◐", fg(cMuted)}, "appearance"}, sp, sp}
 	cat := func(parts ...[]bseg) []bseg {
 		var o []bseg
 		for _, p := range parts {
@@ -945,6 +950,9 @@ func (m *tuiModel) barClick(x int) tea.Cmd {
 			m.rev = !m.rev
 		case z.act == "update":
 			return m.updateKey()
+		case z.act == "appearance":
+			m.openLook()
+			return nil
 		case strings.HasPrefix(z.act, "filter:"):
 			f := strings.TrimPrefix(z.act, "filter:")
 			if f == m.filter {
@@ -968,16 +976,31 @@ func (m *tuiModel) footerLine() string {
 	}
 	key, desc := fg(cInfo).Bold(true), fg(cDim)
 	sp := seg{"  ", lipgloss.NewStyle()}
-	keys := [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "notes"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"w", "web"}, {"U", "update"}, {"?", "help"}, {"H", "hide"}, {"q", "close"}}
+	keys := [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "notes"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"a", "appearance"}, {"w", "web"}, {"U", "update"}, {"?", "help"}, {"H", "hide"}, {"q", "close"}}
 	if m.panelFocus && m.panelVisible() {
 		keys = [][2]string{{"INSPECTOR", ""}, {"j/k", "move"}, {"⏎", "open"}, {"tab", "back to cards"}, {"i", "hide"}, {"?", "help"}}
 	}
-	var full []seg
-	for _, h := range keys {
-		full = append(full, seg{h[0], key}, seg{" " + h[1], desc}, sp)
+	// Drop hints from the end, keeping "? help" (and "q close" while there is room), until they
+	// fit beside the version and the update offer.
+	right := len(core.Version) + 3
+	if m.newTag != "" {
+		right += len(" ↑ "+m.newTag+" · U update ") + 1
 	}
-	if segsWidth(full)+1 <= m.width {
-		return m.withVersion(append([]seg{{" ", desc}}, full...)...)
+	render := func(ks [][2]string) []seg {
+		full := []seg{{" ", desc}}
+		for _, h := range ks {
+			full = append(full, seg{h[0], key}, seg{" " + h[1], desc}, sp)
+		}
+		return full
+	}
+	for n := len(keys); n > 0; n-- {
+		ks := append([][2]string{}, keys[:n]...)
+		if !slices.ContainsFunc(ks, func(k [2]string) bool { return k[0] == "?" }) {
+			ks = append(ks, [2]string{"?", "help"})
+		}
+		if full := render(ks); segsWidth(full)+right <= m.width {
+			return m.withVersion(full...)
+		}
 	}
 	if m.panelFocus && m.panelVisible() {
 		return m.withVersion(seg{" tab", key}, seg{" back  ", desc}, seg{"?", key}, seg{" help", desc})
@@ -1026,6 +1049,7 @@ var helpText = [][2]string{
 	{"i", "show / hide the inspector (beside the cards, or full screen when narrow)"},
 	{"Tab", "move into the inspector (opens it); j/k move, Enter opens, Tab or Esc back"},
 	{"J / K, o", "inspector lines from the cards: next / previous, open"},
+	{"a", "appearance: theme, status dot or words, language, this card's colour (mouse: ◐)"},
 	{"H", "hide / show these key hints at the bottom (remembered)"},
 	{"?", "this help"},
 	{"q / Esc", "close"},
@@ -1061,7 +1085,7 @@ func (m *tuiModel) gridBody(h int) []string {
 				break
 			}
 			r := m.view[i]
-			body := cardBody(r, m.title(r), m.issueFor(r.Name), inner, now, m.spin)
+			body := cardBody(r, m.title(r), m.issueFor(r.Name), inner, now, m.spin, m.lookFor(r))
 			cards = append(cards, strings.Split(wrapCard(body, m.cardH-2, inner, i == m.sel), "\n"))
 		}
 		if len(cards) == 0 {
@@ -1126,6 +1150,9 @@ func (m *tuiModel) View() tea.View {
 	}
 	if m.dlg != nil {
 		body = m.overlayDialog(body, h)
+	}
+	if m.lookOpen {
+		body = m.overlayLook(body, h)
 	}
 	all := append([]string{m.topBar()}, body...)
 	if m.footerShown() {
