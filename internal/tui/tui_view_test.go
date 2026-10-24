@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/ezjones/repodash/internal/core"
 )
@@ -229,5 +230,23 @@ func TestTopBarClicks(t *testing.T) {
 	f.send(tea.MouseClickMsg{X: zone("filter:bad"), Y: 0, Button: tea.MouseLeft})
 	if f.m.filter != "all" {
 		t.Errorf("clicking the active filter again: filter = %q", f.m.filter)
+	}
+}
+
+func TestFooterShowsVersion(t *testing.T) {
+	old := core.Version
+	core.Version = "v1.2.3"
+	t.Cleanup(func() { core.Version = old })
+	f := newFakeTUI(t, false)
+	sized(f, 160, 30)
+	lines := strings.Split(f.m.View().Content, "\n")
+	last := strings.TrimRight(ansi.Strip(lines[len(lines)-1]), " ")
+	if !strings.HasSuffix(last, "v1.2.3") || !strings.Contains(last, "help") {
+		t.Fatalf("footer %q", last)
+	}
+	sized(f, 20, 30) // no room: the keys win
+	lines = strings.Split(f.m.View().Content, "\n")
+	if strings.Contains(lines[len(lines)-1], "v1.2.3") {
+		t.Fatal("version squeezed into a narrow footer")
 	}
 }

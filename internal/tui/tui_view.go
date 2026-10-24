@@ -955,7 +955,7 @@ func (m *tuiModel) footerLine() string {
 		if m.prompt != "" {
 			st = fg(cYellow).Bold(true)
 		}
-		return line(m.width, seg{" " + f, st})
+		return m.withVersion(seg{" " + f, st})
 	}
 	key, desc := fg(cInfo).Bold(true), fg(cDim)
 	sp := seg{"  ", lipgloss.NewStyle()}
@@ -968,12 +968,21 @@ func (m *tuiModel) footerLine() string {
 		full = append(full, seg{h[0], key}, seg{" " + h[1], desc}, sp)
 	}
 	if segsWidth(full)+1 <= m.width {
-		return line(m.width, append([]seg{{" ", desc}}, full...)...)
+		return m.withVersion(append([]seg{{" ", desc}}, full...)...)
 	}
 	if m.panelFocus && m.panelVisible() {
-		return line(m.width, seg{" tab", key}, seg{" back  ", desc}, seg{"?", key}, seg{" help", desc})
+		return m.withVersion(seg{" tab", key}, seg{" back  ", desc}, seg{"?", key}, seg{" help", desc})
 	}
-	return line(m.width, seg{" ?", key}, seg{" help  ", desc}, seg{"q", key}, seg{" close", desc})
+	return m.withVersion(seg{" ?", key}, seg{" help  ", desc}, seg{"q", key}, seg{" close", desc})
+}
+
+// withVersion draws the footer segments with the running version at the right edge, when it fits.
+func (m *tuiModel) withVersion(segs ...seg) string {
+	v := core.Version + " "
+	if gap := m.width - segsWidth(segs) - lipgloss.Width(v); gap >= 2 {
+		segs = append(segs, seg{strings.Repeat(" ", gap), lipgloss.NewStyle()}, seg{v, fg(cMuted)})
+	}
+	return line(m.width, segs...)
 }
 
 var helpText = [][2]string{
