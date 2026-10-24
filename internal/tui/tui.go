@@ -670,7 +670,9 @@ func Run(root string, web func() (string, error)) error {
 	cachePath := core.IssueCachePath()
 	var fetchedAt time.Time
 	if cachePath != "" {
-		if c, ok := core.ReadIssueCache(cachePath); ok {
+		// A cache from another repos folder (say a demo folder) would hide this one's issues
+		// until the next fetch, so only this folder's cache counts.
+		if c, ok := core.ReadIssueCache(cachePath); ok && c.Root == root {
 			issues, fetchedAt = c.Repos, c.At
 		}
 	}
@@ -733,7 +735,7 @@ func Run(root string, web func() (string, error)) error {
 				mu.Unlock()
 				if problem == "" {
 					if cachePath != "" {
-						core.WriteIssueCache(cachePath, core.IssueCache{At: now, Repos: res})
+						core.WriteIssueCache(cachePath, core.IssueCache{At: now, Root: root, Repos: res})
 					}
 					p.Send(issuesMsg(cur))
 				}

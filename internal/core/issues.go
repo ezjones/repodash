@@ -147,6 +147,7 @@ func ghOpenCount(slug string) (int, error) {
 // IssueCache is the last successful fetch, kept on disk so the terminal UI can show issues at once.
 type IssueCache struct {
 	At    time.Time             `json:"at"`
+	Root  string                `json:"root"` // the repos folder it was fetched for
 	Repos map[string]RepoIssues `json:"repos"`
 }
 

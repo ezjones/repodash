@@ -9,14 +9,14 @@ import (
 
 func TestIssueCacheRoundTrip(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "sub", "issues.json")
-	in := IssueCache{At: time.Unix(1700000000, 0).UTC(), Repos: map[string]RepoIssues{
+	in := IssueCache{At: time.Unix(1700000000, 0).UTC(), Root: "/r", Repos: map[string]RepoIssues{
 		"my-app": {Open: 4, Next: &IssueRef{Number: 44, Title: "dark mode"},
 			OpenList: []IssueRef{{Number: 44, Title: "dark mode"}, {Number: 45, Title: "export csv"}}}}}
 	if err := WriteIssueCache(p, in); err != nil {
 		t.Fatal(err)
 	}
 	out, ok := ReadIssueCache(p)
-	if !ok || out.Repos["my-app"].Open != 4 || len(out.Repos["my-app"].OpenList) != 2 || !out.At.Equal(in.At) {
+	if !ok || out.Root != "/r" || out.Repos["my-app"].Open != 4 || len(out.Repos["my-app"].OpenList) != 2 || !out.At.Equal(in.At) {
 		t.Fatalf("round trip: %+v %v", out, ok)
 	}
 	if fi, err := os.Stat(p); err != nil || fi.Mode().Perm() != 0o600 {
