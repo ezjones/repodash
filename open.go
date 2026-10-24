@@ -43,3 +43,9 @@ func interactive() bool {
 	}
 	return true
 }
+
+// stdinTerminal reports whether stdin is a terminal, which the TUI needs for keys.
+func stdinTerminal() bool {
+	fi, err := os.Stdin.Stat()
+	return err == nil && fi.Mode()&os.ModeCharDevice != 0
+}

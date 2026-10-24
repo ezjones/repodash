@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -291,5 +292,38 @@ func TestStatusShowFalseSkipsFilter(t *testing.T) {
 	m := newTUIModel(tuiDeps{Now: time.Now})
 	if contains(m.filters, "stale") || !contains(m.filters, "bad") {
 		t.Fatalf("filters %v", m.filters)
+	}
+}
+
+func TestWebURL(t *testing.T) {
+	for in, want := range map[string]string{
+		"127.0.0.1:8092": "http://127.0.0.1:8092",
+		":8092":          "http://127.0.0.1:8092",
+		"0.0.0.0:9000":   "http://127.0.0.1:9000",
+		"[::]:8092":      "http://127.0.0.1:8092",
+		"[::1]:8092":     "http://[::1]:8092",
+	} {
+		if got := webURL(in); got != want {
+			t.Errorf("webURL(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestTUIWebKey(t *testing.T) {
+	f := newFakeTUI(t, false)
+	calls := 0
+	f.m.d.Web = func() (string, error) { calls++; return "http://127.0.0.1:8092", nil }
+	cmd := f.keys("w")
+	if cmd == nil {
+		t.Fatal("w returned no command")
+	}
+	f.send(cmd())
+	if calls != 1 || !strings.Contains(f.m.msg, "http://127.0.0.1:8092") {
+		t.Errorf("calls %d, msg %q", calls, f.m.msg)
+	}
+	f.m.d.Web = func() (string, error) { return "", errors.New("port busy") }
+	f.send(f.keys("w")())
+	if f.m.msg != "port busy" {
+		t.Errorf("msg %q", f.m.msg)
 	}
 }

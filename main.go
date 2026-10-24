@@ -1,6 +1,7 @@
 // RepoDash: a live dashboard of every git checkout under ~/gitrepos.
 //
-//	repodash                       serve the dashboard on 127.0.0.1:8092
+//	repodash                       terminal UI (w opens the web page); without a terminal, the server
+//	repodash -web                  serve the dashboard on 127.0.0.1:8092
 //	repodash -addr :8092           reachable from other devices (tailnet, LAN)
 //	repodash -json                 scan once, print JSON, exit (the future CLI starts here)
 //	repodash -check                validate repodash.json, print problems, exit 1 if any
@@ -42,7 +43,8 @@ func main() {
 	cfgPath := flag.String("config", "", "settings file (default: repodash.json next to the binary, or $REPODASH_CONFIG)")
 	once := flag.Bool("json", false, "scan once, print JSON, exit")
 	check := flag.Bool("check", false, "validate the settings file, print problems, exit 1 if there are any")
-	tui := flag.Bool("tui", false, "open the terminal UI (no web server)")
+	tui := flag.Bool("tui", false, "open the terminal UI (the default when run from a terminal)")
+	web := flag.Bool("web", false, "serve the web dashboard (the default when not run from a terminal)")
 	herdrOpen := flag.Bool("herdr-open", false, "herdr plugin action: focus the RepoDash tab, or open one")
 	noOpen := flag.Bool("no-open", false, "do not open the page in a browser on start")
 	showVersion := flag.Bool("version", false, "print the version and exit")
@@ -96,8 +98,24 @@ func main() {
 	}
 
 	layout := &layoutStore{path: filepath.Join(dataDir, "repodash", "layout.json")}
-	if *tui {
-		if err := runTUI(*root); err != nil {
+	// From a terminal, plain `repodash` is the TUI; server flags, -web, or no terminal
+	// (nohup, systemd) mean the web server.
+	serverFlag := *web
+	flag.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "addr", "allow-host", "no-open":
+			serverFlag = true
+		}
+	})
+	if *tui || (!serverFlag && interactive() && stdinTerminal()) {
+		args := []string{"-root", *root, "-config", cfg.path}
+		if *allowHost != "" {
+			args = append(args, "-allow-host", *allowHost)
+		}
+		openWebPage := func() (string, error) {
+			return openWeb(*addr, args, filepath.Join(dataDir, "repodash", "repodash.log"))
+		}
+		if err := runTUI(*root, openWebPage); err != nil {
 			log.Fatal(err)
 		}
 		return
@@ -172,7 +190,7 @@ func main() {
 		log.Fatal(err)
 	}
 	if !*noOpen && interactive() {
-		openBrowser("http://" + *addr)
+		openBrowser(webURL(*addr))
 	}
 	log.Fatal(http.Serve(ln, guard(allowed, mux)))
 }

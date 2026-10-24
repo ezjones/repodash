@@ -20,7 +20,7 @@ its settings**, and how to **change the code**.
 | Thing | Where |
 |---|---|
 | Source | `~/gitrepos/repodash` (module `repodash`, Go 1.26+, standard library only except Charm's Bubble Tea and Lip Gloss, used by the TUI (`tui*.go`) alone) |
-| Run it | `./repodash` then open <http://127.0.0.1:8092> |
+| Run it | `./repodash` in a terminal opens the TUI (`w` there opens the web page, starting the server if needed); `./repodash -web` serves <http://127.0.0.1:8092>. Without a terminal, plain `./repodash` is the server |
 | Settings file | `repodash.json` **in this repo**, next to the binary (created on first run as a near-empty file: only put what you change, because a list you set replaces the default list and would hide items added in later releases; tracked in git; an installed binary uses `~/.config/repodash/repodash.json` instead). Override with `-config FILE` or `$REPODASH_CONFIG` |
 | Card positions, groups, kanban boards and columns | `~/.local/share/repodash/layout.json` (`$XDG_DATA_HOME` respected) |
 | Images added in the UI | `~/.local/share/repodash/images/<repo>.<ext>` |
@@ -32,7 +32,7 @@ its settings**, and how to **change the code**.
 Flags: `-root DIR` (repos folder, default `~/gitrepos`), `-addr HOST:PORT` (default `127.0.0.1:8092`; use `:8092` to
 reach it from other devices, only on a trusted network such as the tailnet), `-allow-host a,b`
 (host names the page may be opened by, see Security notes), `-config FILE`, `-json` (scan once,
-print JSON, exit), `-check` (validate settings, exit 1 on problems), `-print-config`, `-tui` (terminal UI instead of the web server), `-herdr-open` (the herdr plugin's open action).
+print JSON, exit), `-check` (validate settings, exit 1 on problems), `-print-config`, `-web` (web server; also implied by `-addr`, `-allow-host`, `-no-open` or no terminal), `-tui` (terminal UI, the default from a terminal), `-herdr-open` (the herdr plugin's open action).
 
 ## Changing settings (the common job)
 
@@ -164,7 +164,7 @@ comes from the modification times of uncommitted files.
   in `layout.json` under `boards` and `activeBoard`. *By status* is the automatic read-only alternative.
 - **Agent state**: a card's small icon shows the agent in that repo's tmux/herdr pane: spinning ring = working, pulsing red dot = waiting for you, green dot = idle (hover for the words). Canvas group frames show their worst member; the tab title shows totals. It is fed by a separate 1-second poll of the multiplexers (`pollAgents` in `main.go`, SSE event `agents`), so it follows the agent within about a second without the slow git scan. Hidden by `card.agent: false`.
 - **GitHub issues** (`issues.go`): for a repo whose `origin` is on github.com, the card shows **Done** (the most recently closed issue, with how long ago) and **Next** (the oldest open issue, lowest number); each links to the issue on GitHub in a new tab. Pull requests are not counted. Repos with no issues show nothing. The data comes from the `gh` CLI (its own login; RepoDash stores no token) every 5 minutes while a browser tab is open, as a separate feed (SSE event `issues`) so the git scan stays fast. If `gh` is missing or logged out, the gear button shows a red dot with the reason. Read-only: it never creates or edits issues. Turn it off with `card.issues: false`.
-- **Terminal UI** (`repodash -tui`, no web server): the same cards in a terminal, always dark, adapting to narrow screens (1 column at ~40 cols). `i` (or Tab) shows or hides the inspector (commits, issues, notes): beside the cards from 76 cols, full screen below that; it starts hidden. Keys: hjkl/arrows move, g/G, ctrl-d/u, `/` search, `s`/`S` sort and reverse (recent, activity, language, alpha, issues), `f`/`F` status filter, `r` rescan, `i`/Tab inspector, `?` help, `q`/Esc close. Enter jumps to the repo's workspace (asks "Create a workspace for X? y/n" if none; `n` creates without asking). Mouse: click selects, double-click jumps, wheel scrolls. Inside herdr, Enter always uses herdr and the TUI keeps running; outside herdr it follows `terminal.multiplexer`. Also runs inside herdr via the plugin (`herdr-plugin.toml`): the `open` action (`repodash -herdr-open`) focuses the tab whose title is `RepoDash`, or opens the TUI in a new tab. Not a popup: herdr popups take all input until they close.
+- **Terminal UI** (`repodash -tui`, no web server): the same cards in a terminal, always dark, adapting to narrow screens (1 column at ~40 cols). `i` (or Tab) shows or hides the inspector (commits, issues, notes): beside the cards from 76 cols, full screen below that; it starts hidden. Keys: hjkl/arrows move, g/G, ctrl-d/u, `/` search, `s`/`S` sort and reverse (recent, activity, language, alpha, issues), `f`/`F` status filter, `r` rescan, `w` web page (starts a detached `repodash -web` with the same `-root`/`-addr`/`-config` if nothing answers, logging to `repodash.log`), `i`/Tab inspector, `?` help, `q`/Esc close. Enter jumps to the repo's workspace (asks "Create a workspace for X? y/n" if none; `n` creates without asking). Mouse: click selects, double-click jumps, wheel scrolls. Inside herdr, Enter always uses herdr and the TUI keeps running; outside herdr it follows `terminal.multiplexer`. Also runs inside herdr via the plugin (`herdr-plugin.toml`): the `open` action (`repodash -herdr-open`) focuses the tab whose title is `RepoDash`, or opens the TUI in a new tab. Not a popup: herdr popups take all input until they close.
 - **Info panel** (ⓘ icon): one panel, no tabs. The repo's `README.md` is on top (read-only, rendered as markdown, 256 KB cap, collapsible, and the divider between the two can be dragged; the split is remembered per browser). Your own **Notes** are underneath, ready to type in. Notes are markdown, Obsidian-style: every block shows rendered, click one to edit its raw markdown, click away to render it. A small toolbar inserts bold, italic, code, heading, list, task and link, Enter continues a list, and `- [ ] ` tasks tick with a click. Notes autosave to the notes folder.
 - **Card icons**: picture icon sets a cover (or drop an image file on the card); terminal icon
   jumps to that repo's tmux tab or herdr workspace, or opens one; copy icon copies `cd <path>`.
@@ -199,6 +199,7 @@ Handy for scripts and tests. All local; see the security notes before exposing t
 | `issues.go` | GitHub issues feed: `gh api` per github.com repo, slow poll, SSE event `issues` |
 | `tmux.go` | "Open in tmux", and `openInTerminal` which picks tmux or herdr |
 | `herdr.go` | Same for herdr, through its CLI (`herdr pane list`, `workspace focus`, `tab focus`, `workspace create`) |
+| `web.go` | The TUI's `w` key: find or start the web server, open the browser |
 | `jump.go` | Shared jump/create logic for tmux and herdr (used by the TUI) |
 | `tui*.go` | The terminal UI (Bubble Tea): model and keys, data, view, colours |
 | `herdr-plugin.toml` | herdr plugin manifest: action `open` running `./repodash -herdr-open`, tab pane `grid` running `./repodash -tui`; `scripts/herdr-build.sh` builds the binary into the plugin root |
@@ -231,8 +232,8 @@ the repos: it never fetches, checks out, or writes inside a repo.
 
 ```sh
 # find it by its exact command line; never use `pkill -f`: the pattern also matches your own shell
-for p in $(pgrep -x repodash); do [ "$(tr '\0' ' ' </proc/$p/cmdline)" = "./repodash " ] && kill $p; done
-cd ~/gitrepos/repodash && (nohup ./repodash > ~/.local/share/repodash/repodash.log 2>&1 &)
+for p in $(pgrep -x repodash); do [ "$(tr '\0' ' ' </proc/$p/cmdline)" = "./repodash -web " ] && kill $p; done
+cd ~/gitrepos/repodash && (nohup ./repodash -web > ~/.local/share/repodash/repodash.log 2>&1 &)
 ```
 
 ### Testing without disturbing the real one
@@ -242,7 +243,7 @@ assign cards in a browser pointed at the real port.** Use a scratch instance:
 
 ```sh
 S=$(mktemp -d)
-XDG_DATA_HOME=$S ./repodash -addr 127.0.0.1:8097 -config $S/repodash.json &   # own layout, images and settings
+XDG_DATA_HOME=$S ./repodash -web -addr 127.0.0.1:8097 -config $S/repodash.json &   # own layout, images and settings
 ```
 
 then drive `http://127.0.0.1:8097` (Playwright works well; a pty-attached `tmux` client works for

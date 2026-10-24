@@ -18,7 +18,8 @@ type tuiDeps struct {
 	Commits       func(dir string) []commitLine
 	Notes         func(name string) []string
 	Now           func() time.Time
-	QuitAfterJump bool // in a herdr popup, which blocks herdr until it closes
+	Web           func() (url string, err error) // open the web page, starting the server if needed
+	QuitAfterJump bool                           // in a herdr popup, which blocks herdr until it closes
 }
 
 type (
@@ -28,6 +29,10 @@ type (
 	jumpMsg   struct {
 		name, action, window string
 		err                  error
+	}
+	webMsg struct {
+		url string
+		err error
 	}
 	tickMsg string // "scan", "panes" or "issues"
 )
@@ -284,6 +289,12 @@ func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, tick("issues", 30*time.Second)
 		}
+	case webMsg:
+		if msg.err != nil {
+			m.msg = msg.err.Error()
+		} else {
+			m.msg = "web page at " + msg.url
+		}
 	case jumpMsg:
 		if msg.err != nil {
 			m.msg = msg.err.Error()
@@ -420,6 +431,16 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.rebuild()
 	case "r":
 		return m, m.scanCmd()
+	case "w":
+		if m.d.Web == nil {
+			return m, nil
+		}
+		m.msg = "opening the web page…"
+		web := m.d.Web
+		return m, func() tea.Msg {
+			u, err := web()
+			return webMsg{u, err}
+		}
 	case "enter", "n":
 		return m, m.jump(s == "n")
 	}
@@ -469,7 +490,7 @@ func (m *tuiModel) footer() string {
 }
 
 // runTUI runs the interface against the real repos and terminals. Settings must be loaded.
-func runTUI(root string) error {
+func runTUI(root string, web func() (string, error)) error {
 	var mu sync.Mutex
 	var last []Repo
 	var issues map[string]repoIssues
@@ -506,6 +527,7 @@ func runTUI(root string) error {
 		Notes:         func(name string) []string { return notesExcerpt(name, 5) },
 		Now:           time.Now,
 		QuitAfterJump: inHerdrPopup(),
+		Web:           web,
 	}
 	p := tea.NewProgram(newTUIModel(d))
 

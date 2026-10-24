@@ -217,7 +217,7 @@ rm ~/.local/bin/repodash
 rm -r ~/.config/repodash
 ```
 
-To build from source instead you need Go 1.22 or newer:
+To build from source instead you need Go 1.26 or newer:
 
 ```sh
 git clone https://github.com/ezjones/repodash.git
@@ -226,8 +226,14 @@ CGO_ENABLED=0 go build -o repodash .
 ./repodash
 ```
 
-RepoDash opens <http://127.0.0.1:8092> in your browser when it starts (pass `-no-open` to stop that).
-On WSL2 it opens in your Windows browser.
+Run from a terminal, `repodash` opens the [terminal UI](#terminal-ui-and-herdr). Press `w` there
+for the web page: it starts the web server in the background if it isn't running and opens
+<http://127.0.0.1:8092> in your browser (on WSL2, your Windows browser). The server keeps running
+after you quit the terminal UI.
+
+To start only the web server, run `repodash -web`; it opens the page in your browser when started
+from a terminal (pass `-no-open` to stop that). Started without a terminal (`nohup`, systemd, a
+login script), plain `repodash` is the web server too.
 
 By default it scans the folders directly inside `~/gitrepos`. Point it somewhere else with
 `-root`:
@@ -248,6 +254,8 @@ forwarded, so you can open <http://127.0.0.1:8092> in a Windows browser. See
 | Flag | Meaning |
 |---|---|
 | `-root DIR` | Folder that contains your repos (default `~/gitrepos`) |
+| `-web` | Web server instead of the terminal UI (also implied by `-addr`, `-allow-host`, `-no-open`, or no terminal) |
+| `-tui` | Terminal UI (the default from a terminal) |
 | `-addr HOST:PORT` | Listen address (default `127.0.0.1:8092`) |
 | `-allow-host a,b` | Names the page may be opened by, when it is reachable by name |
 | `-config FILE` | Settings file (default: `repodash.json` next to the binary in a source checkout, otherwise `~/.config/repodash/repodash.json`) |

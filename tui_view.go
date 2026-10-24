@@ -653,7 +653,7 @@ func (m *tuiModel) footerLine() string {
 	key, desc := fg(cInfo).Bold(true), fg(cDim)
 	sp := seg{"  ", lipgloss.NewStyle()}
 	var full []seg
-	for _, h := range [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "new workspace"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"?", "help"}, {"q", "close"}} {
+	for _, h := range [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "new workspace"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"w", "web"}, {"?", "help"}, {"q", "close"}} {
 		full = append(full, seg{h[0], key}, seg{" " + h[1], desc}, sp)
 	}
 	if segsWidth(full)+1 <= m.width {
@@ -672,6 +672,7 @@ var helpText = [][2]string{
 	{"s / S", "next sort / reverse"},
 	{"f / F", "next / previous status filter"},
 	{"r", "rescan now"},
+	{"w", "open the web page (starts the server if needed)"},
 	{"i / Tab", "show / hide the inspector (beside the cards, or full screen when narrow)"},
 	{"?", "this help"},
 	{"q / Esc", "close"},
