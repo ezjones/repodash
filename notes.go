@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -63,115 +61,51 @@ func hasReadme(repoDir string) bool {
 	return ok
 }
 
-// infoGet answers {readme, readme_name, notes} for one repo.
-func infoGet(root string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		dir, ok := validRepo(root, r.PathValue("name"))
-		if !ok {
-			http.Error(w, "not a repo", http.StatusNotFound)
-			return
-		}
-		out := map[string]any{"readme": nil, "readme_name": "", "notes": ""}
-		if n, text, ok := readmeFile(dir); ok {
-			out["readme"], out["readme_name"] = text, n
-		}
-		notesMu.Lock()
-		if b, err := os.ReadFile(notesPath(r.PathValue("name"))); err == nil {
-			out["notes"] = string(b)
-		}
-		notesMu.Unlock()
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Cache-Control", "no-store")
-		json.NewEncoder(w).Encode(out)
+// notesExcerpt returns the first lines non-empty lines of the repo's notes, or nil.
+func notesExcerpt(name string, lines int) []string {
+	b, err := os.ReadFile(notesPath(name))
+	if err != nil {
+		return nil
 	}
+	var out []string
+	for _, l := range strings.Split(string(b), "\n") {
+		if l = strings.TrimSpace(l); l != "" {
+			out = append(out, l)
+			if len(out) == lines {
+				break
+			}
+		}
+	}
+	return out
 }
 
-// commitsGet answers {commits:[{hash,at,subject}], web?}: the repo's 5 newest commits.
-func commitsGet(root string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		dir, ok := validRepo(root, r.PathValue("name"))
-		if !ok {
-			http.Error(w, "not a repo", http.StatusNotFound)
-			return
-		}
-		type c struct {
-			Hash    string `json:"hash"`
-			At      int64  `json:"at"`
-			Subject string `json:"subject"`
-		}
-		out := []c{}
-		for _, l := range recentCommits(dir, 5) {
-			out = append(out, c{l.Hash, l.At, l.Subject})
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Cache-Control", "no-store")
-		resp := map[string]any{"commits": out}
-		if slug := githubRepo(git(dir, "config", "--get", "remote.origin.url")); slug != "" {
-			resp["web"] = "https://github.com/" + slug
-		}
-		json.NewEncoder(w).Encode(resp)
+// ReadNotes returns the repo's notes text, and false when there is no notes file.
+func ReadNotes(name string) (string, bool) {
+	notesMu.Lock()
+	defer notesMu.Unlock()
+	b, err := os.ReadFile(notesPath(name))
+	if err != nil {
+		return "", false
 	}
+	return string(b), true
 }
 
-// commitGet answers one commit's details (commitInfo) for the inspector. Read-only.
-func commitGet(root string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		dir, ok := validRepo(root, r.PathValue("name"))
-		if !ok {
-			http.Error(w, "not a repo", http.StatusNotFound)
-			return
-		}
-		if !hashRe.MatchString(r.PathValue("hash")) {
-			http.Error(w, "bad hash", http.StatusBadRequest)
-			return
-		}
-		ci, err := commitDetail(dir, r.PathValue("hash"))
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusNotFound)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Cache-Control", "no-store")
-		json.NewEncoder(w).Encode(ci)
+// SaveNotes stores the repo's notes; blank text removes the file. Only a failure to create the
+// notes folder is reported: a failed write is ignored, as the page has always done.
+func SaveNotes(name, text string) error {
+	notesMu.Lock()
+	defer notesMu.Unlock()
+	p := notesPath(name)
+	if strings.TrimSpace(text) == "" {
+		os.Remove(p)
+		return nil
 	}
-}
-
-// notesPut saves {"text": "..."}; empty text removes the file. JSON content type
-// only, for the same cross-site reason as the layout PUT.
-func notesPut(root string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-			http.Error(w, "content type must be application/json", http.StatusUnsupportedMediaType)
-			return
-		}
-		name := r.PathValue("name")
-		if _, ok := validRepo(root, name); !ok {
-			http.Error(w, "not a repo", http.StatusNotFound)
-			return
-		}
-		var req struct {
-			Text string `json:"text"`
-		}
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxNotes+4096)).Decode(&req); err != nil || len(req.Text) > maxNotes {
-			http.Error(w, "invalid or too large", http.StatusBadRequest)
-			return
-		}
-		notesMu.Lock()
-		defer notesMu.Unlock()
-		p := notesPath(name)
-		if strings.TrimSpace(req.Text) == "" {
-			os.Remove(p)
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		if err := os.MkdirAll(notesDir, 0o755); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		tmp := p + ".tmp"
-		if err := os.WriteFile(tmp, []byte(req.Text), 0o644); err == nil {
-			err = os.Rename(tmp, p)
-		}
-		w.WriteHeader(http.StatusNoContent)
+	if err := os.MkdirAll(notesDir, 0o755); err != nil {
+		return err
 	}
+	tmp := p + ".tmp"
+	if err := os.WriteFile(tmp, []byte(text), 0o644); err == nil {
+		os.Rename(tmp, p)
+	}
+	return nil
 }

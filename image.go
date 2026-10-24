@@ -1,10 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"io"
-	"mime"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -218,89 +214,40 @@ func findCover(root, name string) (cover, bool) {
 	return cover{}, false
 }
 
-func serveImage(root string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		c, ok := findCover(root, r.PathValue("name"))
-		if !ok {
-			http.NotFound(w, r)
-			return
-		}
-		f, err := os.Open(c.path)
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
-		defer f.Close()
-		fi, _ := f.Stat()
-		w.Header().Set("Content-Type", imgMime[strings.ToLower(filepath.Ext(c.path))])
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		// If someone opens an SVG directly, it still may not run script.
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
-		w.Header().Set("Cache-Control", "no-cache")
-		http.ServeContent(w, r, c.path, fi.ModTime(), f)
-	}
-}
-
-func putImage(root string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		name := r.PathValue("name")
-		if _, ok := validRepo(root, name); !ok {
-			http.Error(w, "not a repo", http.StatusNotFound)
-			return
-		}
-		ct, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
-		ext := ""
-		for e, m := range imgMime {
-			if m == ct && e != ".jpeg" {
-				ext = e
-			}
-		}
-		if ext == "" {
-			http.Error(w, "send the image with an image/* content type (png, jpeg, webp, gif, svg, avif)", http.StatusUnsupportedMediaType)
-			return
-		}
-		b, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxImage))
-		if err != nil || len(b) == 0 {
-			http.Error(w, "image is empty or larger than 4 MB", http.StatusRequestEntityTooLarge)
-			return
-		}
-		// Trust the bytes, not the header.
-		if ext == ".svg" {
-			if !bytes.Contains(bytes.ToLower(b), []byte("<svg")) {
-				http.Error(w, "not an SVG", http.StatusBadRequest)
-				return
-			}
-		} else if !strings.HasPrefix(http.DetectContentType(b), "image/") && ext != ".avif" {
-			http.Error(w, "not an image", http.StatusBadRequest)
-			return
-		}
-		if err := os.MkdirAll(imageDir, 0o755); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		removeCustom(name)
-		if err := os.WriteFile(filepath.Join(imageDir, name+ext), b, 0o644); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}
-}
-
 func removeCustom(name string) {
 	for _, ext := range imgExtPref {
 		os.Remove(filepath.Join(imageDir, name+ext))
 	}
 }
 
-func deleteImage(root string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		name := r.PathValue("name")
-		if _, ok := validRepo(root, name); !ok {
-			http.Error(w, "not a repo", http.StatusNotFound)
-			return
-		}
-		removeCustom(name)
-		w.WriteHeader(http.StatusNoContent)
-	}
+// CoverFile returns the cover image file for a repo, as served at /img/<repo>.
+func CoverFile(root, name string) (string, bool) {
+	c, ok := findCover(root, name)
+	return c.path, ok
 }
+
+// ImageType is the MIME type for an image file extension (".png"), or "" for an unknown one.
+func ImageType(ext string) string { return imgMime[ext] }
+
+// ImageExt is the file extension (".png") for an image MIME type, or "" when it is not one we store.
+func ImageExt(contentType string) string {
+	ext := ""
+	for e, m := range imgMime {
+		if m == contentType && e != ".jpeg" {
+			ext = e
+		}
+	}
+	return ext
+}
+
+// SaveCustomImage stores b as the repo's own cover, replacing any earlier one.
+func SaveCustomImage(name, ext string, b []byte) error {
+	if err := os.MkdirAll(imageDir, 0o755); err != nil {
+		return err
+	}
+	removeCustom(name)
+	return os.WriteFile(filepath.Join(imageDir, name+ext), b, 0o644)
+}
+
+// RemoveCustomImage deletes the repo's own cover, if it has one.
+func RemoveCustomImage(name string) { removeCustom(name) }

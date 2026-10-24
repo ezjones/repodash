@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -101,11 +102,11 @@ type tuiModel struct {
 
 // tuiSettings returns the live settings, loading defaults when none were loaded yet.
 func tuiSettings() *settings {
-	if s := cfg.get(); s != nil {
+	if s := Config(); s != nil {
 		return s
 	}
 	s, _ := parseSettings("", nil)
-	cfg.cur.Store(s)
+	SetConfig(s)
 	return s
 }
 
@@ -148,13 +149,13 @@ func (m *tuiModel) applySettings(first bool) {
 	}
 	if first {
 		m.sortBy, _ = get(s.Raw, "defaults.sort").(string)
-		if !contains(tuiSorts, m.sortBy) {
+		if !slices.Contains(tuiSorts, m.sortBy) {
 			m.sortBy = "recent"
 		}
 		m.rev, _ = get(s.Raw, "defaults.reverse").(bool)
 		m.filter, _ = get(s.Raw, "defaults.filter").(string)
 	}
-	if !contains(m.filters, m.filter) {
+	if !slices.Contains(m.filters, m.filter) {
 		m.filter = "all"
 	}
 }
@@ -297,7 +298,7 @@ func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "scan":
 			return m, tea.Batch(m.scanCmd(), tick("scan", m.interval))
 		case "panes":
-			if cfg.poll() {
+			if PollConfig() {
 				m.applySettings(false)
 				m.rebuild()
 			}

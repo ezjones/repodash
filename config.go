@@ -416,3 +416,27 @@ func ensureConfigFile(path string) {
 	os.MkdirAll(filepath.Dir(path), 0o755)
 	os.WriteFile(path, []byte(firstRunConfig), 0o644)
 }
+
+// Config returns the live settings (nil until LoadConfig or SetConfig has run).
+func Config() *settings { return cfg.get() }
+
+// PollConfig reloads the settings file when it changed and reports whether it did.
+func PollConfig() bool { return cfg.poll() }
+
+// LoadConfig reads the settings file at path and makes it the live settings.
+func LoadConfig(path string) {
+	cfg.path = path
+	cfg.load()
+}
+
+// ConfigPath is the settings file LoadConfig was given.
+func ConfigPath() string { return cfg.path }
+
+// SetConfig replaces the live settings (used by the terminal UI and by tests).
+func SetConfig(s *settings) { cfg.cur.Store(s) }
+
+// DefaultConfigJSON is the embedded default-config.json.
+func DefaultConfigJSON() []byte { return defaultConfigJSON }
+
+// SetDataDirs sets where custom cover images and notes are stored.
+func SetDataDirs(images, notes string) { imageDir, notesDir = images, notes }

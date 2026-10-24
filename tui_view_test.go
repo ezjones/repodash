@@ -52,9 +52,9 @@ func TestRenderCardWidth(t *testing.T) {
 		t.Error("week line missing by default")
 	}
 	s, _ := parseSettings("", []byte(`{"card":{"week":false}}`))
-	old := cfg.cur.Load()
-	cfg.cur.Store(s)
-	defer cfg.cur.Store(old)
+	old := Config()
+	SetConfig(s)
+	defer SetConfig(old)
 	if c := renderCard(longRepo(), "x", nil, false, 36, now); strings.Contains(c, "this week") {
 		t.Error("card.week=false still shows the week line")
 	}

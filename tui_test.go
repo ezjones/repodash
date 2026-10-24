@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -286,26 +287,12 @@ func TestCachedIssuesShownAtOpen(t *testing.T) {
 
 func TestStatusShowFalseSkipsFilter(t *testing.T) {
 	s, _ := parseSettings("", []byte(`{"statuses":{"stale":{"show":false}}}`))
-	old := cfg.cur.Load()
-	cfg.cur.Store(s)
-	defer cfg.cur.Store(old)
+	old := Config()
+	SetConfig(s)
+	defer SetConfig(old)
 	m := newTUIModel(tuiDeps{Now: time.Now})
-	if contains(m.filters, "stale") || !contains(m.filters, "bad") {
+	if slices.Contains(m.filters, "stale") || !slices.Contains(m.filters, "bad") {
 		t.Fatalf("filters %v", m.filters)
-	}
-}
-
-func TestWebURL(t *testing.T) {
-	for in, want := range map[string]string{
-		"127.0.0.1:8092": "http://127.0.0.1:8092",
-		":8092":          "http://127.0.0.1:8092",
-		"0.0.0.0:9000":   "http://127.0.0.1:9000",
-		"[::]:8092":      "http://127.0.0.1:8092",
-		"[::1]:8092":     "http://[::1]:8092",
-	} {
-		if got := webURL(in); got != want {
-			t.Errorf("webURL(%q) = %q, want %q", in, got, want)
-		}
 	}
 }
 
