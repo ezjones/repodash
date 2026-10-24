@@ -1,4 +1,6 @@
-# RepoDash
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/906d3625-d899-4a2a-a346-d881c93ca7e5" alt="RepoDash" width="260">
+</p>
 
 A live dashboard for every git repository in one folder, in your terminal and in your browser.
 See at a glance which repos have uncommitted work, unpushed commits, open GitHub issues or
@@ -6,13 +8,14 @@ branches that are already merged, then jump straight into the one you want.
 
 Run `repodash` and you get a grid of colour-coded cards right in the terminal, driven by vim keys
 or the mouse. Inside [herdr](https://herdr.dev) it lives in its own tab: pick a repo, press Enter,
-and you land in that repo's workspace. Press `w` and the same dashboard opens in your browser,
-with a free canvas and kanban boards on top.
-
-It is a single static Go binary. Nothing is installed in the repos and nothing in them is ever
-modified: RepoDash only reads.
+and you land in that repo's workspace. It is a single static Go binary. Nothing is installed in
+the repos and nothing in them is ever modified: RepoDash only reads.
 
 ![RepoDash in the terminal: colour-coded repo cards with status, branch and last commit, and the inspector on the right](https://github.com/user-attachments/assets/170f793e-0d13-4152-958e-cbfb494bc586)
+
+Press `w` and the same dashboard opens in your browser. The web version has everything the
+terminal has, plus a free canvas where you arrange and group repos, kanban boards you drag them
+between, cover images, and your own notes next to each README.
 
 ![The same repos in the browser: a card per repo with its status, branch, last commit and activity](https://github.com/user-attachments/assets/2f9d0c43-20ac-4921-bbc0-6a13411a2581)
 
