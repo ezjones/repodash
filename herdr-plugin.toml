@@ -2,7 +2,7 @@ id = "repodash"
 name = "RepoDash"
 version = "0.7.2"
 min_herdr_version = "0.9.0"
-description = "Live dashboard of your git repos: git status, agent activity and GitHub issues; jump to any repo's workspace"
+description = "A live dashboard of all your git repos at a glance: git status, AI agents and GitHub issues. Jump into any repo's workspace."
 platforms = ["linux", "macos"]
 
 # herdr resolves "./" programs against the plugin root.
