@@ -125,16 +125,53 @@ The web page answers to the same keys (except `w`), so moving between the two is
 
 ## herdr integration
 
-[herdr](https://herdr.dev) is a terminal workspace manager for AI coding agents. RepoDash talks to it
-through the `herdr` command, so it needs `herdr` on your `PATH` and a running herdr server, and it is
-optional in the same way tmux is.
+[herdr](https://herdr.dev) is a terminal workspace manager for AI coding agents: one workspace per
+project, tabs and panes inside it, and it knows what the agent in each pane is doing. RepoDash fits
+on top of it as the place you pick a project from. It talks to herdr only through the `herdr`
+command, so all it needs is `herdr` (0.9 or newer) on your `PATH` and a running herdr server. Without
+herdr, everything else works as before.
 
-RepoDash ships as a herdr plugin. One key opens the terminal UI in its own herdr tab, and you can
-keep working in herdr while it is open. Enter jumps to a repo's workspace, or asks to create one,
-and the same key later brings you back to the RepoDash tab instead of opening another. `q` closes it.
+### The RepoDash tab
 
-To install it, link this folder as a plugin (it needs Go, or a release binary, to build
-`./repodash`):
+RepoDash ships as a herdr plugin (`herdr-plugin.toml` in this repo). Its one action, `repodash.open`,
+opens the terminal UI in its own herdr tab, or, if that tab is already open anywhere, switches you
+back to it. So the same key both opens RepoDash and brings you back to it, and you never end up
+with two. It is a normal tab, not a popup: you can switch to other tabs and workspaces while it stays
+open, and it keeps refreshing in the background. `q` closes it.
+
+### Jumping to a repo
+
+Press Enter on a card (or double-click it) and RepoDash looks through herdr's panes:
+
+1. **A pane in the repo folder** wins: its workspace and tab are focused.
+2. **A pane in a subfolder** (`my-app/src`, say) comes next, if no pane sits at the repo root.
+3. **No pane at all**: RepoDash asks *Create a workspace for my-app? y/n*. `y` creates a herdr
+   workspace named after the repo, in the repo folder, and focuses it. Press `n` on a card instead of
+   Enter to create it without the question.
+
+The RepoDash tab stays where it was, so the plugin key takes you straight back to pick the next one.
+Worktrees work the same way: in the [inspector](#inspector), click a worktree (or `o` on it) to jump
+to, or create, a workspace in that worktree's folder.
+
+Inside herdr, Enter always uses herdr. Run outside herdr, the terminal UI follows
+`terminal.multiplexer` (below), like the web page.
+
+### Agent status on every card
+
+RepoDash reads herdr's own agent detection for every pane, so no hook or setup is needed:
+
+- a yellow ring when the agent in that repo is working,
+- a red dot when it is waiting for you,
+- a green dot when it is idle.
+
+The terminal UI's top bar and the web page's top bar add them up ("2 working · 1 waiting"), and the
+inspector says it in words, along with whether a herdr or tmux tab is open for that repo. The status
+follows the agent within about a second. Turn the icons off with `card.agent: false`.
+
+### Install the plugin
+
+Link this folder as a plugin. herdr builds `./repodash` with Go if you have it, or downloads the
+release binary otherwise:
 
 ```sh
 herdr plugin link /path/to/repodash
@@ -152,22 +189,23 @@ command = "repodash.open"
 description = "repodash"
 ```
 
-In the web page, the card's terminal button works with herdr too:
+After you update RepoDash, press `q` in its tab and open it again to run the new version. If the key
+does nothing, `herdr plugin list` shows whether the plugin is enabled, and `herdr plugin log list`
+shows the last runs of its action with their errors.
 
-- **Jump or open.** The terminal button focuses the workspace and tab that has a pane in the repo (an
-  exact folder match beats a subfolder). If there is none, it opens a new workspace named after the
-  repo, in the repo folder.
-- **Badges.** Cards show "tab open" for repos with a herdr pane. The busy / waiting / idle badge comes
-  from herdr's own agent detection, so no hook is needed (herdr's `working` shows as busy, `blocked`
-  as waiting).
-- **tmux or herdr, or both.** One terminal button serves both. Pick the order with
-  `terminal.multiplexer` in `repodash.json`: `prefer-tmux` (the default), `prefer-herdr`, `tmux` or
-  `herdr` (only that one). With a `prefer-` mode an existing tab wins, in the preferred one first;
-  with no tab anywhere, a new one opens in the preferred one if its server is running. Each browser
-  can override this at the bottom of the gear (Settings) panel.
+### herdr and tmux together
 
-Like tmux, it selects the tab but cannot raise the terminal application, and RepoDash must run as the
-same user as the herdr server.
+In the web page, a card's terminal button does the same jump-or-create as Enter, and cards show
+"tab open" for repos that already have a herdr pane. One button serves both herdr and tmux. Pick the
+order with `terminal.multiplexer` in `repodash.json`:
+
+- `prefer-tmux` (the default) or `prefer-herdr`: an existing tab wins, in the preferred one first;
+  with no tab anywhere, a new one opens in the preferred one if its server is running, else the other.
+- `tmux` or `herdr`: only that one.
+
+Each browser can override this at the bottom of the gear (Settings) panel. Like tmux, RepoDash
+selects the tab but cannot raise the terminal application itself, and it must run as the same user
+as the herdr server.
 
 ## GitHub issues
 
@@ -212,8 +250,6 @@ keyboard too. On the web page, *Open README & notes* opens the full README and y
 If you keep one tmux window per project, RepoDash turns each card into a switchboard for them. It
 is entirely optional: with no tmux server running, nothing changes except that the terminal button
 reports "no tmux server running".
-
-![A card marked "tab open" in the dashboard, next to the tmux window it jumps to](https://github.com/user-attachments/assets/e9f908b6-f97f-4f13-bd1a-b619c976f7cb)
 
 ### The terminal button
 
