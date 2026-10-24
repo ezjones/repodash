@@ -316,3 +316,29 @@ func TestTUIWebKey(t *testing.T) {
 		t.Errorf("msg %q", f.m.msg)
 	}
 }
+
+func TestHideHints(t *testing.T) {
+	f := newFakeTUI(t, false)
+	var saved []bool
+	f.m.d.SaveHideHints = func(hide bool) { saved = append(saved, hide) }
+	f.send(tea.WindowSizeMsg{Width: 200, Height: 30})
+	rows := func() []string { return strings.Split(f.m.View().Content, "\n") }
+	if r := rows(); len(r) != 30 || !strings.Contains(r[29], "help") {
+		t.Fatalf("hints not shown at start: %d rows, last %q", len(r), r[len(r)-1])
+	}
+	f.keys("H")
+	if r := rows(); !strings.Contains(r[29], "H shows them") {
+		t.Errorf("no message after hiding: %q", r[29])
+	}
+	f.keys("j") // any key clears the message, and the row goes
+	if r := rows(); len(r) != 30 || strings.Contains(r[29], "help") {
+		t.Errorf("hints still shown, or wrong height: %d rows, last %q", len(r), r[29])
+	}
+	f.keys("H")
+	if r := rows(); !strings.Contains(r[29], "help") {
+		t.Errorf("hints not back: %q", r[29])
+	}
+	if !slices.Equal(saved, []bool{true, false}) {
+		t.Errorf("saved %v", saved)
+	}
+}

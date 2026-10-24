@@ -336,7 +336,18 @@ func (m *tuiModel) issueFor(name string) *core.RepoIssues {
 	return nil
 }
 
-func (m *tuiModel) bodyH() int { return max(1, m.height-2) }
+func (m *tuiModel) bodyH() int {
+	if !m.footerShown() {
+		return max(1, m.height-1)
+	}
+	return max(1, m.height-2)
+}
+
+// footerShown says whether the bottom row is drawn. With the hints hidden (H) it only appears
+// when it has something to say: a prompt, a message, the search or an update offer.
+func (m *tuiModel) footerShown() bool {
+	return !m.hideHints || m.help || m.footer() != "" || m.newTag != ""
+}
 
 // relayout recomputes columns, card height and scroll for the current size.
 func (m *tuiModel) relayout() {
@@ -957,7 +968,7 @@ func (m *tuiModel) footerLine() string {
 	}
 	key, desc := fg(cInfo).Bold(true), fg(cDim)
 	sp := seg{"  ", lipgloss.NewStyle()}
-	keys := [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "notes"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"w", "web"}, {"?", "help"}, {"q", "close"}}
+	keys := [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "notes"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"w", "web"}, {"?", "help"}, {"H", "hide"}, {"q", "close"}}
 	if m.panelFocus && m.panelVisible() {
 		keys = [][2]string{{"INSPECTOR", ""}, {"j/k", "move"}, {"⏎", "open"}, {"tab", "back to cards"}, {"i", "hide"}, {"?", "help"}}
 	}
@@ -971,7 +982,7 @@ func (m *tuiModel) footerLine() string {
 	if m.panelFocus && m.panelVisible() {
 		return m.withVersion(seg{" tab", key}, seg{" back  ", desc}, seg{"?", key}, seg{" help", desc})
 	}
-	return m.withVersion(seg{" ?", key}, seg{" help  ", desc}, seg{"q", key}, seg{" close", desc})
+	return m.withVersion(seg{" ?", key}, seg{" help  ", desc}, seg{"H", key}, seg{" hide  ", desc}, seg{"q", key}, seg{" close", desc})
 }
 
 // withVersion draws the footer segments with the running version at the right edge, and the
@@ -1015,6 +1026,7 @@ var helpText = [][2]string{
 	{"i", "show / hide the inspector (beside the cards, or full screen when narrow)"},
 	{"Tab", "move into the inspector (opens it); j/k move, Enter opens, Tab or Esc back"},
 	{"J / K, o", "inspector lines from the cards: next / previous, open"},
+	{"H", "hide / show these key hints at the bottom (remembered)"},
 	{"?", "this help"},
 	{"q / Esc", "close"},
 	{"mouse", "click selects, double-click jumps, wheel scrolls"},
@@ -1116,7 +1128,11 @@ func (m *tuiModel) View() tea.View {
 		body = m.overlayDialog(body, h)
 	}
 	all := append([]string{m.topBar()}, body...)
-	all = append(all, m.footerLine())
+	if m.footerShown() {
+		all = append(all, m.footerLine())
+	} else {
+		m.updX0, m.updX1 = -1, -1
+	}
 	v := tea.NewView(strings.Join(all, "\n"))
 	v.AltScreen = true
 	v.WindowTitle = core.TUITitle

@@ -37,6 +37,9 @@ type tuiDeps struct {
 	CheckUpdateNow func() (string, error) // the same for U, skipping the once-a-day cache
 	UpdateBlocker  func() string          // why this binary cannot update itself, "" when it can
 	ApplyUpdate    func(tag string) error // download, verify and replace the binary
+
+	HideHints     bool            // the footer's key hints start hidden (remembered from last time)
+	SaveHideHints func(hide bool) // remember H's choice; nil keeps it for this run only
 }
 
 type (
@@ -102,6 +105,7 @@ type tuiModel struct {
 	searching    bool
 	panel        bool
 	help         bool
+	hideHints    bool   // H: no key hints; the footer row only appears for prompts, messages and updates
 	prompt       string // repo name awaiting y/n, "" when none
 	promptMux    string
 	promptDir    string // folder the prompt will open on y
@@ -158,7 +162,7 @@ func newTUIModel(d tuiDeps) *tuiModel {
 	if d.Now == nil {
 		d.Now = time.Now
 	}
-	m := &tuiModel{d: d, cols: 1, pageRows: 6, lastIdx: -1, commits: map[string]commitCache{}, details: map[string]detailCache{}, panelCur: -1}
+	m := &tuiModel{d: d, cols: 1, pageRows: 6, lastIdx: -1, commits: map[string]commitCache{}, details: map[string]detailCache{}, panelCur: -1, hideHints: d.HideHints}
 	m.applySettings(true)
 	if d.Issues != nil {
 		if is := d.Issues(); is != nil {
@@ -723,6 +727,14 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "?":
 		m.help = true
+	case "H":
+		m.hideHints = !m.hideHints
+		if m.hideHints {
+			m.msg = "key hints hidden · H shows them"
+		}
+		if m.d.SaveHideHints != nil {
+			m.d.SaveHideHints(m.hideHints)
+		}
 	case "/":
 		m.searching = true
 	case "i":
@@ -895,6 +907,14 @@ func Run(root string, web func() (string, error)) error {
 		return core.UpdateBlocker(exe)
 	}
 	d.ApplyUpdate = func(tag string) error { return core.ApplyUpdate(tag, exe) }
+	if prefsPath := core.TUIPrefsPath(); prefsPath != "" {
+		d.HideHints = core.ReadTUIPrefs(prefsPath).HideHints
+		d.SaveHideHints = func(hide bool) {
+			p := core.ReadTUIPrefs(prefsPath)
+			p.HideHints = hide
+			core.WriteTUIPrefs(prefsPath, p)
+		}
+	}
 	p := tea.NewProgram(newTUIModel(d))
 
 	done := make(chan struct{})

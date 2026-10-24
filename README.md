@@ -161,6 +161,7 @@ It scans the repos in the folder you run it from, or `~/gitrepos` (see
 | `U` | Update to the new release, when the bottom right offers one |
 | `e` | Edit the selected repo's notes in `$VISUAL` / `$EDITOR` (else `nano` or `vi`); the inspector shows them all |
 | `r` | Rescan now |
+| `H` | Hide or show the key hints at the bottom (remembered between runs) |
 | `?` | All keys |
 | `q` / Esc | Quit |
 
