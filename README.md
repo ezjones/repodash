@@ -2,9 +2,10 @@
   <img src="https://github.com/user-attachments/assets/906d3625-d899-4a2a-a346-d881c93ca7e5" alt="RepoDash" width="260">
 </p>
 
-A live dashboard for every git repository in one folder, in your terminal and in your browser.
-See at a glance which repos have uncommitted work, unpushed commits, open GitHub issues or
-branches that are already merged, then jump straight into the one you want.
+Your gitrepos folder is chaos. RepoDash turns it into one live dashboard. See at a glance
+which repos have uncommitted work, unpushed commits, open GitHub issues, branches that are already
+merged or an AI agent waiting for you, then jump straight into the one you want. It runs in your
+terminal and in your browser.
 
 Run `repodash` and you get a grid of colour-coded cards right in the terminal, driven by vim keys
 or the mouse. Inside [herdr](https://herdr.dev) it lives in its own tab: pick a repo, press Enter,
