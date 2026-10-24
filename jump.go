@@ -11,7 +11,7 @@ import (
 // mode is one of multiplexers. exists reports whether that multiplexer already has a pane in dir
 // (or below it). A fixed mode errors when its server is not running; the prefer modes pick the
 // first multiplexer with a pane in dir, else the first one that is running.
-func pickMux(mode string, panes []pane, running func(mux string) bool, dir string) (mux string, exists bool, err error) {
+func pickMux(mode string, panes []Pane, running func(mux string) bool, dir string) (mux string, exists bool, err error) {
 	has := func(m string) bool {
 		for _, p := range panes {
 			if p.mux == m && (p.cwd == dir || strings.HasPrefix(p.cwd, dir+"/")) {
@@ -44,8 +44,8 @@ func pickMux(mode string, panes []pane, running func(mux string) bool, dir strin
 	return "", false, errors.New("no tmux or herdr server running")
 }
 
-// findTarget is pickMux against the real terminals.
-func findTarget(dir, mode string) (mux string, exists bool, err error) {
+// FindTarget is pickMux against the real terminals.
+func FindTarget(dir, mode string) (mux string, exists bool, err error) {
 	running := func(m string) bool {
 		if m == "tmux" {
 			_, e := tmux("list-sessions")
@@ -54,40 +54,40 @@ func findTarget(dir, mode string) (mux string, exists bool, err error) {
 		_, e := listHerdrPanes()
 		return e == nil
 	}
-	return pickMux(mode, terminalPanes(), running, dir)
+	return pickMux(mode, TerminalPanes(), running, dir)
 }
 
-// openWith opens or focuses dir in the named multiplexer.
-func openWith(mux, dir string) (action, window string, err error) {
+// OpenWith opens or focuses dir in the named multiplexer.
+func OpenWith(mux, dir string) (action, window string, err error) {
 	if mux == "herdr" {
 		return openInHerdr(dir)
 	}
 	return openInTmux(dir)
 }
 
-// inHerdr reports whether this process runs inside a herdr pane.
-func inHerdr() bool {
+// InHerdr reports whether this process runs inside a herdr pane.
+func InHerdr() bool {
 	return os.Getenv("HERDR_PANE_ID") != "" || os.Getenv("HERDR_ENV") != ""
 }
 
-// inHerdrPopup reports a herdr popup: herdr sets HERDR_ENV there but no pane id.
-func inHerdrPopup() bool {
+// InHerdrPopup reports a herdr popup: herdr sets HERDR_ENV there but no pane id.
+func InHerdrPopup() bool {
 	return os.Getenv("HERDR_PANE_ID") == "" && os.Getenv("HERDR_ENV") != ""
 }
 
-// tuiTitle is the terminal title the TUI sets, so herdrOpenTUI can find its tab again.
-const tuiTitle = "RepoDash"
+// TUITitle is the terminal title the TUI sets, so herdrOpenTUI can find its tab again.
+const TUITitle = "RepoDash"
 
-// herdrOpenTUI is the plugin's open action: focus the tab already showing the TUI, or open
+// HerdrOpenTUI is the plugin's open action: focus the tab already showing the TUI, or open
 // it in a new tab. A tab, not a popup: herdr popups take all input until they close.
-func herdrOpenTUI() error {
+func HerdrOpenTUI() error {
 	ps, err := listHerdrPanes()
 	if err != nil {
 		return errors.New("no herdr server running")
 	}
 	for _, p := range ps {
 		// The label is set at open; the title only once the TUI has drawn.
-		if p.Label == tuiTitle || p.Title == tuiTitle {
+		if p.Label == TUITitle || p.Title == TUITitle {
 			return herdrFocusTab(p.WorkspaceID, p.TabID)
 		}
 	}

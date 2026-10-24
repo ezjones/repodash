@@ -24,11 +24,11 @@ func TestWorktreeOf(t *testing.T) {
 	run(repo, "commit", "-q", "--allow-empty", "-m", "first")
 	run(repo, "worktree", "add", "-q", "-b", "feature", wt)
 
-	if !worktreeOf(repo, wt) {
+	if !WorktreeOf(repo, wt) {
 		t.Error("listed worktree refused")
 	}
 	for _, bad := range []string{"", "/etc", repo, repo + "/../x", wt + "/..", wt + "/sub", filepath.Join(root, "other")} {
-		if worktreeOf(repo, bad) {
+		if WorktreeOf(repo, bad) {
 			t.Errorf("%q accepted", bad)
 		}
 	}

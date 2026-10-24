@@ -45,7 +45,7 @@ type repoCfg struct {
 	Image  string
 }
 
-type settings struct {
+type Settings struct {
 	Raw      map[string]any // merged with defaults and validated; the browser gets this
 	Warnings []string
 	Path     string
@@ -53,16 +53,16 @@ type settings struct {
 	// server-side views of Raw
 	skip        map[string]bool
 	staleDays   int
-	interval    time.Duration
+	Interval    time.Duration
 	coverNames  []string
 	coverDirs   []string
 	coverReadme bool
-	multiplexer string // prefer-tmux | prefer-herdr | tmux | herdr
-	issuesOn    bool   // card.issues: poll GitHub issues through gh
+	Multiplexer string // prefer-tmux | prefer-herdr | tmux | herdr
+	IssuesOn    bool   // card.issues: poll GitHub issues through gh
 	repos       map[string]repoCfg
 }
 
-func (s *settings) payload() []byte {
+func (s *Settings) Payload() []byte {
 	b, _ := json.Marshal(map[string]any{"config": s.Raw, "warnings": s.Warnings, "path": s.Path})
 	return b
 }
@@ -132,7 +132,7 @@ func merge(def, usr map[string]any, path string, w *[]string) map[string]any {
 	return out
 }
 
-func get(m map[string]any, path string) any {
+func Lookup(m map[string]any, path string) any {
 	var cur any = m
 	for _, k := range strings.Split(path, ".") {
 		mm, ok := cur.(map[string]any)
@@ -165,16 +165,16 @@ func contains(l []string, s string) bool {
 func validate(m, def map[string]any, w *[]string) {
 	warn := func(f string, a ...any) { *w = append(*w, fmt.Sprintf(f, a...)) }
 	reset := func(path, why string) {
-		set(m, path, get(def, path))
-		warn("%s: %s (using the default, %v)", path, why, get(def, path))
+		set(m, path, Lookup(def, path))
+		warn("%s: %s (using the default, %v)", path, why, Lookup(def, path))
 	}
 	oneOf := func(path string, opts ...string) {
-		if v, _ := get(m, path).(string); !contains(opts, v) {
+		if v, _ := Lookup(m, path).(string); !contains(opts, v) {
 			reset(path, "must be one of "+strings.Join(opts, ", "))
 		}
 	}
 	num := func(path string, lo, hi float64) {
-		v, _ := get(m, path).(float64)
+		v, _ := Lookup(m, path).(float64)
 		if v < lo || v > hi || math.IsNaN(v) {
 			reset(path, fmt.Sprintf("must be a number from %g to %g", lo, hi))
 			return
@@ -182,12 +182,12 @@ func validate(m, def map[string]any, w *[]string) {
 		set(m, path, math.Round(v))
 	}
 	color := func(path string) {
-		if v, _ := get(m, path).(string); !hexColor.MatchString(v) {
+		if v, _ := Lookup(m, path).(string); !hexColor.MatchString(v) {
 			reset(path, "must be a hex colour like #c8362b")
 		}
 	}
 	list := func(path string, allowed []string) {
-		arr, _ := get(m, path).([]any)
+		arr, _ := Lookup(m, path).([]any)
 		keep := make([]any, 0, len(arr))
 		for _, e := range arr {
 			s, ok := e.(string)
@@ -256,9 +256,9 @@ func validate(m, def map[string]any, w *[]string) {
 	}
 }
 
-func strs(m map[string]any, path string) []string {
+func StringList(m map[string]any, path string) []string {
 	var out []string
-	arr, _ := get(m, path).([]any)
+	arr, _ := Lookup(m, path).([]any)
 	for _, e := range arr {
 		out = append(out, e.(string))
 	}
@@ -314,7 +314,7 @@ func dropStaleLists(usr map[string]any) {
 	}
 }
 
-func parseSettings(path string, data []byte) (*settings, error) {
+func ParseSettings(path string, data []byte) (*Settings, error) {
 	def := defaults()
 	var usr map[string]any
 	if len(bytes.TrimSpace(data)) > 0 {
@@ -327,16 +327,16 @@ func parseSettings(path string, data []byte) (*settings, error) {
 	m := merge(def, usr, "", &warns)
 	validate(m, def, &warns)
 
-	s := &settings{Raw: m, Warnings: warns, Path: path, skip: map[string]bool{}, repos: map[string]repoCfg{}}
-	for _, n := range strs(m, "scan.skip") {
+	s := &Settings{Raw: m, Warnings: warns, Path: path, skip: map[string]bool{}, repos: map[string]repoCfg{}}
+	for _, n := range StringList(m, "scan.skip") {
 		s.skip[n] = true
 	}
-	s.staleDays = int(get(m, "scan.staleDays").(float64))
-	s.interval = time.Duration(get(m, "scan.intervalSeconds").(float64)) * time.Second
-	s.coverNames, s.coverDirs = strs(m, "covers.names"), strs(m, "covers.dirs")
-	s.coverReadme, _ = get(m, "covers.readme").(bool)
-	s.multiplexer, _ = get(m, "terminal.multiplexer").(string)
-	s.issuesOn, _ = get(m, "card.issues").(bool)
+	s.staleDays = int(Lookup(m, "scan.staleDays").(float64))
+	s.Interval = time.Duration(Lookup(m, "scan.intervalSeconds").(float64)) * time.Second
+	s.coverNames, s.coverDirs = StringList(m, "covers.names"), StringList(m, "covers.dirs")
+	s.coverReadme, _ = Lookup(m, "covers.readme").(bool)
+	s.Multiplexer, _ = Lookup(m, "terminal.multiplexer").(string)
+	s.IssuesOn, _ = Lookup(m, "card.issues").(bool)
 	for name, v := range m["repos"].(map[string]any) {
 		e := v.(map[string]any)
 		rc := repoCfg{}
@@ -360,12 +360,12 @@ func describeJSONError(data []byte, err error) string {
 
 type configStore struct {
 	path     string
-	cur      atomic.Pointer[settings]
+	cur      atomic.Pointer[Settings]
 	lastMod  time.Time
 	lastSize int64
 }
 
-func (c *configStore) get() *settings { return c.cur.Load() }
+func (c *configStore) get() *Settings { return c.cur.Load() }
 
 // load reads the file. Invalid JSON never replaces working settings.
 func (c *configStore) load() {
@@ -376,7 +376,7 @@ func (c *configStore) load() {
 	if err != nil && !os.IsNotExist(err) {
 		data = nil
 	}
-	s, perr := parseSettings(c.path, data)
+	s, perr := ParseSettings(c.path, data)
 	if perr != nil {
 		msg := fmt.Sprintf("%s is not valid JSON: %s", filepath.Base(c.path), describeJSONError(data, perr))
 		if prev := c.cur.Load(); prev != nil {
@@ -385,7 +385,7 @@ func (c *configStore) load() {
 			c.cur.Store(&cp)
 			return
 		}
-		s, _ = parseSettings(c.path, nil)
+		s, _ = ParseSettings(c.path, nil)
 		s.Warnings = []string{msg + ". Using defaults."}
 	}
 	c.cur.Store(s)
@@ -408,8 +408,8 @@ const firstRunConfig = `{
 }
 `
 
-// ensureConfigFile writes a minimal file the first time, so there is something to edit.
-func ensureConfigFile(path string) {
+// EnsureConfigFile writes a minimal file the first time, so there is something to edit.
+func EnsureConfigFile(path string) {
 	if _, err := os.Stat(path); err == nil {
 		return
 	}
@@ -418,7 +418,7 @@ func ensureConfigFile(path string) {
 }
 
 // Config returns the live settings (nil until LoadConfig or SetConfig has run).
-func Config() *settings { return cfg.get() }
+func Config() *Settings { return cfg.get() }
 
 // PollConfig reloads the settings file when it changed and reports whether it did.
 func PollConfig() bool { return cfg.poll() }
@@ -433,7 +433,7 @@ func LoadConfig(path string) {
 func ConfigPath() string { return cfg.path }
 
 // SetConfig replaces the live settings (used by the terminal UI and by tests).
-func SetConfig(s *settings) { cfg.cur.Store(s) }
+func SetConfig(s *Settings) { cfg.cur.Store(s) }
 
 // DefaultConfigJSON is the embedded default-config.json.
 func DefaultConfigJSON() []byte { return defaultConfigJSON }

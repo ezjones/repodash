@@ -12,12 +12,12 @@ import (
 // tuiDeps is everything the terminal UI touches outside itself, so tests can fake it.
 type tuiDeps struct {
 	Scan          func() []Repo
-	Panes         func() []pane                // agent refresh, every 1 s
-	Issues        func() map[string]repoIssues // current issues; may return nil
+	Panes         func() []Pane                // agent refresh, every 1 s
+	Issues        func() map[string]RepoIssues // current issues; may return nil
 	Find          func(dir string) (mux string, exists bool, err error)
 	Open          func(mux, dir string) (action, window string, err error)
-	Commits       func(dir string) []commitLine
-	CommitDetail  func(dir, hash string) (commitInfo, error)
+	Commits       func(dir string) []CommitLine
+	CommitDetail  func(dir, hash string) (CommitInfo, error)
 	OpenURL       func(url string)
 	Notes         func(name string) []string
 	Now           func() time.Time
@@ -27,8 +27,8 @@ type tuiDeps struct {
 
 type (
 	scanMsg   []Repo
-	panesMsg  []pane
-	issuesMsg map[string]repoIssues
+	panesMsg  []Pane
+	issuesMsg map[string]RepoIssues
 	jumpMsg   struct {
 		name, action, window string
 		err                  error
@@ -41,13 +41,13 @@ type (
 )
 
 type detailCache struct {
-	ci  commitInfo
+	ci  CommitInfo
 	err error
 }
 
 type commitCache struct {
 	at time.Time
-	cs []commitLine
+	cs []CommitLine
 }
 
 type tuiModel struct {
@@ -55,8 +55,8 @@ type tuiModel struct {
 
 	repos  []Repo // all, as scanned
 	view   []Repo // sorted and filtered
-	issues map[string]repoIssues
-	panes  []pane
+	issues map[string]RepoIssues
+	panes  []Pane
 	titles map[string]string
 
 	sel         int
@@ -101,11 +101,11 @@ type tuiModel struct {
 }
 
 // tuiSettings returns the live settings, loading defaults when none were loaded yet.
-func tuiSettings() *settings {
+func tuiSettings() *Settings {
 	if s := Config(); s != nil {
 		return s
 	}
-	s, _ := parseSettings("", nil)
+	s, _ := ParseSettings("", nil)
 	SetConfig(s)
 	return s
 }
@@ -129,10 +129,10 @@ func newTUIModel(d tuiDeps) *tuiModel {
 // order and filter from defaults.*; later reloads keep what the user picked.
 func (m *tuiModel) applySettings(first bool) {
 	s := tuiSettings()
-	m.interval = s.interval
+	m.interval = s.Interval
 	m.filters = []string{"all"}
-	for _, k := range strs(s.Raw, "topbar.filters") {
-		if show, ok := get(s.Raw, "statuses."+k+".show").(bool); ok && !show {
+	for _, k := range StringList(s.Raw, "topbar.filters") {
+		if show, ok := Lookup(s.Raw, "statuses."+k+".show").(bool); ok && !show {
 			continue
 		}
 		m.filters = append(m.filters, k)
@@ -148,12 +148,12 @@ func (m *tuiModel) applySettings(first bool) {
 		}
 	}
 	if first {
-		m.sortBy, _ = get(s.Raw, "defaults.sort").(string)
+		m.sortBy, _ = Lookup(s.Raw, "defaults.sort").(string)
 		if !slices.Contains(tuiSorts, m.sortBy) {
 			m.sortBy = "recent"
 		}
-		m.rev, _ = get(s.Raw, "defaults.reverse").(bool)
-		m.filter, _ = get(s.Raw, "defaults.filter").(string)
+		m.rev, _ = Lookup(s.Raw, "defaults.reverse").(bool)
+		m.filter, _ = Lookup(s.Raw, "defaults.filter").(string)
 	}
 	if !slices.Contains(m.filters, m.filter) {
 		m.filter = "all"
@@ -228,7 +228,7 @@ func (m *tuiModel) cols1() int {
 }
 
 // selCommits returns the selected repo's recent commits, cached for the scan interval.
-func (m *tuiModel) selCommits() []commitLine {
+func (m *tuiModel) selCommits() []CommitLine {
 	r, ok := m.selected()
 	if !ok || m.d.Commits == nil {
 		return nil
@@ -244,7 +244,7 @@ func (m *tuiModel) selCommits() []commitLine {
 
 func (m *tuiModel) applyPanes() {
 	for i := range m.repos {
-		m.repos[i].Tmux, m.repos[i].Herdr, m.repos[i].Claude = agentState(m.panes, m.repos[i].Path)
+		m.repos[i].Tmux, m.repos[i].Herdr, m.repos[i].Claude = AgentState(m.panes, m.repos[i].Path)
 	}
 }
 
@@ -287,11 +287,11 @@ func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.applyPanes()
 		m.rebuild()
 	case panesMsg:
-		m.panes = []pane(msg)
+		m.panes = []Pane(msg)
 		m.applyPanes()
 		m.rebuild()
 	case issuesMsg:
-		m.issues = map[string]repoIssues(msg)
+		m.issues = map[string]RepoIssues(msg)
 		m.rebuild()
 	case tickMsg:
 		switch string(msg) {
@@ -527,42 +527,42 @@ func (m *tuiModel) footer() string {
 func runTUI(root string, web func() (string, error)) error {
 	var mu sync.Mutex
 	var last []Repo
-	var issues map[string]repoIssues
-	cachePath := issueCachePath()
+	var issues map[string]RepoIssues
+	cachePath := IssueCachePath()
 	var fetchedAt time.Time
 	if cachePath != "" {
-		if c, ok := readIssueCache(cachePath); ok {
+		if c, ok := ReadIssueCache(cachePath); ok {
 			issues, fetchedAt = c.Repos, c.At
 		}
 	}
 	mode := func() string {
-		if inHerdr() {
+		if InHerdr() {
 			return "herdr"
 		}
-		return tuiSettings().multiplexer
+		return tuiSettings().Multiplexer
 	}
 	d := tuiDeps{
 		Scan: func() []Repo {
-			rs := scanAll(root)
+			rs := ScanAll(root)
 			mu.Lock()
 			last = rs
 			mu.Unlock()
 			return rs
 		},
-		Panes: terminalPanes,
-		Issues: func() map[string]repoIssues {
+		Panes: TerminalPanes,
+		Issues: func() map[string]RepoIssues {
 			mu.Lock()
 			defer mu.Unlock()
 			return issues
 		},
-		Find:          func(dir string) (string, bool, error) { return findTarget(dir, mode()) },
-		Open:          openWith,
-		Commits:       func(dir string) []commitLine { return recentCommits(dir, 5) },
-		CommitDetail:  commitDetail,
-		OpenURL:       openBrowser,
-		Notes:         func(name string) []string { return notesExcerpt(name, 5) },
+		Find:          func(dir string) (string, bool, error) { return FindTarget(dir, mode()) },
+		Open:          OpenWith,
+		Commits:       func(dir string) []CommitLine { return RecentCommits(dir, 5) },
+		CommitDetail:  CommitDetail,
+		OpenURL:       OpenBrowser,
+		Notes:         func(name string) []string { return NotesExcerpt(name, 5) },
 		Now:           time.Now,
-		QuitAfterJump: inHerdrPopup(),
+		QuitAfterJump: InHerdrPopup(),
 		Web:           web,
 	}
 	p := tea.NewProgram(newTUIModel(d))
@@ -574,12 +574,12 @@ func runTUI(root string, web func() (string, error)) error {
 			mu.Lock()
 			repos, at := last, fetchedAt
 			mu.Unlock()
-			if repos != nil && tuiSettings().issuesOn && time.Since(at) >= issuesEvery {
+			if repos != nil && tuiSettings().IssuesOn && time.Since(at) >= IssuesEvery {
 				dirs := map[string]string{}
 				for _, r := range repos {
 					dirs[r.Name] = r.Path
 				}
-				res, problem := fetchAllIssues(dirs)
+				res, problem := FetchAllIssues(dirs)
 				now := time.Now()
 				mu.Lock()
 				fetchedAt = now
@@ -590,7 +590,7 @@ func runTUI(root string, web func() (string, error)) error {
 				mu.Unlock()
 				if problem == "" {
 					if cachePath != "" {
-						writeIssueCache(cachePath, issueCache{At: now, Repos: res})
+						WriteIssueCache(cachePath, IssueCache{At: now, Repos: res})
 					}
 					p.Send(issuesMsg(cur))
 				}

@@ -7,16 +7,16 @@ import (
 	"strings"
 )
 
-type commitLine struct {
+type CommitLine struct {
 	Hash    string
 	At      int64
 	Subject string
 }
 
-// recentCommits lists the newest n commits of the repo at dir, newest first.
-func recentCommits(dir string, n int) []commitLine {
-	out := git(dir, "log", "-n", strconv.Itoa(n), "--format=%H%x09%ct%x09%s")
-	var cs []commitLine
+// RecentCommits lists the newest n commits of the repo at dir, newest first.
+func RecentCommits(dir string, n int) []CommitLine {
+	out := Git(dir, "log", "-n", strconv.Itoa(n), "--format=%H%x09%ct%x09%s")
+	var cs []CommitLine
 	for _, l := range strings.Split(out, "\n") {
 		hash, rest, ok := strings.Cut(l, "\t")
 		if !ok {
@@ -30,13 +30,13 @@ func recentCommits(dir string, n int) []commitLine {
 		if err != nil {
 			continue
 		}
-		cs = append(cs, commitLine{hash, at, subj})
+		cs = append(cs, CommitLine{Hash: hash, At: at, Subject: subj})
 	}
 	return cs
 }
 
-// commitInfo is one commit's details, as the inspector shows them when it is expanded.
-type commitInfo struct {
+// CommitInfo is one commit's details, as the inspector shows them when it is expanded.
+type CommitInfo struct {
 	Hash   string   `json:"hash"`
 	Author string   `json:"author"`
 	At     int64    `json:"at"`
@@ -51,21 +51,21 @@ const (
 	maxCommitFiles = 30
 )
 
-// commitDetail reads author, date, message body and changed files of one commit. The hash is
+// CommitDetail reads author, date, message body and changed files of one commit. The hash is
 // checked first, so it can never be taken for an option.
-func commitDetail(dir, hash string) (commitInfo, error) {
+func CommitDetail(dir, hash string) (CommitInfo, error) {
 	if !hashRe.MatchString(hash) {
-		return commitInfo{}, errors.New("not a commit hash")
+		return CommitInfo{}, errors.New("not a commit hash")
 	}
 	out, err := gitRaw(dir, "show", "--no-color", "--no-patch", "--format=%H%x00%an%x00%ct%x00%B", hash)
 	if err != nil {
-		return commitInfo{}, errors.New("commit not found")
+		return CommitInfo{}, errors.New("commit not found")
 	}
 	f := strings.SplitN(strings.TrimRight(out, "\n"), "\x00", 4)
 	if len(f) < 4 {
-		return commitInfo{}, errors.New("unreadable commit")
+		return CommitInfo{}, errors.New("unreadable commit")
 	}
-	ci := commitInfo{Hash: f[0], Author: f[1], Files: []string{}}
+	ci := CommitInfo{Hash: f[0], Author: f[1], Files: []string{}}
 	ci.At, _ = strconv.ParseInt(f[2], 10, 64)
 	body := strings.TrimSpace(f[3])
 	// %B starts with the subject, which the caller already shows.

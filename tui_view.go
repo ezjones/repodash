@@ -132,13 +132,13 @@ func gridLayout(width int, panelOn bool) (cols, cardW, panelW int) {
 }
 
 func cardOn(raw map[string]any, key string) bool {
-	v, ok := get(raw, "card."+key).(bool)
+	v, ok := Lookup(raw, "card."+key).(bool)
 	return !ok || v
 }
 
 func statusInfo(raw map[string]any, level string) (label, color string) {
-	label, _ = get(raw, "statuses."+level+".label").(string)
-	color, _ = get(raw, "statuses."+level+".darkColor").(string)
+	label, _ = Lookup(raw, "statuses."+level+".label").(string)
+	color, _ = Lookup(raw, "statuses."+level+".darkColor").(string)
 	if label == "" {
 		label = level
 	}
@@ -181,7 +181,7 @@ func agentIcon(claude string) (string, string) {
 }
 
 // cardBody is the card's lines without the border, each exactly inner cells wide.
-func cardBody(r Repo, title string, iss *repoIssues, inner int, now time.Time) []string {
+func cardBody(r Repo, title string, iss *RepoIssues, inner int, now time.Time) []string {
 	raw := tuiSettings().Raw
 	var out []string
 	add := func(segs ...seg) { out = append(out, line(inner, segs...)) }
@@ -289,7 +289,7 @@ func cardBody(r Repo, title string, iss *repoIssues, inner int, now time.Time) [
 
 func borderColor(sel bool) string {
 	if sel {
-		if c, _ := get(tuiSettings().Raw, "colors.accentDark").(string); c != "" {
+		if c, _ := Lookup(tuiSettings().Raw, "colors.accentDark").(string); c != "" {
 			return c
 		}
 		return "#e5e7ed"
@@ -313,7 +313,7 @@ func wrapCard(body []string, h, inner int, sel bool) string {
 	return strings.Join(out, "\n")
 }
 
-func renderCard(r Repo, title string, iss *repoIssues, sel bool, inner int, now time.Time) string {
+func renderCard(r Repo, title string, iss *RepoIssues, sel bool, inner int, now time.Time) string {
 	return wrapCard(cardBody(r, title, iss, inner, now), 0, inner, sel)
 }
 
@@ -321,7 +321,7 @@ func renderCard(r Repo, title string, iss *repoIssues, sel bool, inner int, now 
 
 type visKey struct{ sel, w, h, n, cols int }
 
-func (m *tuiModel) issueFor(name string) *repoIssues {
+func (m *tuiModel) issueFor(name string) *RepoIssues {
 	if iss, ok := m.issues[name]; ok {
 		return &iss
 	}
@@ -655,7 +655,7 @@ func panelLines(m *tuiModel, w int) []string {
 		}
 		list := iss.OpenList
 		if len(list) == 0 && iss.Next != nil {
-			list = []issueRef{*iss.Next}
+			list = []IssueRef{*iss.Next}
 		}
 		for i, is := range list {
 			mark, c := " · ", cDim
@@ -746,7 +746,7 @@ func renderPanel(m *tuiModel, w, h int) string {
 
 func (m *tuiModel) topBar() string {
 	raw := tuiSettings().Raw
-	title, _ := get(raw, "title").(string)
+	title, _ := Lookup(raw, "title").(string)
 	if title == "" {
 		title = "RepoDash"
 	}
@@ -1037,7 +1037,7 @@ func (m *tuiModel) View() tea.View {
 	all = append(all, m.footerLine())
 	v := tea.NewView(strings.Join(all, "\n"))
 	v.AltScreen = true
-	v.WindowTitle = tuiTitle
+	v.WindowTitle = TUITitle
 	v.MouseMode = tea.MouseModeCellMotion
 	return v
 }

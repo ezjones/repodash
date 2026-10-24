@@ -42,7 +42,7 @@ func (h *hub) run() {
 			for _, w := range s.Warnings {
 				log.Printf("settings: %s", w)
 			}
-			h.broadcast("config", s.payload())
+			h.broadcast("config", s.Payload())
 			h.refresh() // skip/hidden/cover/stale rules may have changed
 			lastScan = time.Now()
 			continue
@@ -53,10 +53,10 @@ func (h *hub) run() {
 		if n > 0 {
 			h.pollAgents()
 		}
-		if n > 0 && Config().issuesOn && h.issues.due() {
+		if n > 0 && Config().IssuesOn && h.issues.due() {
 			go h.pollIssues()
 		}
-		if n > 0 && time.Since(lastScan) >= Config().interval {
+		if n > 0 && time.Since(lastScan) >= Config().Interval {
 			h.refresh()
 			lastScan = time.Now()
 		}
@@ -117,11 +117,11 @@ func (h *hub) pollAgents() {
 		Tmux   bool   `json:"tmux"`
 		Herdr  bool   `json:"herdr"`
 	}
-	panes := terminalPanes()
+	panes := TerminalPanes()
 	out := make(map[string]st, len(dirs))
 	for n, d := range dirs {
 		var s st
-		s.Tmux, s.Herdr, s.Claude = agentState(panes, d)
+		s.Tmux, s.Herdr, s.Claude = AgentState(panes, d)
 		out[n] = s
 	}
 	b, _ := json.Marshal(out)
@@ -169,11 +169,11 @@ func (h *hub) serveSSE(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	send := func(e event) { fmt.Fprintf(w, "event: %s\ndata: %s\n\n", e.name, e.data); fl.Flush() }
-	send(event{"config", Config().payload()})
+	send(event{"config", Config().Payload()})
 	if stale {
 		go h.refresh()
 	}
-	if Config().issuesOn {
+	if Config().IssuesOn {
 		if iss := h.issues.current(); iss != nil {
 			send(event{"issues", iss})
 		}

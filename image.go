@@ -21,7 +21,7 @@ import (
 // Remote README images (badges, hosted screenshots) are skipped on purpose:
 // the dashboard never makes the browser fetch from the internet.
 
-const maxImage = 4 << 20
+const MaxImage = 4 << 20
 
 var (
 	imageDir   string // set in main
@@ -39,9 +39,9 @@ type cover struct {
 
 func (c cover) url(name string) string { return "/img/" + url.PathEscape(name) + "?v=" + c.ver }
 
-// validRepo maps a request's repo name to its directory, refusing anything that
+// ValidRepo maps a request's repo name to its directory, refusing anything that
 // is not a plain git checkout directly under root.
-func validRepo(root, name string) (string, bool) {
+func ValidRepo(root, name string) (string, bool) {
 	if name == "" || name != filepath.Base(name) || strings.HasPrefix(name, ".") {
 		return "", false
 	}
@@ -65,7 +65,7 @@ func repoImage(repoDir, p string) (string, os.FileInfo, bool) {
 		return "", nil, false
 	}
 	fi, err := os.Stat(real)
-	if err != nil || !fi.Mode().IsRegular() || fi.Size() > maxImage || fi.Size() == 0 {
+	if err != nil || !fi.Mode().IsRegular() || fi.Size() > MaxImage || fi.Size() == 0 {
 		return "", nil, false
 	}
 	return real, fi, true
@@ -173,7 +173,7 @@ func readmeRefs(repoDir string) []string {
 func findCover(root, name string) (cover, bool) {
 	// Validate first: name comes straight from the URL (/img/{name}) and %2f decodes
 	// to "/", so an unchecked name would walk out of imageDir.
-	dir, ok := validRepo(root, name)
+	dir, ok := ValidRepo(root, name)
 	if !ok {
 		return cover{}, false
 	}

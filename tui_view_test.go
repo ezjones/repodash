@@ -51,7 +51,7 @@ func TestRenderCardWidth(t *testing.T) {
 	if !strings.Contains(c, "this week") {
 		t.Error("week line missing by default")
 	}
-	s, _ := parseSettings("", []byte(`{"card":{"week":false}}`))
+	s, _ := ParseSettings("", []byte(`{"card":{"week":false}}`))
 	old := Config()
 	SetConfig(s)
 	defer SetConfig(old)
@@ -172,7 +172,7 @@ func TestRenderCardHostileText(t *testing.T) {
 	evil := "a\tb\x1b]0;x\x07c\x1b[2Jd"
 	r := longRepo()
 	r.LastSubject, r.Branch = evil, evil
-	iss := &repoIssues{Open: 1, Done: &issueRef{Number: 1, Title: evil}, Next: &issueRef{Number: 2, Title: evil}}
+	iss := &RepoIssues{Open: 1, Done: &IssueRef{Number: 1, Title: evil}, Next: &IssueRef{Number: 2, Title: evil}}
 	c := renderCard(r, evil, iss, false, 32, time.Unix(1000, 0))
 	for _, l := range strings.Split(c, "\n") {
 		if w := lipgloss.Width(l); w != 34 {

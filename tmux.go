@@ -67,17 +67,17 @@ func openInTmux(dir string) (action, window string, err error) {
 	return "opened", idx, nil
 }
 
-// openInTerminal picks the multiplexer for terminal.multiplexer. The "prefer" modes look at both:
+// OpenInTerminal picks the multiplexer for terminal.multiplexer. The "prefer" modes look at both:
 // an existing tab in the preferred one wins, then an existing tab in the other; with none, a new
 // tab opens in the preferred one if its server is running, else in the other.
-func openInTerminal(dir, override string) (action, window string, err error) {
-	m := cfg.get().multiplexer
+func OpenInTerminal(dir, override string) (action, window string, err error) {
+	m := cfg.get().Multiplexer
 	if contains(multiplexers, override) {
 		m = override
 	}
-	mux, _, err := findTarget(dir, m)
+	mux, _, err := FindTarget(dir, m)
 	if err != nil {
 		return "", "", err
 	}
-	return openWith(mux, dir)
+	return OpenWith(mux, dir)
 }

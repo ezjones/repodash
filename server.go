@@ -27,7 +27,7 @@ type serveOptions struct {
 // serve runs the web dashboard until the listener fails.
 func serve(o serveOptions) error {
 	layout := &layoutStore{path: o.LayoutPath}
-	hub := newHub(func() []Repo { return scanAll(o.Root) })
+	hub := newHub(func() []Repo { return ScanAll(o.Root) })
 	go hub.run()
 
 	sub, _ := fs.Sub(webFS, "web")
@@ -39,7 +39,7 @@ func serve(o serveOptions) error {
 	})
 	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(Config().payload())
+		w.Write(Config().Payload())
 	})
 	mux.HandleFunc("POST /api/refresh", func(w http.ResponseWriter, r *http.Request) {
 		hub.refresh()
@@ -59,20 +59,20 @@ func serve(o serveOptions) error {
 		}
 		json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req)
 		// Only a directory that is really a repo under the root can be opened, never an arbitrary path.
-		dir, ok := validRepo(o.Root, req.Name)
+		dir, ok := ValidRepo(o.Root, req.Name)
 		if !ok {
 			http.Error(w, "not a repo", http.StatusNotFound)
 			return
 		}
 		if req.Worktree != "" {
 			// Never open a path from the request unless git itself lists it as a worktree of this repo.
-			if !worktreeOf(dir, req.Worktree) {
+			if !WorktreeOf(dir, req.Worktree) {
 				http.Error(w, "not a worktree of this repo", http.StatusNotFound)
 				return
 			}
 			dir = req.Worktree
 		}
-		action, win, err := openInTerminal(dir, req.Mux)
+		action, win, err := OpenInTerminal(dir, req.Mux)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
@@ -108,8 +108,8 @@ func serve(o serveOptions) error {
 	if err != nil {
 		return err
 	}
-	if !o.NoOpen && interactive() {
-		openBrowser(webURL(o.Addr))
+	if !o.NoOpen && Interactive() {
+		OpenBrowser(webURL(o.Addr))
 	}
 	return http.Serve(ln, guard(allowed, mux))
 }

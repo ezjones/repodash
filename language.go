@@ -37,7 +37,7 @@ func mainLanguage(dir string) string {
 		return e.lang
 	}
 	count := map[string]int{}
-	for _, f := range strings.Split(git(dir, "ls-files", "-z"), "\x00") {
+	for _, f := range strings.Split(Git(dir, "ls-files", "-z"), "\x00") {
 		if l := langByExt[strings.ToLower(filepath.Ext(f))]; l != "" {
 			count[l]++
 		}

@@ -25,7 +25,7 @@ func (f *issueFeed) current() []byte {
 func (f *issueFeed) due() bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.busy || time.Since(f.at) < issuesEvery {
+	if f.busy || time.Since(f.at) < IssuesEvery {
 		return false
 	}
 	f.busy = true
@@ -46,10 +46,10 @@ func (h *hub) pollIssues() {
 	}
 	defer func() { f.mu.Lock(); f.busy = false; f.at = time.Now(); f.mu.Unlock() }()
 
-	res, msg := fetchAllIssues(dirs)
+	res, msg := FetchAllIssues(dirs)
 	if msg == "" {
-		if p := issueCachePath(); p != "" {
-			_ = writeIssueCache(p, issueCache{At: time.Now().UTC(), Repos: res})
+		if p := IssueCachePath(); p != "" {
+			_ = WriteIssueCache(p, IssueCache{At: time.Now().UTC(), Repos: res})
 		}
 	}
 	b, _ := json.Marshal(map[string]any{"repos": res, "error": msg})

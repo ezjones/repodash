@@ -36,7 +36,7 @@ func serveImage(root string) http.HandlerFunc {
 func putImage(root string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := r.PathValue("name")
-		if _, ok := validRepo(root, name); !ok {
+		if _, ok := ValidRepo(root, name); !ok {
 			http.Error(w, "not a repo", http.StatusNotFound)
 			return
 		}
@@ -46,7 +46,7 @@ func putImage(root string) http.HandlerFunc {
 			http.Error(w, "send the image with an image/* content type (png, jpeg, webp, gif, svg, avif)", http.StatusUnsupportedMediaType)
 			return
 		}
-		b, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxImage))
+		b, err := io.ReadAll(http.MaxBytesReader(w, r.Body, MaxImage))
 		if err != nil || len(b) == 0 {
 			http.Error(w, "image is empty or larger than 4 MB", http.StatusRequestEntityTooLarge)
 			return
@@ -72,7 +72,7 @@ func putImage(root string) http.HandlerFunc {
 func deleteImage(root string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := r.PathValue("name")
-		if _, ok := validRepo(root, name); !ok {
+		if _, ok := ValidRepo(root, name); !ok {
 			http.Error(w, "not a repo", http.StatusNotFound)
 			return
 		}

@@ -26,7 +26,7 @@ func newFakeTUI(t *testing.T, inHerdr bool) *fakeTUI {
 	}
 	f.m = newTUIModel(tuiDeps{
 		Scan:  func() []Repo { return repos },
-		Panes: func() []pane { return nil },
+		Panes: func() []Pane { return nil },
 		Find: func(dir string) (string, bool, error) {
 			return "herdr", dir == "/r/my-app", nil
 		},
@@ -277,7 +277,7 @@ func TestTUISelectionFollowsName(t *testing.T) {
 
 func TestCachedIssuesShownAtOpen(t *testing.T) {
 	m := newTUIModel(tuiDeps{
-		Issues: func() map[string]repoIssues { return map[string]repoIssues{"my-app": {Open: 3}} },
+		Issues: func() map[string]RepoIssues { return map[string]RepoIssues{"my-app": {Open: 3}} },
 		Now:    func() time.Time { return time.Unix(1000, 0) },
 	})
 	if m.issues["my-app"].Open != 3 {
@@ -286,7 +286,7 @@ func TestCachedIssuesShownAtOpen(t *testing.T) {
 }
 
 func TestStatusShowFalseSkipsFilter(t *testing.T) {
-	s, _ := parseSettings("", []byte(`{"statuses":{"stale":{"show":false}}}`))
+	s, _ := ParseSettings("", []byte(`{"statuses":{"stale":{"show":false}}}`))
 	old := Config()
 	SetConfig(s)
 	defer SetConfig(old)

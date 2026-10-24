@@ -20,26 +20,26 @@ import (
 // github.com, and only while a browser is open. It is a separate, slow feed (issuesEvery) so the
 // git scan stays fast. Read-only: nothing here creates or edits an issue.
 
-const issuesEvery = 5 * time.Minute
+const IssuesEvery = 5 * time.Minute
 
-type issueRef struct {
+type IssueRef struct {
 	Number int    `json:"number"`
 	Title  string `json:"title"`
 	URL    string `json:"url"`
 	At     string `json:"at,omitempty"` // closed time (RFC 3339), only for Done
 }
 
-type repoIssues struct {
+type RepoIssues struct {
 	Open     int        `json:"open"`                // exact open issue count
-	Done     *issueRef  `json:"done,omitempty"`      // most recently closed issue
-	Next     *issueRef  `json:"next,omitempty"`      // oldest open issue
-	OpenList []issueRef `json:"open_list,omitempty"` // up to 5 oldest open issues
+	Done     *IssueRef  `json:"done,omitempty"`      // most recently closed issue
+	Next     *IssueRef  `json:"next,omitempty"`      // oldest open issue
+	OpenList []IssueRef `json:"open_list,omitempty"` // up to 5 oldest open issues
 }
 
 var ghName = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 
-// githubRepo returns "owner/name" when the remote URL points at github.com, else "".
-func githubRepo(url string) string {
+// GitHubRepo returns "owner/name" when the remote URL points at github.com, else "".
+func GitHubRepo(url string) string {
 	url = strings.TrimSpace(url)
 	for _, p := range []string{"https://github.com/", "http://github.com/", "ssh://git@github.com/", "git@github.com:", "git://github.com/"} {
 		if rest, ok := strings.CutPrefix(url, p); ok {
@@ -85,8 +85,8 @@ func ghIssues(slug, state, sort, dir string) ([]ghIssue, error) {
 	return list, err
 }
 
-func fetchIssues(slug string) (repoIssues, error) {
-	var ri repoIssues
+func fetchIssues(slug string) (RepoIssues, error) {
+	var ri RepoIssues
 	closed, err := ghIssues(slug, "closed", "updated", "desc")
 	if errors.Is(err, errGHAuth) {
 		return ri, err
@@ -95,7 +95,7 @@ func fetchIssues(slug string) (repoIssues, error) {
 	// closed_at among the page instead of the first row.
 	for _, c := range closed {
 		if c.ClosedAt != "" && (ri.Done == nil || c.ClosedAt > ri.Done.At) {
-			ri.Done = &issueRef{Number: c.Number, Title: c.Title, URL: c.URL, At: c.ClosedAt}
+			ri.Done = &IssueRef{Number: c.Number, Title: c.Title, URL: c.URL, At: c.ClosedAt}
 		}
 	}
 	open, err := ghIssues(slug, "open", "created", "asc")
@@ -104,10 +104,10 @@ func fetchIssues(slug string) (repoIssues, error) {
 	}
 	for i, o := range open {
 		if i == 0 {
-			ri.Next = &issueRef{Number: o.Number, Title: o.Title, URL: o.URL}
+			ri.Next = &IssueRef{Number: o.Number, Title: o.Title, URL: o.URL}
 		}
 		if i < 5 {
-			ri.OpenList = append(ri.OpenList, issueRef{Number: o.Number, Title: o.Title, URL: o.URL})
+			ri.OpenList = append(ri.OpenList, IssueRef{Number: o.Number, Title: o.Title, URL: o.URL})
 		}
 	}
 	ri.Open = len(open) // fallback: the page is capped at 30
@@ -144,13 +144,13 @@ func ghOpenCount(slug string) (int, error) {
 	return strconv.Atoi(strings.TrimSpace(string(out)))
 }
 
-// issueCache is the last successful fetch, kept on disk so the terminal UI can show issues at once.
-type issueCache struct {
+// IssueCache is the last successful fetch, kept on disk so the terminal UI can show issues at once.
+type IssueCache struct {
 	At    time.Time             `json:"at"`
-	Repos map[string]repoIssues `json:"repos"`
+	Repos map[string]RepoIssues `json:"repos"`
 }
 
-func issueCachePath() string {
+func IssueCachePath() string {
 	base := os.Getenv("XDG_CACHE_HOME")
 	if base == "" {
 		home, err := os.UserHomeDir()
@@ -162,16 +162,16 @@ func issueCachePath() string {
 	return filepath.Join(base, "repodash", "issues.json")
 }
 
-func readIssueCache(path string) (issueCache, bool) {
-	var c issueCache
+func ReadIssueCache(path string) (IssueCache, bool) {
+	var c IssueCache
 	b, err := os.ReadFile(path)
 	if err != nil || json.Unmarshal(b, &c) != nil {
-		return issueCache{}, false
+		return IssueCache{}, false
 	}
 	return c, true
 }
 
-func writeIssueCache(path string, c issueCache) error {
+func WriteIssueCache(path string, c IssueCache) error {
 	b, err := json.Marshal(c)
 	if err != nil {
 		return err
@@ -197,10 +197,10 @@ func writeIssueCache(path string, c issueCache) error {
 	return err
 }
 
-// fetchAllIssues looks up issues for every repo in dirs (name to path), a few at a time.
+// FetchAllIssues looks up issues for every repo in dirs (name to path), a few at a time.
 // msg is a user-facing problem (gh missing or logged out), empty when all went well.
-func fetchAllIssues(dirs map[string]string) (res map[string]repoIssues, msg string) {
-	res = map[string]repoIssues{}
+func FetchAllIssues(dirs map[string]string) (res map[string]RepoIssues, msg string) {
+	res = map[string]RepoIssues{}
 	if _, err := exec.LookPath("gh"); err != nil {
 		return res, "GitHub issues: the gh command was not found. Install the GitHub CLI and run gh auth login, or set card.issues to false."
 	}
@@ -208,7 +208,7 @@ func fetchAllIssues(dirs map[string]string) (res map[string]repoIssues, msg stri
 	sem := make(chan struct{}, 4)
 	var wg sync.WaitGroup
 	for name, dir := range dirs {
-		slug := githubRepo(git(dir, "config", "--get", "remote.origin.url"))
+		slug := GitHubRepo(Git(dir, "config", "--get", "remote.origin.url"))
 		if slug == "" {
 			continue
 		}

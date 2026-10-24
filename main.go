@@ -26,7 +26,7 @@ var buildVersion = "dev"
 func main() {
 	home, _ := os.UserHomeDir()
 	cwd, _ := os.Getwd()
-	root := flag.String("root", defaultRoot(cwd, home), "directory holding the repos (default: the current folder if it holds git repos, else ~/gitrepos)")
+	root := flag.String("root", DefaultRoot(cwd, home), "directory holding the repos (default: the current folder if it holds git repos, else ~/gitrepos)")
 	addr := flag.String("addr", "127.0.0.1:8092", "listen address")
 	allowHost := flag.String("allow-host", "", "extra host names the page may be opened by, comma separated (needed when -addr is reachable by name, e.g. a tailnet name)")
 	cfgPath := flag.String("config", "", "settings file (default: repodash.json next to the binary, or $REPODASH_CONFIG)")
@@ -49,14 +49,14 @@ func main() {
 		return
 	}
 	if *herdrOpen {
-		if err := herdrOpenTUI(); err != nil {
+		if err := HerdrOpenTUI(); err != nil {
 			log.Fatal(err)
 		}
 		return
 	}
 	p := settingsPath(*cfgPath)
 	if !*check && !*once {
-		ensureConfigFile(p)
+		EnsureConfigFile(p)
 	}
 	LoadConfig(p)
 
@@ -81,7 +81,7 @@ func main() {
 	if *once {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		enc.Encode(scanAll(*root))
+		enc.Encode(ScanAll(*root))
 		return
 	}
 
@@ -94,7 +94,7 @@ func main() {
 			serverFlag = true
 		}
 	})
-	if *tui || (!serverFlag && interactive() && stdinTerminal()) {
+	if *tui || (!serverFlag && Interactive() && StdinTerminal()) {
 		args := []string{"-root", *root, "-config", ConfigPath()}
 		if *allowHost != "" {
 			args = append(args, "-allow-host", *allowHost)

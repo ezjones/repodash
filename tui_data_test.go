@@ -32,7 +32,7 @@ func TestBandColorsMatchWeb(t *testing.T) {
 
 func TestSortRepos(t *testing.T) {
 	rs := []Repo{{Name: "b", Commits7d: 1, Language: "Go"}, {Name: "A", Commits7d: 5}, {Name: "c", Commits7d: 5, Language: "Rust"}}
-	iss := map[string]repoIssues{"b": {Open: 9}, "c": {Open: 2}}
+	iss := map[string]RepoIssues{"b": {Open: 9}, "c": {Open: 2}}
 	names := func(l []Repo) string {
 		s := ""
 		for _, r := range l {

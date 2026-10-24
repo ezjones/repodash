@@ -18,17 +18,17 @@ func panelFake(t *testing.T) (*fakeTUI, *[]string) {
 	t.Helper()
 	f := newFakeTUI(t, false)
 	var urls []string
-	f.m.d.Commits = func(string) []commitLine {
-		return []commitLine{{hashA, 900, "first-subject"}, {hashB, 800, "second-subject"}}
+	f.m.d.Commits = func(string) []CommitLine {
+		return []CommitLine{{Hash: hashA, At: 900, Subject: "first-subject"}, {Hash: hashB, At: 800, Subject: "second-subject"}}
 	}
-	f.m.d.CommitDetail = func(dir, hash string) (commitInfo, error) {
+	f.m.d.CommitDetail = func(dir, hash string) (CommitInfo, error) {
 		if hash == hashB {
-			return commitInfo{}, errors.New("detail-broke")
+			return CommitInfo{}, errors.New("detail-broke")
 		}
-		return commitInfo{Hash: hash, Author: "Pat Author", At: 900, Body: "body-line-one and more", Files: []string{"a.go | 2 +-", "1 file changed"}}, nil
+		return CommitInfo{Hash: hash, Author: "Pat Author", At: 900, Body: "body-line-one and more", Files: []string{"a.go | 2 +-", "1 file changed"}}, nil
 	}
 	f.m.d.OpenURL = func(u string) { urls = append(urls, u) }
-	f.m.issues = map[string]repoIssues{"my-app": {Open: 2, OpenList: []issueRef{
+	f.m.issues = map[string]RepoIssues{"my-app": {Open: 2, OpenList: []IssueRef{
 		{Number: 7, Title: "issue-seven", URL: "https://example.com/o/r/issues/7"},
 		{Number: 9, Title: "issue-nine", URL: "https://example.com/o/r/issues/9"},
 	}}}

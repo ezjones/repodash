@@ -64,6 +64,6 @@ func openWeb(addr string, args []string, logPath string) (string, error) {
 			return "", fmt.Errorf("web server did not start on %s (see %s)", addr, logPath)
 		}
 	}
-	openBrowser(u)
+	OpenBrowser(u)
 	return u, nil
 }

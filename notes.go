@@ -12,7 +12,7 @@ import (
 
 const (
 	maxReadme = 256 << 10
-	maxNotes  = 256 << 10
+	MaxNotes  = 256 << 10
 )
 
 var (
@@ -28,9 +28,9 @@ func hasNotes(name string) bool {
 	return err == nil && fi.Size() > 0
 }
 
-// readmeFile returns the repo's README text. A README that is a symlink leading
+// ReadmeFile returns the repo's README text. A README that is a symlink leading
 // outside the repo is ignored, like cover images.
-func readmeFile(repoDir string) (string, string, bool) {
+func ReadmeFile(repoDir string) (string, string, bool) {
 	realRepo, err := filepath.EvalSymlinks(repoDir)
 	if err != nil {
 		return "", "", false
@@ -57,12 +57,12 @@ func readmeFile(repoDir string) (string, string, bool) {
 }
 
 func hasReadme(repoDir string) bool {
-	_, _, ok := readmeFile(repoDir)
+	_, _, ok := ReadmeFile(repoDir)
 	return ok
 }
 
-// notesExcerpt returns the first lines non-empty lines of the repo's notes, or nil.
-func notesExcerpt(name string, lines int) []string {
+// NotesExcerpt returns the first lines non-empty lines of the repo's notes, or nil.
+func NotesExcerpt(name string, lines int) []string {
 	b, err := os.ReadFile(notesPath(name))
 	if err != nil {
 		return nil

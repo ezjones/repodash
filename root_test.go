@@ -21,7 +21,7 @@ func TestDefaultRoot(t *testing.T) {
 		filepath.Join(home, "missing"): want,
 		"":                             want,
 	} {
-		if got := defaultRoot(cwd, home); got != exp {
+		if got := DefaultRoot(cwd, home); got != exp {
 			t.Errorf("defaultRoot(%q) = %q, want %q", cwd, got, exp)
 		}
 	}

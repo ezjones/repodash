@@ -56,7 +56,7 @@ type Repo struct {
 // git runs one read-only git command. GIT_OPTIONAL_LOCKS=0 keeps `status` from
 // taking index.lock, which would otherwise race with whatever you are doing in
 // that repo while the dashboard polls it.
-func git(dir string, args ...string) string {
+func Git(dir string, args ...string) string {
 	out, _ := gitRaw(dir, args...)
 	return strings.TrimRight(out, "\n")
 }
@@ -72,30 +72,30 @@ func gitRaw(dir string, args ...string) (string, error) {
 	return string(b), err
 }
 
-type pane struct{ cwd, claude, mux string }
+type Pane struct{ cwd, claude, mux string }
 
-func tmuxPanes() []pane {
+func tmuxPanes() []Pane {
 	b, err := exec.Command("tmux", "list-panes", "-a", "-F", "#{pane_current_path}\t#{@claude}").Output()
 	if err != nil {
 		return nil
 	}
-	var ps []pane
+	var ps []Pane
 	for _, l := range strings.Split(strings.TrimSpace(string(b)), "\n") {
 		cwd, st, _ := strings.Cut(l, "\t")
 		if cwd != "" {
-			ps = append(ps, pane{cwd, st, "tmux"})
+			ps = append(ps, Pane{cwd, st, "tmux"})
 		}
 	}
 	return ps
 }
 
-// terminalPanes gathers panes from every multiplexer. Which one a card uses is decided per
+// TerminalPanes gathers panes from every multiplexer. Which one a card uses is decided per
 // browser (Settings panel) or by terminal.multiplexer, so the scan does not filter.
-func terminalPanes() []pane { return append(tmuxPanes(), herdrPanes()...) }
+func TerminalPanes() []Pane { return append(tmuxPanes(), herdrPanes()...) }
 
-// agentState folds every pane inside dir into: has a tmux tab, has a herdr tab, and the most
+// AgentState folds every pane inside dir into: has a tmux tab, has a herdr tab, and the most
 // urgent agent state (waiting beats busy beats idle).
-func agentState(panes []pane, dir string) (tm, hd bool, claude string) {
+func AgentState(panes []Pane, dir string) (tm, hd bool, claude string) {
 	for _, p := range panes {
 		if p.cwd != dir && !strings.HasPrefix(p.cwd, dir+"/") {
 			continue
@@ -115,11 +115,11 @@ func agentState(panes []pane, dir string) (tm, hd bool, claude string) {
 }
 
 func defaultBranch(dir string) string {
-	if h := git(dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"); h != "" {
+	if h := Git(dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"); h != "" {
 		return h
 	}
 	for _, b := range []string{"main", "master"} {
-		if git(dir, "rev-parse", "--verify", "--quiet", b) != "" {
+		if Git(dir, "rev-parse", "--verify", "--quiet", b) != "" {
 			return b
 		}
 	}
@@ -136,7 +136,7 @@ func worktrees(dir, base string) []Worktree {
 	flush := func(first bool) {
 		if !first && path != "" && branch != "" {
 			dirty := 0
-			if st := git(path, "status", "--porcelain"); st != "" {
+			if st := Git(path, "status", "--porcelain"); st != "" {
 				dirty = len(strings.Split(st, "\n"))
 			}
 			res = append(res, Worktree{
@@ -149,7 +149,7 @@ func worktrees(dir, base string) []Worktree {
 		path, branch = "", ""
 	}
 	first := true
-	for _, l := range append(strings.Split(git(dir, "worktree", "list", "--porcelain"), "\n"), "") {
+	for _, l := range append(strings.Split(Git(dir, "worktree", "list", "--porcelain"), "\n"), "") {
 		switch {
 		case l == "":
 			flush(first)
@@ -163,14 +163,14 @@ func worktrees(dir, base string) []Worktree {
 	return res
 }
 
-// worktreeOf reports whether path is exactly one of the linked worktrees git lists for the
+// WorktreeOf reports whether path is exactly one of the linked worktrees git lists for the
 // repo at dir. The main checkout (the first entry) does not count.
-func worktreeOf(dir, path string) bool {
+func WorktreeOf(dir, path string) bool {
 	if path == "" {
 		return false
 	}
 	first := true
-	for _, l := range strings.Split(git(dir, "worktree", "list", "--porcelain"), "\n") {
+	for _, l := range strings.Split(Git(dir, "worktree", "list", "--porcelain"), "\n") {
 		if p, ok := strings.CutPrefix(l, "worktree "); ok {
 			if !first && p == path {
 				return true
@@ -249,22 +249,22 @@ func parseStatus(r *Repo, out string) {
 	r.Edited = edited
 }
 
-func inspect(root, name string, panes []pane) Repo {
+func inspect(root, name string, panes []Pane) Repo {
 	dir := filepath.Join(root, name)
 	r := Repo{Name: name, Path: dir, Worktrees: []Worktree{}, Reasons: []string{}}
-	parseStatus(&r, git(dir, "status", "--porcelain=v2", "--branch", "-z"))
+	parseStatus(&r, Git(dir, "status", "--porcelain=v2", "--branch", "-z"))
 
-	if ts, subj, ok := strings.Cut(git(dir, "log", "-1", "--format=%ct\t%s"), "\t"); ok {
+	if ts, subj, ok := strings.Cut(Git(dir, "log", "-1", "--format=%ct\t%s"), "\t"); ok {
 		r.LastCommit, _ = strconv.ParseInt(ts, 10, 64)
 		r.LastSubject = subj
 	}
 	r.Activity = max(r.LastCommit, r.Edited)
 	r.Base = strings.TrimPrefix(defaultBranch(dir), "origin/")
-	r.HasRemote = git(dir, "remote") != ""
-	if out := git(dir, "stash", "list"); out != "" {
+	r.HasRemote = Git(dir, "remote") != ""
+	if out := Git(dir, "stash", "list"); out != "" {
 		r.Stashes = strings.Count(out, "\n") + 1 // one line per stash
 	}
-	if n := git(dir, "rev-list", "--count", "--since=7.days.ago", "HEAD"); n != "" {
+	if n := Git(dir, "rev-list", "--count", "--since=7.days.ago", "HEAD"); n != "" {
 		r.Commits7d, _ = strconv.Atoi(n)
 	}
 	r.Language = mainLanguage(dir)
@@ -272,7 +272,7 @@ func inspect(root, name string, panes []pane) Repo {
 	baseRef := defaultBranch(dir)
 	r.Worktrees = append(r.Worktrees, worktrees(dir, baseRef)...)
 
-	r.Tmux, r.Herdr, r.Claude = agentState(panes, dir)
+	r.Tmux, r.Herdr, r.Claude = AgentState(panes, dir)
 	if c, ok := findCover(root, name); ok {
 		r.Image, r.ImageSrc, r.ImageFit = c.url(name), c.src, c.fit
 	}
@@ -323,10 +323,10 @@ func classify(r *Repo) {
 	}
 }
 
-// scanAll inspects every git checkout directly under root, newest activity first.
+// ScanAll inspects every git checkout directly under root, newest activity first.
 // Entries whose .git is a file are linked worktrees; they show up inside their
 // main repo's card instead of getting one of their own.
-func scanAll(root string) []Repo {
+func ScanAll(root string) []Repo {
 	s := cfg.get()
 	ents, err := os.ReadDir(root)
 	if err != nil {
@@ -342,7 +342,7 @@ func scanAll(root string) []Repo {
 			names = append(names, n)
 		}
 	}
-	panes := terminalPanes()
+	panes := TerminalPanes()
 	repos := make([]Repo, len(names))
 	sem := make(chan struct{}, 8)
 	var wg sync.WaitGroup
@@ -367,14 +367,14 @@ func scanAll(root string) []Repo {
 	return repos
 }
 
-// defaultRoot is the repos folder when -root is not given: the current folder if it holds git
+// DefaultRoot is the repos folder when -root is not given: the current folder if it holds git
 // repos directly, else ~/gitrepos. The home folder itself never counts: it often holds a stray
 // repo (dotfiles), and the herdr tab starts there.
-func defaultRoot(cwd, home string) string {
+func DefaultRoot(cwd, home string) string {
 	if cwd != "" && filepath.Clean(cwd) != filepath.Clean(home) {
 		if es, err := os.ReadDir(cwd); err == nil {
 			for _, e := range es {
-				if _, ok := validRepo(cwd, e.Name()); ok && e.IsDir() {
+				if _, ok := ValidRepo(cwd, e.Name()); ok && e.IsDir() {
 					return cwd
 				}
 			}

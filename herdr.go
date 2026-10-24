@@ -47,17 +47,17 @@ func listHerdrPanes() ([]herdrPane, error) {
 
 // herdrPanes is the herdr counterpart of tmuxPanes. Herdr's own agent detection fills the
 // status, mapped onto the words the card already uses (busy / waiting / idle).
-func herdrPanes() []pane {
+func herdrPanes() []Pane {
 	hp, err := listHerdrPanes()
 	if err != nil {
 		return nil
 	}
-	var ps []pane
+	var ps []Pane
 	for _, p := range hp {
 		st := map[string]string{"working": "busy", "blocked": "waiting", "idle": "idle", "done": "idle"}[p.AgentStatus]
 		for _, d := range []string{p.Cwd, p.FgCwd} {
 			if d != "" {
-				ps = append(ps, pane{cwd: d, claude: st, mux: "herdr"})
+				ps = append(ps, Pane{cwd: d, claude: st, mux: "herdr"})
 			}
 		}
 	}

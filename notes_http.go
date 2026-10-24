@@ -9,13 +9,13 @@ import (
 // infoGet answers {readme, readme_name, notes} for one repo.
 func infoGet(root string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		dir, ok := validRepo(root, r.PathValue("name"))
+		dir, ok := ValidRepo(root, r.PathValue("name"))
 		if !ok {
 			http.Error(w, "not a repo", http.StatusNotFound)
 			return
 		}
 		out := map[string]any{"readme": nil, "readme_name": "", "notes": ""}
-		if n, text, ok := readmeFile(dir); ok {
+		if n, text, ok := ReadmeFile(dir); ok {
 			out["readme"], out["readme_name"] = text, n
 		}
 		if text, ok := ReadNotes(r.PathValue("name")); ok {
@@ -30,7 +30,7 @@ func infoGet(root string) http.HandlerFunc {
 // commitsGet answers {commits:[{hash,at,subject}], web?}: the repo's 5 newest commits.
 func commitsGet(root string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		dir, ok := validRepo(root, r.PathValue("name"))
+		dir, ok := ValidRepo(root, r.PathValue("name"))
 		if !ok {
 			http.Error(w, "not a repo", http.StatusNotFound)
 			return
@@ -41,23 +41,23 @@ func commitsGet(root string) http.HandlerFunc {
 			Subject string `json:"subject"`
 		}
 		out := []c{}
-		for _, l := range recentCommits(dir, 5) {
+		for _, l := range RecentCommits(dir, 5) {
 			out = append(out, c{l.Hash, l.At, l.Subject})
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store")
 		resp := map[string]any{"commits": out}
-		if slug := githubRepo(git(dir, "config", "--get", "remote.origin.url")); slug != "" {
+		if slug := GitHubRepo(Git(dir, "config", "--get", "remote.origin.url")); slug != "" {
 			resp["web"] = "https://github.com/" + slug
 		}
 		json.NewEncoder(w).Encode(resp)
 	}
 }
 
-// commitGet answers one commit's details (commitInfo) for the inspector. Read-only.
+// commitGet answers one commit's details (CommitInfo) for the inspector. Read-only.
 func commitGet(root string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		dir, ok := validRepo(root, r.PathValue("name"))
+		dir, ok := ValidRepo(root, r.PathValue("name"))
 		if !ok {
 			http.Error(w, "not a repo", http.StatusNotFound)
 			return
@@ -66,7 +66,7 @@ func commitGet(root string) http.HandlerFunc {
 			http.Error(w, "bad hash", http.StatusBadRequest)
 			return
 		}
-		ci, err := commitDetail(dir, r.PathValue("hash"))
+		ci, err := CommitDetail(dir, r.PathValue("hash"))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
@@ -86,14 +86,14 @@ func notesPut(root string) http.HandlerFunc {
 			return
 		}
 		name := r.PathValue("name")
-		if _, ok := validRepo(root, name); !ok {
+		if _, ok := ValidRepo(root, name); !ok {
 			http.Error(w, "not a repo", http.StatusNotFound)
 			return
 		}
 		var req struct {
 			Text string `json:"text"`
 		}
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxNotes+4096)).Decode(&req); err != nil || len(req.Text) > maxNotes {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, MaxNotes+4096)).Decode(&req); err != nil || len(req.Text) > MaxNotes {
 			http.Error(w, "invalid or too large", http.StatusBadRequest)
 			return
 		}

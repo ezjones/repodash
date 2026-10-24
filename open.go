@@ -7,10 +7,10 @@ import (
 	"strings"
 )
 
-// openBrowser opens url in the user's default browser, best effort. On WSL it
+// OpenBrowser opens url in the user's default browser, best effort. On WSL it
 // hands the URL to Windows so it opens in the Windows browser. Errors are
 // ignored: the URL is already printed in the startup log line.
-func openBrowser(url string) {
+func OpenBrowser(url string) {
 	var cmds [][]string
 	switch runtime.GOOS {
 	case "darwin":
@@ -31,9 +31,9 @@ func openBrowser(url string) {
 	}
 }
 
-// interactive reports whether stdout is a terminal, so a service, a pipe or a
+// Interactive reports whether stdout is a terminal, so a service, a pipe or a
 // redirect to /dev/null never tries to open a browser.
-func interactive() bool {
+func Interactive() bool {
 	fi, err := os.Stdout.Stat()
 	if err != nil || fi.Mode()&os.ModeCharDevice == 0 {
 		return false
@@ -44,8 +44,8 @@ func interactive() bool {
 	return true
 }
 
-// stdinTerminal reports whether stdin is a terminal, which the TUI needs for keys.
-func stdinTerminal() bool {
+// StdinTerminal reports whether stdin is a terminal, which the TUI needs for keys.
+func StdinTerminal() bool {
 	fi, err := os.Stdin.Stat()
 	return err == nil && fi.Mode()&os.ModeCharDevice != 0
 }
