@@ -114,9 +114,9 @@ func padTo(s string, w int) string {
 }
 
 // gridLayout splits the width between the cards and the right panel. Cards are at least
-// minInner+2 wide and stretch to share the space; the panel needs room for two card columns.
+// minInner+2 wide and stretch to share the space; the panel needs room for one card column.
 func gridLayout(width int, panelOn bool) (cols, cardW, panelW int) {
-	if panelOn && width >= 2*(minInner+3)+panelFull {
+	if panelOn && width >= minInner+3+panelFull {
 		panelW = panelFull
 	}
 	avail := width - panelW
@@ -129,11 +129,6 @@ func gridLayout(width int, panelOn bool) (cols, cardW, panelW int) {
 		cardW = 4
 	}
 	return
-}
-
-func (m *tuiModel) panelFits() bool {
-	_, _, pw := gridLayout(m.width, true)
-	return pw > 0
 }
 
 func cardOn(raw map[string]any, key string) bool {
@@ -342,6 +337,7 @@ func (m *tuiModel) relayout() {
 	}
 	cols, cardW, panelW := gridLayout(m.width, m.panel)
 	m.cols, m.cardW, m.panelW = cols, cardW, panelW
+	m.full = m.panel && panelW == 0 // too narrow to sit beside the cards
 	inner := max(1, cardW-2)
 	h := 3
 	now := m.d.Now()
@@ -657,7 +653,7 @@ func (m *tuiModel) footerLine() string {
 	key, desc := fg(cInfo).Bold(true), fg(cDim)
 	sp := seg{"  ", lipgloss.NewStyle()}
 	var full []seg
-	for _, h := range [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "new workspace"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"tab", "panel"}, {"?", "help"}, {"q", "close"}} {
+	for _, h := range [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "new workspace"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"?", "help"}, {"q", "close"}} {
 		full = append(full, seg{h[0], key}, seg{" " + h[1], desc}, sp)
 	}
 	if segsWidth(full)+1 <= m.width {
@@ -676,7 +672,7 @@ var helpText = [][2]string{
 	{"s / S", "next sort / reverse"},
 	{"f / F", "next / previous status filter"},
 	{"r", "rescan now"},
-	{"Tab", "show / hide the details panel"},
+	{"i / Tab", "show / hide the inspector (beside the cards, or full screen when narrow)"},
 	{"?", "this help"},
 	{"q / Esc", "close"},
 	{"mouse", "click selects, double-click jumps, wheel scrolls"},

@@ -17,7 +17,7 @@ func TestGridLayout(t *testing.T) {
 		cols    int
 		panelOn bool
 	}{
-		{40, true, 1, false}, {70, true, 2, false}, {120, true, 2, true}, {120, false, 3, false},
+		{40, true, 1, false}, {70, true, 2, false}, {80, true, 1, true}, {120, true, 2, true}, {120, false, 3, false},
 		{200, true, 5, true}, {200, false, 6, false}, {20, true, 1, false},
 	}
 	for _, c := range cases {
@@ -116,15 +116,28 @@ func TestViewNarrow(t *testing.T) {
 		}
 		f.keys("g")
 	}
-	// Tab opens the panel full screen, Tab closes it.
+	// The inspector starts hidden; i opens it full screen when narrow, Esc closes it.
 	sized(f, 40, 30)
-	f.send(tea.KeyPressMsg{Code: tea.KeyTab})
+	if f.m.full || f.m.panelW > 0 {
+		t.Error("inspector shown before i")
+	}
+	f.keys("i")
 	if !f.m.full || !strings.Contains(f.m.View().Content, "branch") {
-		t.Error("full panel not shown")
+		t.Error("full inspector not shown")
+	}
+	f.send(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if f.m.full {
+		t.Error("esc did not close the full inspector")
+	}
+	// Wide enough for one card column: i puts it beside the cards; Tab hides it again.
+	sized(f, 90, 30)
+	f.keys("i")
+	if f.m.full || f.m.panelW == 0 {
+		t.Errorf("inspector not beside the cards at 90 (full %v, panelW %d)", f.m.full, f.m.panelW)
 	}
 	f.send(tea.KeyPressMsg{Code: tea.KeyTab})
-	if f.m.full {
-		t.Error("tab did not close the full panel")
+	if f.m.panelW != 0 {
+		t.Error("tab did not hide the inspector")
 	}
 }
 

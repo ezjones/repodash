@@ -67,7 +67,7 @@ type tuiModel struct {
 	cols     int // cards per row; set by relayout
 	pageRows int // rows per page, for ctrl+d / ctrl+u
 
-	full          bool // the panel fills the screen (narrow terminals)
+	full          bool // the panel is on and fills the screen (narrow terminals); set by relayout
 	cardW, panelW int
 	cardH, vis    int
 	visKey        visKey
@@ -92,7 +92,7 @@ func newTUIModel(d tuiDeps) *tuiModel {
 	if d.Now == nil {
 		d.Now = time.Now
 	}
-	m := &tuiModel{d: d, panel: true, cols: 1, pageRows: 6, lastIdx: -1, commits: map[string]commitCache{}}
+	m := &tuiModel{d: d, cols: 1, pageRows: 6, lastIdx: -1, commits: map[string]commitCache{}}
 	m.applySettings(true)
 	if d.Issues != nil {
 		if is := d.Issues(); is != nil {
@@ -375,7 +375,7 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "esc":
 		if m.full {
-			m.full = false
+			m.panel = false
 			return m, nil
 		}
 		if m.query != "" {
@@ -388,12 +388,8 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.help = true
 	case "/":
 		m.searching = true
-	case "tab":
-		if m.width > 0 && !m.panelFits() {
-			m.full = !m.full
-		} else {
-			m.panel = !m.panel
-		}
+	case "i", "tab":
+		m.panel = !m.panel
 	case "h", "left":
 		m.moveTo(m.sel - 1)
 	case "l", "right":

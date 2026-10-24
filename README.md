@@ -159,8 +159,8 @@ same user as the herdr server.
 ## Terminal UI and herdr
 
 `repodash -tui` shows the same status cards in your terminal, with no web server. Move with
-`hjkl` or the arrow keys, search with `/`, sort with `s`, filter with `f`, open the side panel
-(commits, issues, notes) with Tab, and press `?` for all keys. Enter jumps to the repo's tmux or
+`hjkl` or the arrow keys, search with `/`, sort with `s`, filter with `f`, open the inspector
+(commits, issues, notes) with `i`, and press `?` for all keys. Enter jumps to the repo's tmux or
 herdr workspace, and offers to create one if there is none. The mouse works too: click to select,
 double-click to jump. It fits phone-width terminals.
 
