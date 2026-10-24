@@ -480,7 +480,7 @@ func (m *tuiModel) runPanelAct(i int) {
 		}
 	case strings.HasPrefix(act, "issue:"):
 		u := strings.TrimPrefix(act, "issue:")
-		if m.d.OpenURL == nil {
+		if m.d.OpenURL == nil || !strings.HasPrefix(u, "https://") { // never hand xdg-open a file or scheme URL
 			return
 		}
 		m.d.OpenURL(u)
