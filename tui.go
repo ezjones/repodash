@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/ezjones/repodash/internal/core"
 	"slices"
 	"sync"
 	"time"
@@ -11,13 +12,13 @@ import (
 
 // tuiDeps is everything the terminal UI touches outside itself, so tests can fake it.
 type tuiDeps struct {
-	Scan          func() []Repo
-	Panes         func() []Pane                // agent refresh, every 1 s
-	Issues        func() map[string]RepoIssues // current issues; may return nil
+	Scan          func() []core.Repo
+	Panes         func() []core.Pane                // agent refresh, every 1 s
+	Issues        func() map[string]core.RepoIssues // current issues; may return nil
 	Find          func(dir string) (mux string, exists bool, err error)
 	Open          func(mux, dir string) (action, window string, err error)
-	Commits       func(dir string) []CommitLine
-	CommitDetail  func(dir, hash string) (CommitInfo, error)
+	Commits       func(dir string) []core.CommitLine
+	CommitDetail  func(dir, hash string) (core.CommitInfo, error)
 	OpenURL       func(url string)
 	Notes         func(name string) []string
 	Now           func() time.Time
@@ -26,9 +27,9 @@ type tuiDeps struct {
 }
 
 type (
-	scanMsg   []Repo
-	panesMsg  []Pane
-	issuesMsg map[string]RepoIssues
+	scanMsg   []core.Repo
+	panesMsg  []core.Pane
+	issuesMsg map[string]core.RepoIssues
 	jumpMsg   struct {
 		name, action, window string
 		err                  error
@@ -41,22 +42,22 @@ type (
 )
 
 type detailCache struct {
-	ci  CommitInfo
+	ci  core.CommitInfo
 	err error
 }
 
 type commitCache struct {
 	at time.Time
-	cs []CommitLine
+	cs []core.CommitLine
 }
 
 type tuiModel struct {
 	d tuiDeps
 
-	repos  []Repo // all, as scanned
-	view   []Repo // sorted and filtered
-	issues map[string]RepoIssues
-	panes  []Pane
+	repos  []core.Repo // all, as scanned
+	view   []core.Repo // sorted and filtered
+	issues map[string]core.RepoIssues
+	panes  []core.Pane
 	titles map[string]string
 
 	sel         int
@@ -101,12 +102,12 @@ type tuiModel struct {
 }
 
 // tuiSettings returns the live settings, loading defaults when none were loaded yet.
-func tuiSettings() *Settings {
-	if s := Config(); s != nil {
+func tuiSettings() *core.Settings {
+	if s := core.Config(); s != nil {
 		return s
 	}
-	s, _ := ParseSettings("", nil)
-	SetConfig(s)
+	s, _ := core.ParseSettings("", nil)
+	core.SetConfig(s)
 	return s
 }
 
@@ -131,8 +132,8 @@ func (m *tuiModel) applySettings(first bool) {
 	s := tuiSettings()
 	m.interval = s.Interval
 	m.filters = []string{"all"}
-	for _, k := range StringList(s.Raw, "topbar.filters") {
-		if show, ok := Lookup(s.Raw, "statuses."+k+".show").(bool); ok && !show {
+	for _, k := range core.StringList(s.Raw, "topbar.filters") {
+		if show, ok := core.Lookup(s.Raw, "statuses."+k+".show").(bool); ok && !show {
 			continue
 		}
 		m.filters = append(m.filters, k)
@@ -148,19 +149,19 @@ func (m *tuiModel) applySettings(first bool) {
 		}
 	}
 	if first {
-		m.sortBy, _ = Lookup(s.Raw, "defaults.sort").(string)
+		m.sortBy, _ = core.Lookup(s.Raw, "defaults.sort").(string)
 		if !slices.Contains(tuiSorts, m.sortBy) {
 			m.sortBy = "recent"
 		}
-		m.rev, _ = Lookup(s.Raw, "defaults.reverse").(bool)
-		m.filter, _ = Lookup(s.Raw, "defaults.filter").(string)
+		m.rev, _ = core.Lookup(s.Raw, "defaults.reverse").(bool)
+		m.filter, _ = core.Lookup(s.Raw, "defaults.filter").(string)
 	}
 	if !slices.Contains(m.filters, m.filter) {
 		m.filter = "all"
 	}
 }
 
-func (m *tuiModel) title(r Repo) string {
+func (m *tuiModel) title(r core.Repo) string {
 	if t := m.titles[r.Name]; t != "" {
 		return t
 	}
@@ -168,9 +169,9 @@ func (m *tuiModel) title(r Repo) string {
 }
 
 // selected returns the highlighted repo, if any.
-func (m *tuiModel) selected() (Repo, bool) {
+func (m *tuiModel) selected() (core.Repo, bool) {
 	if m.sel < 0 || m.sel >= len(m.view) {
-		return Repo{}, false
+		return core.Repo{}, false
 	}
 	return m.view[m.sel], true
 }
@@ -228,7 +229,7 @@ func (m *tuiModel) cols1() int {
 }
 
 // selCommits returns the selected repo's recent commits, cached for the scan interval.
-func (m *tuiModel) selCommits() []CommitLine {
+func (m *tuiModel) selCommits() []core.CommitLine {
 	r, ok := m.selected()
 	if !ok || m.d.Commits == nil {
 		return nil
@@ -244,7 +245,7 @@ func (m *tuiModel) selCommits() []CommitLine {
 
 func (m *tuiModel) applyPanes() {
 	for i := range m.repos {
-		m.repos[i].Tmux, m.repos[i].Herdr, m.repos[i].Claude = AgentState(m.panes, m.repos[i].Path)
+		m.repos[i].Tmux, m.repos[i].Herdr, m.repos[i].Claude = core.AgentState(m.panes, m.repos[i].Path)
 	}
 }
 
@@ -282,23 +283,23 @@ func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 	case scanMsg:
-		m.repos = []Repo(msg)
+		m.repos = []core.Repo(msg)
 		m.loaded = true
 		m.applyPanes()
 		m.rebuild()
 	case panesMsg:
-		m.panes = []Pane(msg)
+		m.panes = []core.Pane(msg)
 		m.applyPanes()
 		m.rebuild()
 	case issuesMsg:
-		m.issues = map[string]RepoIssues(msg)
+		m.issues = map[string]core.RepoIssues(msg)
 		m.rebuild()
 	case tickMsg:
 		switch string(msg) {
 		case "scan":
 			return m, tea.Batch(m.scanCmd(), tick("scan", m.interval))
 		case "panes":
-			if PollConfig() {
+			if core.PollConfig() {
 				m.applySettings(false)
 				m.rebuild()
 			}
@@ -526,43 +527,43 @@ func (m *tuiModel) footer() string {
 // runTUI runs the interface against the real repos and terminals. Settings must be loaded.
 func runTUI(root string, web func() (string, error)) error {
 	var mu sync.Mutex
-	var last []Repo
-	var issues map[string]RepoIssues
-	cachePath := IssueCachePath()
+	var last []core.Repo
+	var issues map[string]core.RepoIssues
+	cachePath := core.IssueCachePath()
 	var fetchedAt time.Time
 	if cachePath != "" {
-		if c, ok := ReadIssueCache(cachePath); ok {
+		if c, ok := core.ReadIssueCache(cachePath); ok {
 			issues, fetchedAt = c.Repos, c.At
 		}
 	}
 	mode := func() string {
-		if InHerdr() {
+		if core.InHerdr() {
 			return "herdr"
 		}
 		return tuiSettings().Multiplexer
 	}
 	d := tuiDeps{
-		Scan: func() []Repo {
-			rs := ScanAll(root)
+		Scan: func() []core.Repo {
+			rs := core.ScanAll(root)
 			mu.Lock()
 			last = rs
 			mu.Unlock()
 			return rs
 		},
-		Panes: TerminalPanes,
-		Issues: func() map[string]RepoIssues {
+		Panes: core.TerminalPanes,
+		Issues: func() map[string]core.RepoIssues {
 			mu.Lock()
 			defer mu.Unlock()
 			return issues
 		},
-		Find:          func(dir string) (string, bool, error) { return FindTarget(dir, mode()) },
-		Open:          OpenWith,
-		Commits:       func(dir string) []CommitLine { return RecentCommits(dir, 5) },
-		CommitDetail:  CommitDetail,
-		OpenURL:       OpenBrowser,
-		Notes:         func(name string) []string { return NotesExcerpt(name, 5) },
+		Find:          func(dir string) (string, bool, error) { return core.FindTarget(dir, mode()) },
+		Open:          core.OpenWith,
+		Commits:       func(dir string) []core.CommitLine { return core.RecentCommits(dir, 5) },
+		CommitDetail:  core.CommitDetail,
+		OpenURL:       core.OpenBrowser,
+		Notes:         func(name string) []string { return core.NotesExcerpt(name, 5) },
 		Now:           time.Now,
-		QuitAfterJump: InHerdrPopup(),
+		QuitAfterJump: core.InHerdrPopup(),
 		Web:           web,
 	}
 	p := tea.NewProgram(newTUIModel(d))
@@ -574,12 +575,12 @@ func runTUI(root string, web func() (string, error)) error {
 			mu.Lock()
 			repos, at := last, fetchedAt
 			mu.Unlock()
-			if repos != nil && tuiSettings().IssuesOn && time.Since(at) >= IssuesEvery {
+			if repos != nil && tuiSettings().IssuesOn && time.Since(at) >= core.IssuesEvery {
 				dirs := map[string]string{}
 				for _, r := range repos {
 					dirs[r.Name] = r.Path
 				}
-				res, problem := FetchAllIssues(dirs)
+				res, problem := core.FetchAllIssues(dirs)
 				now := time.Now()
 				mu.Lock()
 				fetchedAt = now
@@ -590,7 +591,7 @@ func runTUI(root string, web func() (string, error)) error {
 				mu.Unlock()
 				if problem == "" {
 					if cachePath != "" {
-						WriteIssueCache(cachePath, IssueCache{At: now, Repos: res})
+						core.WriteIssueCache(cachePath, core.IssueCache{At: now, Repos: res})
 					}
 					p.Send(issuesMsg(cur))
 				}

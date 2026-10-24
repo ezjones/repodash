@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/ezjones/repodash/internal/core"
 	"strings"
 	"testing"
 	"time"
@@ -31,8 +32,8 @@ func TestGridLayout(t *testing.T) {
 	}
 }
 
-func longRepo() Repo {
-	return Repo{Name: "my-app", Path: "/r/my-app", Branch: strings.Repeat("feature-", 5), Level: "bad", Ahead: 2,
+func longRepo() core.Repo {
+	return core.Repo{Name: "my-app", Path: "/r/my-app", Branch: strings.Repeat("feature-", 5), Level: "bad", Ahead: 2,
 		LastCommit: 900, Commits7d: 4, Language: "Go", Claude: "busy",
 		LastSubject: strings.Repeat("a very long commit subject ", 3)[:60]}
 }
@@ -51,10 +52,10 @@ func TestRenderCardWidth(t *testing.T) {
 	if !strings.Contains(c, "this week") {
 		t.Error("week line missing by default")
 	}
-	s, _ := ParseSettings("", []byte(`{"card":{"week":false}}`))
-	old := Config()
-	SetConfig(s)
-	defer SetConfig(old)
+	s, _ := core.ParseSettings("", []byte(`{"card":{"week":false}}`))
+	old := core.Config()
+	core.SetConfig(s)
+	defer core.SetConfig(old)
 	if c := renderCard(longRepo(), "x", nil, false, 36, now); strings.Contains(c, "this week") {
 		t.Error("card.week=false still shows the week line")
 	}
@@ -64,7 +65,7 @@ func sized(f *fakeTUI, w, h int) { f.send(tea.WindowSizeMsg{Width: w, Height: h}
 
 func TestViewEmpty(t *testing.T) {
 	f := newFakeTUI(t, false)
-	f.send(scanMsg([]Repo{}))
+	f.send(scanMsg([]core.Repo{}))
 	sized(f, 120, 40)
 	if v := f.m.View().Content; !strings.Contains(v, "No repos match") {
 		t.Error(v)
@@ -73,10 +74,10 @@ func TestViewEmpty(t *testing.T) {
 	f.send(tea.MouseClickMsg{X: 3, Y: 3, Button: tea.MouseLeft})
 }
 
-func manyRepos(n int) []Repo {
-	var rs []Repo
+func manyRepos(n int) []core.Repo {
+	var rs []core.Repo
 	for i := 0; i < n; i++ {
-		rs = append(rs, Repo{Name: fmt.Sprintf("repo-%02d", i), Path: fmt.Sprintf("/r/repo-%02d", i), Level: "ok", Branch: "main", Activity: int64(1000 - i)})
+		rs = append(rs, core.Repo{Name: fmt.Sprintf("repo-%02d", i), Path: fmt.Sprintf("/r/repo-%02d", i), Level: "ok", Branch: "main", Activity: int64(1000 - i)})
 	}
 	return rs
 }
@@ -172,7 +173,7 @@ func TestRenderCardHostileText(t *testing.T) {
 	evil := "a\tb\x1b]0;x\x07c\x1b[2Jd"
 	r := longRepo()
 	r.LastSubject, r.Branch = evil, evil
-	iss := &RepoIssues{Open: 1, Done: &IssueRef{Number: 1, Title: evil}, Next: &IssueRef{Number: 2, Title: evil}}
+	iss := &core.RepoIssues{Open: 1, Done: &core.IssueRef{Number: 1, Title: evil}, Next: &core.IssueRef{Number: 2, Title: evil}}
 	c := renderCard(r, evil, iss, false, 32, time.Unix(1000, 0))
 	for _, l := range strings.Split(c, "\n") {
 		if w := lipgloss.Width(l); w != 34 {
@@ -187,7 +188,7 @@ func TestRenderCardHostileText(t *testing.T) {
 }
 
 func TestCardBandKeepsName(t *testing.T) {
-	r := Repo{Name: "pixel-forge-x", Level: "bad", Language: "TypeScript"}
+	r := core.Repo{Name: "pixel-forge-x", Level: "bad", Language: "TypeScript"}
 	c := renderCard(r, r.Name, nil, false, 28, time.Unix(1000, 0))
 	first := strings.Split(c, "\n")[1]
 	if !strings.Contains(first, "pixel-forge-x") || !strings.Contains(first, "●") {

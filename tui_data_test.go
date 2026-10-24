@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/ezjones/repodash/internal/core"
 	"testing"
 	"time"
 )
@@ -31,9 +32,9 @@ func TestBandColorsMatchWeb(t *testing.T) {
 }
 
 func TestSortRepos(t *testing.T) {
-	rs := []Repo{{Name: "b", Commits7d: 1, Language: "Go"}, {Name: "A", Commits7d: 5}, {Name: "c", Commits7d: 5, Language: "Rust"}}
-	iss := map[string]RepoIssues{"b": {Open: 9}, "c": {Open: 2}}
-	names := func(l []Repo) string {
+	rs := []core.Repo{{Name: "b", Commits7d: 1, Language: "Go"}, {Name: "A", Commits7d: 5}, {Name: "c", Commits7d: 5, Language: "Rust"}}
+	iss := map[string]core.RepoIssues{"b": {Open: 9}, "c": {Open: 2}}
+	names := func(l []core.Repo) string {
 		s := ""
 		for _, r := range l {
 			s += r.Name
@@ -58,7 +59,7 @@ func TestSortRepos(t *testing.T) {
 }
 
 func TestFilterRepos(t *testing.T) {
-	rs := []Repo{{Name: "my-app", Level: "bad"}, {Name: "api-server", Level: "ok"}}
+	rs := []core.Repo{{Name: "my-app", Level: "bad"}, {Name: "api-server", Level: "ok"}}
 	if got := filterRepos(rs, "bad", "", nil); len(got) != 1 || got[0].Name != "my-app" {
 		t.Fatal(got)
 	}
@@ -74,14 +75,14 @@ func TestFilterRepos(t *testing.T) {
 }
 
 func TestRepoChipsAndAgo(t *testing.T) {
-	c := repoChips(Repo{Ahead: 11, Untracked: 1, Stashes: 2})
+	c := repoChips(core.Repo{Ahead: 11, Untracked: 1, Stashes: 2})
 	if len(c) != 3 || c[0] != (chip{"bad", "↑11 unpushed"}) || c[2] != (chip{"info", "2 stashes"}) {
 		t.Fatal(c)
 	}
-	if c := repoChips(Repo{}); len(c) != 1 || c[0] != (chip{"ok", "in sync"}) {
+	if c := repoChips(core.Repo{}); len(c) != 1 || c[0] != (chip{"ok", "in sync"}) {
 		t.Fatal(c)
 	}
-	if c := repoChips(Repo{HasRemote: true, LastCommit: 1}); len(c) != 1 || c[0].Text != "not pushed" {
+	if c := repoChips(core.Repo{HasRemote: true, LastCommit: 1}); len(c) != 1 || c[0].Text != "not pushed" {
 		t.Fatal(c)
 	}
 	now := time.Unix(1_000_000_000, 0)

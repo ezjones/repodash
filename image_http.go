@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"github.com/ezjones/repodash/internal/core"
 	"io"
 	"mime"
 	"net/http"
@@ -12,7 +13,7 @@ import (
 
 func serveImage(root string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		path, ok := CoverFile(root, r.PathValue("name"))
+		path, ok := core.CoverFile(root, r.PathValue("name"))
 		if !ok {
 			http.NotFound(w, r)
 			return
@@ -24,7 +25,7 @@ func serveImage(root string) http.HandlerFunc {
 		}
 		defer f.Close()
 		fi, _ := f.Stat()
-		w.Header().Set("Content-Type", ImageType(strings.ToLower(filepath.Ext(path))))
+		w.Header().Set("Content-Type", core.ImageType(strings.ToLower(filepath.Ext(path))))
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		// If someone opens an SVG directly, it still may not run script.
 		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
@@ -36,17 +37,17 @@ func serveImage(root string) http.HandlerFunc {
 func putImage(root string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := r.PathValue("name")
-		if _, ok := ValidRepo(root, name); !ok {
+		if _, ok := core.ValidRepo(root, name); !ok {
 			http.Error(w, "not a repo", http.StatusNotFound)
 			return
 		}
 		ct, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
-		ext := ImageExt(ct)
+		ext := core.ImageExt(ct)
 		if ext == "" {
 			http.Error(w, "send the image with an image/* content type (png, jpeg, webp, gif, svg, avif)", http.StatusUnsupportedMediaType)
 			return
 		}
-		b, err := io.ReadAll(http.MaxBytesReader(w, r.Body, MaxImage))
+		b, err := io.ReadAll(http.MaxBytesReader(w, r.Body, core.MaxImage))
 		if err != nil || len(b) == 0 {
 			http.Error(w, "image is empty or larger than 4 MB", http.StatusRequestEntityTooLarge)
 			return
@@ -61,7 +62,7 @@ func putImage(root string) http.HandlerFunc {
 			http.Error(w, "not an image", http.StatusBadRequest)
 			return
 		}
-		if err := SaveCustomImage(name, ext, b); err != nil {
+		if err := core.SaveCustomImage(name, ext, b); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -72,11 +73,11 @@ func putImage(root string) http.HandlerFunc {
 func deleteImage(root string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := r.PathValue("name")
-		if _, ok := ValidRepo(root, name); !ok {
+		if _, ok := core.ValidRepo(root, name); !ok {
 			http.Error(w, "not a repo", http.StatusNotFound)
 			return
 		}
-		RemoveCustomImage(name)
+		core.RemoveCustomImage(name)
 		w.WriteHeader(http.StatusNoContent)
 	}
 }

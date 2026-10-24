@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/ezjones/repodash/internal/core"
 	"log"
 	"os"
 	"path/filepath"
@@ -26,7 +27,7 @@ var buildVersion = "dev"
 func main() {
 	home, _ := os.UserHomeDir()
 	cwd, _ := os.Getwd()
-	root := flag.String("root", DefaultRoot(cwd, home), "directory holding the repos (default: the current folder if it holds git repos, else ~/gitrepos)")
+	root := flag.String("root", core.DefaultRoot(cwd, home), "directory holding the repos (default: the current folder if it holds git repos, else ~/gitrepos)")
 	addr := flag.String("addr", "127.0.0.1:8092", "listen address")
 	allowHost := flag.String("allow-host", "", "extra host names the page may be opened by, comma separated (needed when -addr is reachable by name, e.g. a tailnet name)")
 	cfgPath := flag.String("config", "", "settings file (default: repodash.json next to the binary, or $REPODASH_CONFIG)")
@@ -45,34 +46,34 @@ func main() {
 	}
 
 	if *printCfg {
-		os.Stdout.Write(DefaultConfigJSON())
+		os.Stdout.Write(core.DefaultConfigJSON())
 		return
 	}
 	if *herdrOpen {
-		if err := HerdrOpenTUI(); err != nil {
+		if err := core.HerdrOpenTUI(); err != nil {
 			log.Fatal(err)
 		}
 		return
 	}
 	p := settingsPath(*cfgPath)
 	if !*check && !*once {
-		EnsureConfigFile(p)
+		core.EnsureConfigFile(p)
 	}
-	LoadConfig(p)
+	core.LoadConfig(p)
 
 	dataDir := os.Getenv("XDG_DATA_HOME")
 	if dataDir == "" {
 		dataDir = filepath.Join(home, ".local", "share")
 	}
-	SetDataDirs(filepath.Join(dataDir, "repodash", "images"), filepath.Join(dataDir, "repodash", "notes"))
+	core.SetDataDirs(filepath.Join(dataDir, "repodash", "images"), filepath.Join(dataDir, "repodash", "notes"))
 
 	if *check {
-		s := Config()
+		s := core.Config()
 		if len(s.Warnings) == 0 {
-			fmt.Printf("%s: ok\n", ConfigPath())
+			fmt.Printf("%s: ok\n", core.ConfigPath())
 			return
 		}
-		fmt.Printf("%s: %d problem(s)\n", ConfigPath(), len(s.Warnings))
+		fmt.Printf("%s: %d problem(s)\n", core.ConfigPath(), len(s.Warnings))
 		for _, w := range s.Warnings {
 			fmt.Println("  -", w)
 		}
@@ -81,7 +82,7 @@ func main() {
 	if *once {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		enc.Encode(ScanAll(*root))
+		enc.Encode(core.ScanAll(*root))
 		return
 	}
 
@@ -94,8 +95,8 @@ func main() {
 			serverFlag = true
 		}
 	})
-	if *tui || (!serverFlag && Interactive() && StdinTerminal()) {
-		args := []string{"-root", *root, "-config", ConfigPath()}
+	if *tui || (!serverFlag && core.Interactive() && core.StdinTerminal()) {
+		args := []string{"-root", *root, "-config", core.ConfigPath()}
 		if *allowHost != "" {
 			args = append(args, "-allow-host", *allowHost)
 		}

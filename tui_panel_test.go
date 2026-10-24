@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"github.com/ezjones/repodash/internal/core"
 	"strings"
 	"testing"
 
@@ -18,17 +19,17 @@ func panelFake(t *testing.T) (*fakeTUI, *[]string) {
 	t.Helper()
 	f := newFakeTUI(t, false)
 	var urls []string
-	f.m.d.Commits = func(string) []CommitLine {
-		return []CommitLine{{Hash: hashA, At: 900, Subject: "first-subject"}, {Hash: hashB, At: 800, Subject: "second-subject"}}
+	f.m.d.Commits = func(string) []core.CommitLine {
+		return []core.CommitLine{{Hash: hashA, At: 900, Subject: "first-subject"}, {Hash: hashB, At: 800, Subject: "second-subject"}}
 	}
-	f.m.d.CommitDetail = func(dir, hash string) (CommitInfo, error) {
+	f.m.d.CommitDetail = func(dir, hash string) (core.CommitInfo, error) {
 		if hash == hashB {
-			return CommitInfo{}, errors.New("detail-broke")
+			return core.CommitInfo{}, errors.New("detail-broke")
 		}
-		return CommitInfo{Hash: hash, Author: "Pat Author", At: 900, Body: "body-line-one and more", Files: []string{"a.go | 2 +-", "1 file changed"}}, nil
+		return core.CommitInfo{Hash: hash, Author: "Pat Author", At: 900, Body: "body-line-one and more", Files: []string{"a.go | 2 +-", "1 file changed"}}, nil
 	}
 	f.m.d.OpenURL = func(u string) { urls = append(urls, u) }
-	f.m.issues = map[string]RepoIssues{"my-app": {Open: 2, OpenList: []IssueRef{
+	f.m.issues = map[string]core.RepoIssues{"my-app": {Open: 2, OpenList: []core.IssueRef{
 		{Number: 7, Title: "issue-seven", URL: "https://example.com/o/r/issues/7"},
 		{Number: 9, Title: "issue-nine", URL: "https://example.com/o/r/issues/9"},
 	}}}
@@ -135,7 +136,7 @@ func worktreeFake(t *testing.T) *fakeTUI {
 	f, _ := panelFake(t)
 	for i := range f.m.repos {
 		if f.m.repos[i].Name == "my-app" {
-			f.m.repos[i].Worktrees = []Worktree{{Branch: "wt-one", Path: "/r/wt-one"}, {Branch: "wt-two", Path: "/r/wt-two"}}
+			f.m.repos[i].Worktrees = []core.Worktree{{Branch: "wt-one", Path: "/r/wt-one"}, {Branch: "wt-two", Path: "/r/wt-two"}}
 		}
 	}
 	f.m.rebuild()

@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"github.com/ezjones/repodash/internal/core"
 	"slices"
 	"strings"
 	"testing"
@@ -19,14 +20,14 @@ type fakeTUI struct {
 func newFakeTUI(t *testing.T, inHerdr bool) *fakeTUI {
 	t.Helper()
 	f := &fakeTUI{}
-	repos := []Repo{
+	repos := []core.Repo{
 		{Name: "my-app", Path: "/r/my-app", Level: "bad", Activity: 3},
 		{Name: "api-server", Path: "/r/api-server", Level: "ok", Activity: 2},
 		{Name: "notes-cli", Path: "/r/notes-cli", Level: "warn", Activity: 1},
 	}
 	f.m = newTUIModel(tuiDeps{
-		Scan:  func() []Repo { return repos },
-		Panes: func() []Pane { return nil },
+		Scan:  func() []core.Repo { return repos },
+		Panes: func() []core.Pane { return nil },
 		Find: func(dir string) (string, bool, error) {
 			return "herdr", dir == "/r/my-app", nil
 		},
@@ -257,14 +258,14 @@ func TestTUIJumpError(t *testing.T) {
 func TestTUISelectionFollowsName(t *testing.T) {
 	f := newFakeTUI(t, false)
 	f.selectName(t, "notes-cli")
-	f.send(scanMsg([]Repo{
+	f.send(scanMsg([]core.Repo{
 		{Name: "notes-cli", Path: "/r/notes-cli", Level: "warn", Activity: 9},
 		{Name: "my-app", Path: "/r/my-app", Level: "bad", Activity: 3},
 	}))
 	if r, _ := f.m.selected(); r.Name != "notes-cli" {
 		t.Fatalf("selection moved to %q", r.Name)
 	}
-	f.send(scanMsg([]Repo{{Name: "my-app", Path: "/r/my-app", Level: "bad"}}))
+	f.send(scanMsg([]core.Repo{{Name: "my-app", Path: "/r/my-app", Level: "bad"}}))
 	if f.m.sel < 0 || f.m.sel >= len(f.m.view) {
 		t.Fatalf("sel %d out of range", f.m.sel)
 	}
@@ -277,7 +278,7 @@ func TestTUISelectionFollowsName(t *testing.T) {
 
 func TestCachedIssuesShownAtOpen(t *testing.T) {
 	m := newTUIModel(tuiDeps{
-		Issues: func() map[string]RepoIssues { return map[string]RepoIssues{"my-app": {Open: 3}} },
+		Issues: func() map[string]core.RepoIssues { return map[string]core.RepoIssues{"my-app": {Open: 3}} },
 		Now:    func() time.Time { return time.Unix(1000, 0) },
 	})
 	if m.issues["my-app"].Open != 3 {
@@ -286,10 +287,10 @@ func TestCachedIssuesShownAtOpen(t *testing.T) {
 }
 
 func TestStatusShowFalseSkipsFilter(t *testing.T) {
-	s, _ := ParseSettings("", []byte(`{"statuses":{"stale":{"show":false}}}`))
-	old := Config()
-	SetConfig(s)
-	defer SetConfig(old)
+	s, _ := core.ParseSettings("", []byte(`{"statuses":{"stale":{"show":false}}}`))
+	old := core.Config()
+	core.SetConfig(s)
+	defer core.SetConfig(old)
 	m := newTUIModel(tuiDeps{Now: time.Now})
 	if slices.Contains(m.filters, "stale") || !slices.Contains(m.filters, "bad") {
 		t.Fatalf("filters %v", m.filters)

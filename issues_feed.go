@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/ezjones/repodash/internal/core"
 	"sync"
 	"time"
 )
@@ -25,7 +26,7 @@ func (f *issueFeed) current() []byte {
 func (f *issueFeed) due() bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.busy || time.Since(f.at) < IssuesEvery {
+	if f.busy || time.Since(f.at) < core.IssuesEvery {
 		return false
 	}
 	f.busy = true
@@ -46,10 +47,10 @@ func (h *hub) pollIssues() {
 	}
 	defer func() { f.mu.Lock(); f.busy = false; f.at = time.Now(); f.mu.Unlock() }()
 
-	res, msg := FetchAllIssues(dirs)
+	res, msg := core.FetchAllIssues(dirs)
 	if msg == "" {
-		if p := IssueCachePath(); p != "" {
-			_ = WriteIssueCache(p, IssueCache{At: time.Now().UTC(), Repos: res})
+		if p := core.IssueCachePath(); p != "" {
+			_ = core.WriteIssueCache(p, core.IssueCache{At: time.Now().UTC(), Repos: res})
 		}
 	}
 	b, _ := json.Marshal(map[string]any{"repos": res, "error": msg})

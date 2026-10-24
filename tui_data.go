@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/ezjones/repodash/internal/core"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,8 +13,8 @@ var tuiSorts = []string{"recent", "activity", "language", "alpha", "issues"}
 
 // sortRepos returns a sorted copy. The input is scanAll order (newest activity first) and every
 // sort is stable, so ties keep that order, as on the page.
-func sortRepos(rs []Repo, by string, rev bool, iss map[string]RepoIssues) []Repo {
-	l := append([]Repo(nil), rs...)
+func sortRepos(rs []core.Repo, by string, rev bool, iss map[string]core.RepoIssues) []core.Repo {
+	l := append([]core.Repo(nil), rs...)
 	switch by {
 	case "alpha":
 		sort.SliceStable(l, func(i, j int) bool { return strings.ToLower(l[i].Name) < strings.ToLower(l[j].Name) })
@@ -40,9 +41,9 @@ func sortRepos(rs []Repo, by string, rev bool, iss map[string]RepoIssues) []Repo
 
 // filterRepos keeps repos at the status level ("all" keeps every level) whose name or title
 // contains query, ignoring case.
-func filterRepos(rs []Repo, level, query string, titles map[string]string) []Repo {
+func filterRepos(rs []core.Repo, level, query string, titles map[string]string) []core.Repo {
 	q := strings.ToLower(strings.TrimSpace(query))
-	out := []Repo{}
+	out := []core.Repo{}
 	for _, r := range rs {
 		if level != "all" && r.Level != level {
 			continue
@@ -58,7 +59,7 @@ func filterRepos(rs []Repo, level, query string, titles map[string]string) []Rep
 type chip struct{ Kind, Text string }
 
 // repoChips is the card's chip list, same entries and order as the page.
-func repoChips(r Repo) []chip {
+func repoChips(r core.Repo) []chip {
 	var c []chip
 	plural := func(n int, one, many string) string {
 		if n > 1 {

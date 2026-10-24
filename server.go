@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"github.com/ezjones/repodash/internal/core"
 	"io"
 	"io/fs"
 	"log"
@@ -27,7 +28,7 @@ type serveOptions struct {
 // serve runs the web dashboard until the listener fails.
 func serve(o serveOptions) error {
 	layout := &layoutStore{path: o.LayoutPath}
-	hub := newHub(func() []Repo { return ScanAll(o.Root) })
+	hub := newHub(func() []core.Repo { return core.ScanAll(o.Root) })
 	go hub.run()
 
 	sub, _ := fs.Sub(webFS, "web")
@@ -39,7 +40,7 @@ func serve(o serveOptions) error {
 	})
 	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(Config().Payload())
+		w.Write(core.Config().Payload())
 	})
 	mux.HandleFunc("POST /api/refresh", func(w http.ResponseWriter, r *http.Request) {
 		hub.refresh()
@@ -59,20 +60,20 @@ func serve(o serveOptions) error {
 		}
 		json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req)
 		// Only a directory that is really a repo under the root can be opened, never an arbitrary path.
-		dir, ok := ValidRepo(o.Root, req.Name)
+		dir, ok := core.ValidRepo(o.Root, req.Name)
 		if !ok {
 			http.Error(w, "not a repo", http.StatusNotFound)
 			return
 		}
 		if req.Worktree != "" {
 			// Never open a path from the request unless git itself lists it as a worktree of this repo.
-			if !WorktreeOf(dir, req.Worktree) {
+			if !core.WorktreeOf(dir, req.Worktree) {
 				http.Error(w, "not a worktree of this repo", http.StatusNotFound)
 				return
 			}
 			dir = req.Worktree
 		}
-		action, win, err := OpenInTerminal(dir, req.Mux)
+		action, win, err := core.OpenInTerminal(dir, req.Mux)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
@@ -91,8 +92,8 @@ func serve(o serveOptions) error {
 	mux.HandleFunc("GET /api/layout", layout.get)
 	mux.HandleFunc("PUT /api/layout", layout.put)
 
-	log.Printf("RepoDash: %s  (repos in %s, settings %s)", o.Addr, o.Root, ConfigPath())
-	for _, w := range Config().Warnings {
+	log.Printf("RepoDash: %s  (repos in %s, settings %s)", o.Addr, o.Root, core.ConfigPath())
+	for _, w := range core.Config().Warnings {
 		log.Printf("settings: %s", w)
 	}
 	allowed := map[string]bool{}
@@ -108,8 +109,8 @@ func serve(o serveOptions) error {
 	if err != nil {
 		return err
 	}
-	if !o.NoOpen && Interactive() {
-		OpenBrowser(webURL(o.Addr))
+	if !o.NoOpen && core.Interactive() {
+		core.OpenBrowser(webURL(o.Addr))
 	}
 	return http.Serve(ln, guard(allowed, mux))
 }

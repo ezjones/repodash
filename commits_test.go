@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/ezjones/repodash/internal/core"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -80,11 +81,11 @@ func TestCommitDetail(t *testing.T) {
 	gitIn(t, dir, "add", "a.txt")
 	gitIn(t, dir, "commit", "-q", "-m", "the subject\n\nthe body line")
 
-	cs := RecentCommits(dir, 5)
+	cs := core.RecentCommits(dir, 5)
 	if len(cs) != 1 || !regexp.MustCompile(`^[0-9a-f]{40}$`).MatchString(cs[0].Hash) {
 		t.Fatalf("commits: %+v", cs)
 	}
-	ci, err := CommitDetail(dir, cs[0].Hash)
+	ci, err := core.CommitDetail(dir, cs[0].Hash)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,11 +95,11 @@ func TestCommitDetail(t *testing.T) {
 	if len(ci.Files) != 2 || !strings.Contains(ci.Files[0], "a.txt") || !strings.Contains(ci.Files[1], "1 file changed") {
 		t.Fatalf("files: %q", ci.Files)
 	}
-	if ci2, err := CommitDetail(dir, cs[0].Hash[:8]); err != nil || ci2.Hash != cs[0].Hash {
+	if ci2, err := core.CommitDetail(dir, cs[0].Hash[:8]); err != nil || ci2.Hash != cs[0].Hash {
 		t.Fatalf("short hash: %+v %v", ci2, err)
 	}
 	for _, bad := range []string{"--output=x", "HEAD", "zz", "", "ABCDEF1", cs[0].Hash + "0"} {
-		if _, err := CommitDetail(dir, bad); err == nil {
+		if _, err := core.CommitDetail(dir, bad); err == nil {
 			t.Errorf("%q accepted", bad)
 		}
 	}
@@ -126,7 +127,7 @@ func TestCommitDetail(t *testing.T) {
 		t.Fatalf("web: %q", list.Web)
 	}
 	rec = get("/api/commit/my-app/" + cs[0].Hash)
-	var got CommitInfo
+	var got core.CommitInfo
 	if rec.Code != 200 || rec.Header().Get("Cache-Control") != "no-store" || json.Unmarshal(rec.Body.Bytes(), &got) != nil || got.Body != "the body line" {
 		t.Fatalf("detail route: %d %v %s", rec.Code, rec.Header(), rec.Body)
 	}

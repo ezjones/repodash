@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/ezjones/repodash/internal/core"
 	"net"
 	"net/http"
 	"os"
@@ -64,6 +65,6 @@ func openWeb(addr string, args []string, logPath string) (string, error) {
 			return "", fmt.Errorf("web server did not start on %s (see %s)", addr, logPath)
 		}
 	}
-	OpenBrowser(u)
+	core.OpenBrowser(u)
 	return u, nil
 }

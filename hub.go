@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ezjones/repodash/internal/core"
 	"log"
 	"net/http"
 	"sync"
@@ -18,7 +19,7 @@ type event struct {
 // browser tab. It only scans while someone is watching, so an idle dashboard
 // costs nothing; it always watches the settings file (one stat per second).
 type hub struct {
-	scan func() []Repo
+	scan func() []core.Repo
 
 	mu       sync.Mutex
 	last     []byte
@@ -30,15 +31,15 @@ type hub struct {
 	issues   issueFeed         // GitHub issues feed (issues_feed.go)
 }
 
-func newHub(scan func() []Repo) *hub {
+func newHub(scan func() []core.Repo) *hub {
 	return &hub{scan: scan, clients: map[chan event]struct{}{}}
 }
 
 func (h *hub) run() {
 	var lastScan time.Time
 	for range time.Tick(time.Second) {
-		if PollConfig() {
-			s := Config()
+		if core.PollConfig() {
+			s := core.Config()
 			for _, w := range s.Warnings {
 				log.Printf("settings: %s", w)
 			}
@@ -53,10 +54,10 @@ func (h *hub) run() {
 		if n > 0 {
 			h.pollAgents()
 		}
-		if n > 0 && Config().IssuesOn && h.issues.due() {
+		if n > 0 && core.Config().IssuesOn && h.issues.due() {
 			go h.pollIssues()
 		}
-		if n > 0 && time.Since(lastScan) >= Config().Interval {
+		if n > 0 && time.Since(lastScan) >= core.Config().Interval {
 			h.refresh()
 			lastScan = time.Now()
 		}
@@ -117,11 +118,11 @@ func (h *hub) pollAgents() {
 		Tmux   bool   `json:"tmux"`
 		Herdr  bool   `json:"herdr"`
 	}
-	panes := TerminalPanes()
+	panes := core.TerminalPanes()
 	out := make(map[string]st, len(dirs))
 	for n, d := range dirs {
 		var s st
-		s.Tmux, s.Herdr, s.Claude = AgentState(panes, d)
+		s.Tmux, s.Herdr, s.Claude = core.AgentState(panes, d)
 		out[n] = s
 	}
 	b, _ := json.Marshal(out)
@@ -169,11 +170,11 @@ func (h *hub) serveSSE(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	send := func(e event) { fmt.Fprintf(w, "event: %s\ndata: %s\n\n", e.name, e.data); fl.Flush() }
-	send(event{"config", Config().Payload()})
+	send(event{"config", core.Config().Payload()})
 	if stale {
 		go h.refresh()
 	}
-	if Config().IssuesOn {
+	if core.Config().IssuesOn {
 		if iss := h.issues.current(); iss != nil {
 			send(event{"issues", iss})
 		}
