@@ -2,11 +2,12 @@ package tui
 
 import (
 	"errors"
-	"github.com/ezjones/repodash/internal/core"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/ezjones/repodash/internal/core"
 )
 
 const (

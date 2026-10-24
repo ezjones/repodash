@@ -2,13 +2,14 @@ package tui
 
 import (
 	"fmt"
-	"github.com/ezjones/repodash/internal/core"
 	"strings"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	"github.com/ezjones/repodash/internal/core"
 )
 
 func TestGridLayout(t *testing.T) {

@@ -1,9 +1,10 @@
 package tui
 
 import (
-	"github.com/ezjones/repodash/internal/core"
 	"testing"
 	"time"
+
+	"github.com/ezjones/repodash/internal/core"
 )
 
 func TestBandColorsMatchWeb(t *testing.T) {

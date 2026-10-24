@@ -3,11 +3,12 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ezjones/repodash/internal/core"
 	"log"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/ezjones/repodash/internal/core"
 )
 
 type event struct {
@@ -28,7 +29,7 @@ type hub struct {
 	scanning bool
 	dirs     map[string]string // repo name -> path, from the last scan
 	agents   []byte            // last agent-state event
-	issues   issueFeed         // GitHub issues feed (issues_feed.go)
+	issues   issueFeed         // GitHub issues feed (issues.go)
 }
 
 func newHub(scan func() []core.Repo) *hub {

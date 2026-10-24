@@ -3,7 +3,6 @@ package server
 import (
 	"embed"
 	"encoding/json"
-	"github.com/ezjones/repodash/internal/core"
 	"io"
 	"io/fs"
 	"log"
@@ -14,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/ezjones/repodash/internal/core"
 )
 
 //go:embed web

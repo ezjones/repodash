@@ -2,9 +2,10 @@ package server
 
 import (
 	"encoding/json"
-	"github.com/ezjones/repodash/internal/core"
 	"net/http"
 	"strings"
+
+	"github.com/ezjones/repodash/internal/core"
 )
 
 // infoGet answers {readme, readme_name, notes} for one repo.

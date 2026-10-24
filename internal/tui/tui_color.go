@@ -7,7 +7,7 @@ import (
 	"unicode/utf16"
 )
 
-// Ports of the page's cover-art colour code (web/index.html: hash, rng, PAL, ART.name,
+// Ports of the page's cover-art colour code (internal/server/web/index.html: hash, rng, PAL, ART.name,
 // LANG_COLOR, mixHex) so the terminal shows the same colours for the same repo name.
 
 // nameHash is the page's hash(): FNV-1a over the first UTF-16 unit of each code point

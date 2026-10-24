@@ -346,6 +346,12 @@ CGO_ENABLED=0 go build -o repodash .
 ./repodash
 ```
 
+Or install straight from the module (Go puts the binary in `$(go env GOBIN)`, by default `~/go/bin`):
+
+```sh
+go install github.com/ezjones/repodash@latest
+```
+
 Run from a terminal, `repodash` opens the [terminal UI](#terminal-ui-and-herdr). Press `w` there
 for the web page: it starts the web server in the background if it isn't running and opens
 <http://127.0.0.1:8092> in your browser (on WSL2, your Windows browser). The server keeps running

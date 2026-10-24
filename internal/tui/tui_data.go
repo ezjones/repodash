@@ -2,11 +2,12 @@ package tui
 
 import (
 	"fmt"
-	"github.com/ezjones/repodash/internal/core"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ezjones/repodash/internal/core"
 )
 
 var tuiSorts = []string{"recent", "activity", "language", "alpha", "issues"}

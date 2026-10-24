@@ -19,7 +19,7 @@ its settings**, and how to **change the code**.
 
 | Thing | Where |
 |---|---|
-| Source | `~/gitrepos/repodash` (module `repodash`, Go 1.26+, standard library only except Charm's Bubble Tea and Lip Gloss, used by the TUI (`tui*.go`) alone) |
+| Source | `~/gitrepos/repodash` (module `github.com/ezjones/repodash`, Go 1.26+, standard library only except Charm's Bubble Tea and Lip Gloss, used by the TUI (`internal/tui`) alone) |
 | Run it | `./repodash` in a terminal opens the TUI (`w` there opens the web page, starting the server if needed); `./repodash -web` serves <http://127.0.0.1:8092>. Without a terminal, plain `./repodash` is the server |
 | Settings file | `repodash.json` **in this repo**, next to the binary (created on first run as a near-empty file: only put what you change, because a list you set replaces the default list and would hide items added in later releases; tracked in git; an installed binary uses `~/.config/repodash/repodash.json` instead). Override with `-config FILE` or `$REPODASH_CONFIG` |
 | Card positions, groups, kanban boards and columns | `~/.local/share/repodash/layout.json` (`$XDG_DATA_HOME` respected) |
@@ -27,9 +27,9 @@ its settings**, and how to **change the code**.
 | Notes written in the info panel | `~/.local/share/repodash/notes/<repo>.md` (markdown; never inside the repo) |
 | GitHub issues cache (TUI) | `~/.cache/repodash/issues.json` (`$XDG_CACHE_HOME` respected) |
 | Log when started in the background | `~/.local/share/repodash/repodash.log` |
-| Defaults, embedded in the binary | `default-config.json` (`repodash -print-config` prints it) |
+| Defaults, embedded in the binary | `internal/core/default-config.json` (`repodash -print-config` prints it) |
 
-Flags: `-root DIR` (repos folder; default: the current folder if it holds git repos directly, except the home folder, else `~/gitrepos`; `defaultRoot` in scan.go), `-addr HOST:PORT` (default `127.0.0.1:8092`; use `:8092` to
+Flags: `-root DIR` (repos folder; default: the current folder if it holds git repos directly, except the home folder, else `~/gitrepos`; `DefaultRoot` in `internal/core/scan.go`), `-addr HOST:PORT` (default `127.0.0.1:8092`; use `:8092` to
 reach it from other devices, only on a trusted network such as the tailnet), `-allow-host a,b`
 (host names the page may be opened by, see Security notes), `-config FILE`, `-json` (scan once,
 print JSON, exit), `-check` (validate settings, exit 1 on problems), `-print-config`, `-web` (web server; also implied by `-addr`, `-allow-host`, `-no-open` or no terminal), `-tui` (terminal UI, the default from a terminal), `-herdr-open` (the herdr plugin's open action).
@@ -137,7 +137,7 @@ http), then generated art (`card.coverStyle`). Images over 4 MB and anything out
 
 ## What the statuses mean
 
-Computed in `scan.go` (`classify`); only `scan.staleDays` is configurable.
+Computed in `internal/core/scan.go` (`classify`); only `scan.staleDays` is configurable.
 
 - **Needs action** (`bad`): unpushed commits, a branch that was never pushed, or merge conflicts.
 - **Loose ends** (`warn`): uncommitted files, commits behind upstream, or worktrees whose branch is already merged.
@@ -162,8 +162,8 @@ comes from the modification times of uncommitted files.
   title to rename it, the **⋯** button (or right-click the title) moves or deletes it, and you drag a repo card
   to any column. New boards start with the columns in `kanban.columns` (Todo, Doing, Done). Everything is saved
   in `layout.json` under `boards` and `activeBoard`. *By status* is the automatic read-only alternative.
-- **Agent state**: a card's small icon shows the agent in that repo's tmux/herdr pane: spinning ring = working, pulsing red dot = waiting for you, green dot = idle (hover for the words). Canvas group frames show their worst member; the tab title shows totals. It is fed by a separate 1-second poll of the multiplexers (`pollAgents` in `main.go`, SSE event `agents`), so it follows the agent within about a second without the slow git scan. Hidden by `card.agent: false`.
-- **GitHub issues** (`issues.go`): for a repo whose `origin` is on github.com, the card shows **Done** (the most recently closed issue, with how long ago) and **Next** (the oldest open issue, lowest number); each links to the issue on GitHub in a new tab. Pull requests are not counted. Repos with no issues show nothing. The data comes from the `gh` CLI (its own login; RepoDash stores no token) every 5 minutes while a browser tab is open, as a separate feed (SSE event `issues`) so the git scan stays fast. If `gh` is missing or logged out, the gear button shows a red dot with the reason. Read-only: it never creates or edits issues. Turn it off with `card.issues: false`.
+- **Agent state**: a card's small icon shows the agent in that repo's tmux/herdr pane: spinning ring = working, pulsing red dot = waiting for you, green dot = idle (hover for the words). Canvas group frames show their worst member; the tab title shows totals. It is fed by a separate 1-second poll of the multiplexers (`pollAgents` in `internal/server/hub.go`, SSE event `agents`), so it follows the agent within about a second without the slow git scan. Hidden by `card.agent: false`.
+- **GitHub issues** (`internal/core/issues.go` fetches, `internal/server/issues.go` feeds the page): for a repo whose `origin` is on github.com, the card shows **Done** (the most recently closed issue, with how long ago) and **Next** (the oldest open issue, lowest number); each links to the issue on GitHub in a new tab. Pull requests are not counted. Repos with no issues show nothing. The data comes from the `gh` CLI (its own login; RepoDash stores no token) every 5 minutes while a browser tab is open, as a separate feed (SSE event `issues`) so the git scan stays fast. If `gh` is missing or logged out, the gear button shows a red dot with the reason. Read-only: it never creates or edits issues. Turn it off with `card.issues: false`.
 - **Terminal UI** (`repodash -tui`, no web server): the same cards in a terminal, always dark, adapting to narrow screens (1 column at ~40 cols). `i` (or Tab) shows or hides the inspector (commits, issues, notes): beside the cards from 76 cols, full screen below that; it starts hidden. Keys: hjkl/arrows move, g/G, ctrl-d/u, `/` search, `s`/`S` sort and reverse (recent, activity, language, alpha, issues), `f`/`F` status filter, `r` rescan, `w` web page (starts a detached `repodash -web` with the same `-root`/`-addr`/`-config` if nothing answers, logging to `repodash.log`), `i`/Tab inspector (click a commit to expand it, an issue to open it in the browser; keyboard: `J`/`K` move over those lines, `o` acts), `?` help, `q`/Esc close. Enter jumps to the repo's workspace (asks "Create a workspace for X? y/n" if none; `n` creates without asking). Mouse: click selects, double-click jumps, wheel scrolls. Inside herdr, Enter always uses herdr and the TUI keeps running; outside herdr it follows `terminal.multiplexer`. Also runs inside herdr via the plugin (`herdr-plugin.toml`): the `open` action (`repodash -herdr-open`) focuses the tab whose title is `RepoDash`, or opens the TUI in a new tab. Not a popup: herdr popups take all input until they close.
 - **Web keys** (same as the TUI, in Grid, Canvas and Kanban; ignored while typing or with a dialog open): `h j k l`/arrows move the selection to the nearest card on screen (it is the inspector's selection), `g`/`G` first/last, `ctrl-d`/`ctrl-u` half a screen, Enter or `n` jump to the repo's terminal, `/` search (Enter keeps, Esc clears), `s`/`S` sort and reverse, `f`/`F` status filter, `r` rescan, `i` inspector, `?` help. With the inspector open, click a commit to expand it (author, date, body, files, GitHub link) or an issue to open it; `J`/`K` move over those rows, `o` or Enter acts.
 - **Inspector** (top-bar panel icon, or the `i` key): a 360px panel docked on the right (full screen below 700px) with the clicked card's details: status, branch, agent, workspace, recent commits, issues, worktrees and the first lines of its notes. Commits expand, issues open on GitHub, and a worktree line jumps to a terminal in that worktree's folder (an existing tab there, else a new one; the TUI asks first, as Enter does); `J`/`K` move between these lines and `o` activates one. A plain click on a card selects it (in Canvas a drag still moves it); it starts hidden and each browser remembers open or closed.
@@ -192,42 +192,57 @@ Handy for scripts and tests. All local; see the security notes before exposing t
 
 ## Code map
 
+Three packages under `internal/`, plus `main.go` at the root. `tui` and `server` import only `core`; `core` and `server` never import Charm.
+
+| Package | Job |
+|---|---|
+| `main.go` | Flags, `settingsPath`, mode choice (`-check`, `-json`, `-print-config`, `-version`, `-herdr-open`, TUI, web) |
+| `internal/core` | Everything that is not a screen: settings, scanning, notes, covers, issues, terminal jumping |
+| `internal/server` | The web dashboard: routes, the hub that rescans and pushes SSE, the layout store, the page |
+| `internal/tui` | The terminal UI (Bubble Tea) |
+
 | File | Job |
 |---|---|
-| `main.go` | Flags, routes, the hub that rescans and pushes SSE, the layout store |
-| `config.go` | Loads, merges, validates and live-reloads `repodash.json`; global `cfg` |
-| `scan.go` | Runs git per repo (`git status --porcelain=v2`, `log`, `worktree`...), reads tmux panes, classifies status |
-| `notes.go` | README reading and notes storage behind the info panel |
-| `image.go` | Cover discovery and the upload/serve handlers |
-| `issues.go` | GitHub issues feed: `gh api` per github.com repo, slow poll, SSE event `issues` |
-| `tmux.go` | "Open in tmux", and `openInTerminal` which picks tmux or herdr |
-| `herdr.go` | Same for herdr, through its CLI (`herdr pane list`, `workspace focus`, `tab focus`, `workspace create`) |
-| `web.go` | The TUI's `w` key: find or start the web server, open the browser |
-| `jump.go` | Shared jump/create logic for tmux and herdr (used by the TUI) |
-| `tui*.go` | The terminal UI (Bubble Tea): model and keys, data, view, colours |
+| `internal/core/config.go` | Loads, merges, validates and live-reloads `repodash.json`; global `cfg` (`Config`, `LoadConfig`, `SetConfig`) |
+| `internal/core/default-config.json` | Every setting and its default; embedded with `go:embed` |
+| `internal/core/scan.go` | Runs git per repo (`git status --porcelain=v2`, `log`, `worktree`...), reads tmux panes, classifies status |
+| `internal/core/language.go` | Main language of a repo |
+| `internal/core/commits.go` | Recent commits and one commit's detail |
+| `internal/core/notes.go` | README reading and notes storage behind the info panel |
+| `internal/core/image.go` | Cover discovery and custom image storage |
+| `internal/core/issues.go` | GitHub issues: `gh api` per github.com repo, cache |
+| `internal/core/tmux.go` | "Open in tmux", and `OpenInTerminal` which picks tmux or herdr |
+| `internal/core/herdr.go` | Same for herdr, through its CLI (`herdr pane list`, `workspace focus`, `tab focus`, `workspace create`) |
+| `internal/core/jump.go` | Shared jump/create logic for tmux and herdr (used by the TUI) |
+| `internal/core/open.go` | Opens the default browser |
+| `internal/server/server.go` | `Serve`: routes, listening, host check, layout store |
+| `internal/server/hub.go` | The hub: rescans, polls agents, pushes SSE |
+| `internal/server/issues.go` | The slow issues feed (SSE event `issues`) |
+| `internal/server/notes.go`, `image.go` | HTTP handlers for the info panel, notes, commits and covers |
+| `internal/server/openweb.go` | The TUI's `w` key: find or start the web server, open the browser |
+| `internal/server/web/index.html` | The entire UI (HTML, CSS, vanilla JS), embedded with `go:embed`. No framework, no build step |
+| `internal/tui/tui*.go` | The terminal UI: model and keys, data, view, colours |
 | `herdr-plugin.toml` | herdr plugin manifest: action `open` running `./repodash -herdr-open`, tab pane `grid` running `./repodash -tui`; `scripts/herdr-build.sh` builds the binary into the plugin root |
-| `default-config.json` | Every setting and its default; embedded with `go:embed` |
-| `web/index.html` | The entire UI (HTML, CSS, vanilla JS), embedded with `go:embed`. No framework, no build step |
 
 ## Changing the code
 
 Build: `CGO_ENABLED=0 go build -o repodash .` Then `gofmt -l .` and `go vet ./...` must print nothing.
-`web/` is embedded, so **any change to `index.html` needs a rebuild and a restart** to show up.
-Check the page script parses: `node -e "const s=require('fs').readFileSync('web/index.html','utf8'); new Function(s.match(/<script>([\s\S]*)<\/script>/)[1])"`.
+`internal/server/web/` is embedded, so **any change to `index.html` needs a rebuild and a restart** to show up.
+Check the page script parses: `node -e "const s=require('fs').readFileSync('internal/server/web/index.html','utf8'); new Function(s.match(/<script>([\s\S]*)<\/script>/)[1])"`.
 
 **Adding a setting** (do all five or it will drift):
 
-1. Add the key with its default to `default-config.json`.
-2. If it has a restricted set of values or a range, validate it in `validate()` in `config.go`.
+1. Add the key with its default to `internal/core/default-config.json`.
+2. If it has a restricted set of values or a range, validate it in `validate()` in `internal/core/config.go`.
    Unknown keys and wrong types are already rejected by `merge()`.
-3. If the Go side needs it, read it in `parseSettings()` into the `settings` struct.
-4. Use it in `web/index.html` through `C('path.to.key', fallback)`. Settings reach the page as one
+3. If the Go side needs it, read it in `ParseSettings()` into the `Settings` struct in `internal/core/config.go`.
+4. Use it in `internal/server/web/index.html` through `C('path.to.key', fallback)`. Settings reach the page as one
    merged object; `applyConfig()` re-renders everything when they change.
 5. Add a row to the reference table above.
 
-**Changing a default list** (`topbar.items`, `card.actions`): older releases wrote a full copy of the defaults into users' settings files, and a list in the file replaces the default. Add the OLD list to `retiredLists` in `config.go`, so files that never edited it pick up the new default. `go test ./...` checks this.
+**Changing a default list** (`topbar.items`, `card.actions`): older releases wrote a full copy of the defaults into users' settings files, and a list in the file replaces the default. Add the OLD list to `retiredLists` in `internal/core/config.go`, so files that never edited it pick up the new default. `go test ./...` checks this.
 
-Conventions: standard library only for the server (the TUI, `tui*.go`, alone uses Charm's Bubble Tea and Lip Gloss), `CGO_ENABLED=0`, no JS dependencies. Git is always run with
+Conventions: standard library only for the server (the TUI, `internal/tui`, alone uses Charm's Bubble Tea and Lip Gloss), `CGO_ENABLED=0`, no JS dependencies. Git is always run with
 `GIT_OPTIONAL_LOCKS=0` so a scan never blocks someone's `git commit`. The app is read-only toward
 the repos: it never fetches, checks out, or writes inside a repo.
 
@@ -286,4 +301,4 @@ and a real-device check of touch long-press on iOS.
 
 - `git tag vX.Y.Z && git push --tags` triggers `.github/workflows/release.yml`: it builds linux/darwin x amd64/arm64 (`CGO_ENABLED=0`, version via `-X main.buildVersion`), and publishes tarballs, `checksums.txt` and `install.sh` as release assets.
 - `install.sh` (repo root) is what `curl ... | sh` runs. Test it offline with `BASE_URL=file:///dir PREFIX=/tmp/bin sh install.sh` against a dir holding the tarball and `checksums.txt`.
-- On start RepoDash opens the page in the default browser (`open.go`: `open` on macOS, `wslview`/`cmd.exe` on WSL, `xdg-open` elsewhere), only when stdout is a terminal. `-no-open` disables it.
+- On start RepoDash opens the page in the default browser (`internal/core/open.go`: `open` on macOS, `wslview`/`cmd.exe` on WSL, `xdg-open` elsewhere), only when stdout is a terminal. `-no-open` disables it.

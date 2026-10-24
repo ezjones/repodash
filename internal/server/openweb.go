@@ -2,13 +2,14 @@ package server
 
 import (
 	"fmt"
-	"github.com/ezjones/repodash/internal/core"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"github.com/ezjones/repodash/internal/core"
 )
 
 // webURL is the address a browser on this machine uses for a -addr value.

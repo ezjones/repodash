@@ -2,12 +2,13 @@ package tui
 
 import (
 	"fmt"
-	"github.com/ezjones/repodash/internal/core"
 	"slices"
 	"sync"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/ezjones/repodash/internal/core"
 )
 
 // tuiDeps is everything the terminal UI touches outside itself, so tests can fake it.

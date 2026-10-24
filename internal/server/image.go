@@ -2,13 +2,14 @@ package server
 
 import (
 	"bytes"
-	"github.com/ezjones/repodash/internal/core"
 	"io"
 	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/ezjones/repodash/internal/core"
 )
 
 func serveImage(root string) http.HandlerFunc {

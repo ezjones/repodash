@@ -3,9 +3,10 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/ezjones/repodash/internal/core"
 	"sync"
 	"time"
+
+	"github.com/ezjones/repodash/internal/core"
 )
 
 // issueFeed keeps the last fetch and decides when the next one is due.

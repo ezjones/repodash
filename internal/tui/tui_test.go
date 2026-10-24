@@ -2,13 +2,14 @@ package tui
 
 import (
 	"errors"
-	"github.com/ezjones/repodash/internal/core"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/ezjones/repodash/internal/core"
 )
 
 type fakeTUI struct {

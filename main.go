@@ -15,12 +15,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/ezjones/repodash/internal/core"
-	"github.com/ezjones/repodash/internal/server"
-	"github.com/ezjones/repodash/internal/tui"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/ezjones/repodash/internal/core"
+	"github.com/ezjones/repodash/internal/server"
+	"github.com/ezjones/repodash/internal/tui"
 )
 
 // version is set at release build time with -ldflags "-X main.buildVersion=...".

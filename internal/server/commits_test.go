@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"github.com/ezjones/repodash/internal/core"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/ezjones/repodash/internal/core"
 )
 
 func TestCommitsGet(t *testing.T) {
