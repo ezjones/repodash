@@ -19,6 +19,23 @@ between, cover images, and your own notes next to each README.
 
 ![The same repos in the browser: a card per repo with its status, branch, last commit and activity](https://github.com/user-attachments/assets/2f9d0c43-20ac-4921-bbc0-6a13411a2581)
 
+### Canvas
+
+A free-form board for your repos. Drag cards anywhere, right-click empty space to add a named
+group, and cards inside a group move with it. Drag on the background to lasso several cards at
+once, hold the middle mouse button to pan, and scroll or pinch to zoom. *Arrange* tidies loose
+cards into a grid in your current sort order. Positions and groups are saved outside your repos.
+
+![Canvas view with repos arranged in named groups](https://github.com/user-attachments/assets/fa707482-c11d-4e23-aad4-4c67b25213d5)
+
+### Kanban
+
+Make as many boards as you like and name the columns whatever suits the work: Todo, Doing and
+Done, or something else entirely. Add, rename, move and delete columns, then drag repos between
+them. Switch to *By status* for automatic columns that follow each repo's state.
+
+![Kanban view with a board of Todo, In progress and Done columns](https://github.com/user-attachments/assets/047fafa1-7c4a-47e1-afdd-e440a02f5cae)
+
 ## Install
 
 ```sh
@@ -189,33 +206,6 @@ Nothing in it is just text:
 
 `J` and `K` move over these lines and `o` opens the one you're on, so it all works from the
 keyboard too. On the web page, *Open README & notes* opens the full README and your notes.
-
-## Screenshots
-
-### Grid
-
-Every repo as a card, sorted by most recent change, git activity, main language or name. The
-status buttons at the top filter to the repos that need your attention: unpushed commits, no
-remote, merge conflicts, uncommitted work, or branches that are behind.
-
-![Grid filtered to the repos that need action](https://github.com/user-attachments/assets/ef3a8b46-0e6c-40e0-84b2-330a6072e6ba)
-
-### Canvas
-
-A free-form board for your repos. Drag cards anywhere, right-click empty space to add a named
-group, and cards inside a group move with it. Drag on the background to lasso several cards at
-once, hold the middle mouse button to pan, and scroll or pinch to zoom. *Arrange* tidies loose
-cards into a grid in your current sort order. Positions and groups are saved outside your repos.
-
-![Canvas view with repos arranged in named groups](https://github.com/user-attachments/assets/fa707482-c11d-4e23-aad4-4c67b25213d5)
-
-### Kanban
-
-Make as many boards as you like and name the columns whatever suits the work: Todo, Doing and
-Done, or something else entirely. Add, rename, move and delete columns, then drag repos between
-them. Switch to *By status* for automatic columns that follow each repo's state.
-
-![Kanban view with a board of Todo, In progress and Done columns](https://github.com/user-attachments/assets/047fafa1-7c4a-47e1-afdd-e440a02f5cae)
 
 ## tmux integration
 
