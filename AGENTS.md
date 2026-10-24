@@ -308,6 +308,7 @@ and a real-device check of touch long-press on iOS.
 
 ## Releases and install
 
+- Before tagging, rename `## Unreleased` in `CHANGELOG.md` to `## vX.Y.Z` (and start a new empty `## Unreleased`): the workflow publishes that section as the release text on GitHub, falling back to generated notes when there is none. Write it for users. Bump `version` in `herdr-plugin.toml` too.
 - `git tag vX.Y.Z && git push --tags` triggers `.github/workflows/release.yml`: it builds linux/darwin x amd64/arm64 (`CGO_ENABLED=0`, version via `-X main.buildVersion`), and publishes tarballs, `checksums.txt` and `install.sh` as release assets.
 - `install.sh` (repo root) is what `curl ... | sh` runs. Test it offline with `BASE_URL=file:///dir PREFIX=/tmp/bin sh install.sh` against a dir holding the tarball and `checksums.txt`.
 - On start RepoDash opens the page in the default browser (`internal/core/open.go`: `open` on macOS, `wslview`/`cmd.exe` on WSL, `xdg-open` elsewhere), only when stdout is a terminal. `-no-open` disables it.
