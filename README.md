@@ -77,6 +77,7 @@ A few keys get you going:
 | `h` `j` `k` `l` / arrows | Move between cards (the mouse works too) |
 | Enter | Jump to that repo in a herdr workspace or tmux window |
 | `i` | Show or hide the inspector: commits, issues, worktrees and notes |
+| Tab | Move into the inspector and back (`j`/`k` and Enter work inside it) |
 | `n` | Read or write notes for the repo |
 | `/` | Search by name |
 | `s` / `f` | Change the sort / filter by status |
@@ -152,8 +153,9 @@ It scans the repos in the folder you run it from, or `~/gitrepos` (see
 | `/` | Search by name (Enter keeps it, Esc clears) |
 | `s` / `S` | Next sort (recent, activity, language, alpha, issues) / reverse |
 | `f` / `F` | Next / previous status filter |
-| `i` or Tab | Show or hide the [inspector](#inspector) |
-| `J` / `K`, `o` | Move over the inspector's commits, issues and worktrees, and open the one you're on |
+| `i` | Show or hide the [inspector](#inspector) |
+| Tab | Move into the inspector (it opens if hidden): `j`/`k` move over its commits, issues and worktrees, Enter opens one, Tab or Esc goes back to the cards |
+| `J` / `K`, `o` | The same without leaving the cards: next / previous inspector line, open it |
 | `w` | Open the web page in your browser, starting the web server in the background if it isn't running |
 | `e` | Edit the selected repo's notes in `$VISUAL` / `$EDITOR` (else `nano` or `vi`); the inspector shows them all |
 | `r` | Rescan now |
@@ -279,8 +281,8 @@ The inspector is a side panel with everything about the selected repo: its statu
 branch, the coding agent's state, whether a tab is open, the last five commits, its GitHub issues,
 its worktrees and the first lines of your notes.
 
-- **Terminal UI:** `i` (or Tab) shows or hides it. It sits beside the cards when there is room and
-  fills the screen on a narrow terminal.
+- **Terminal UI:** `i` shows or hides it, and Tab moves into it (opening it if needed). It sits
+  beside the cards when there is room and fills the screen on a narrow terminal.
 - **Web page:** `i` or the panel button in the top bar, then click a card or move with `hjkl`. On a
   phone it fills the screen.
 
@@ -291,8 +293,10 @@ Nothing in it is just text:
 - **Issues** open on GitHub.
 - **Worktrees** jump to a terminal in that worktree's folder, like Enter does for the repo.
 
-`J` and `K` move over these lines and `o` opens the one you're on, so it all works from the
-keyboard too. On the web page, *Open README & notes* opens the full README and your notes.
+From the keyboard, in the terminal UI: press Tab to move into the inspector, `j`/`k` to go over these
+lines, Enter to open one, and Tab or Esc to go back to the cards. `J`/`K` and `o` do the same
+without leaving the cards, and they are the keys on the web page. On the web page, *Open README &
+notes* opens the full README and your notes.
 
 ## tmux integration
 

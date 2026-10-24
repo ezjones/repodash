@@ -400,12 +400,14 @@ func (m *tuiModel) click(ms tea.Mouse) tea.Cmd {
 		return nil
 	}
 	if !m.help && m.panelVisible() && (m.full || ms.X >= m.width-m.panelW+1) {
+		m.panelFocus = true
 		return m.panelClick(ms.Y - 1)
 	}
 	i, ok := m.cardAt(ms.X, ms.Y)
 	if !ok {
 		return nil
 	}
+	m.panelFocus = false
 	now := m.d.Now()
 	dbl := i == m.lastIdx && !m.lastAt.IsZero() && now.Sub(m.lastAt) <= doubleTime
 	m.moveTo(i)
@@ -950,12 +952,19 @@ func (m *tuiModel) footerLine() string {
 	}
 	key, desc := fg(cInfo).Bold(true), fg(cDim)
 	sp := seg{"  ", lipgloss.NewStyle()}
+	keys := [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "notes"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"w", "web"}, {"?", "help"}, {"q", "close"}}
+	if m.panelFocus && m.panelVisible() {
+		keys = [][2]string{{"INSPECTOR", ""}, {"j/k", "move"}, {"⏎", "open"}, {"tab", "back to cards"}, {"i", "hide"}, {"?", "help"}}
+	}
 	var full []seg
-	for _, h := range [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "notes"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"w", "web"}, {"?", "help"}, {"q", "close"}} {
+	for _, h := range keys {
 		full = append(full, seg{h[0], key}, seg{" " + h[1], desc}, sp)
 	}
 	if segsWidth(full)+1 <= m.width {
 		return line(m.width, append([]seg{{" ", desc}}, full...)...)
+	}
+	if m.panelFocus && m.panelVisible() {
+		return line(m.width, seg{" tab", key}, seg{" back  ", desc}, seg{"?", key}, seg{" help", desc})
 	}
 	return line(m.width, seg{" ?", key}, seg{" help  ", desc}, seg{"q", key}, seg{" close", desc})
 }
@@ -973,9 +982,9 @@ var helpText = [][2]string{
 	{"e", "edit the repo's notes in $VISUAL / $EDITOR"},
 	{"r", "rescan now"},
 	{"w", "open the web page (starts the server if needed)"},
-	{"J / K", "inspector: next / previous commit or issue"},
-	{"o", "inspector: expand the commit or open the issue under the cursor"},
-	{"i / Tab", "show / hide the inspector (beside the cards, or full screen when narrow)"},
+	{"i", "show / hide the inspector (beside the cards, or full screen when narrow)"},
+	{"Tab", "move into the inspector (opens it); j/k move, Enter opens, Tab or Esc back"},
+	{"J / K, o", "inspector lines from the cards: next / previous, open"},
 	{"?", "this help"},
 	{"q / Esc", "close"},
 	{"mouse", "click selects, double-click jumps, wheel scrolls"},

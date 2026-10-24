@@ -83,7 +83,8 @@ func TestPanelClickCommit(t *testing.T) {
 	if v := f.m.View().Content; !strings.Contains(v, "detail-broke") {
 		t.Fatalf("error not shown:\n%s", v)
 	}
-	// Changing the selection closes it.
+	// Changing the selection closes it (a panel click moved the keys into the panel; Tab hands them back).
+	f.send(tea.KeyPressMsg{Code: tea.KeyTab})
 	f.keys("j")
 	if f.m.openCommit != "" {
 		t.Fatal("selection change kept the commit open")
@@ -184,5 +185,48 @@ func TestPanelKeyOpensWorktree(t *testing.T) {
 	f.keys("o")
 	if f.m.prompt == "" || f.m.promptDir != "/r/wt-one" {
 		t.Fatalf("prompt %q dir %q", f.m.prompt, f.m.promptDir)
+	}
+}
+
+func TestPanelTabFocus(t *testing.T) {
+	f, urls := panelFake(t)
+	f.keys("i") // hide it; Tab opens it again with the keys inside
+	tab := tea.KeyPressMsg{Code: tea.KeyTab}
+	f.send(tab)
+	if !f.m.panel || !f.m.panelFocus || f.m.panelActs[f.m.panelCur] != "commit:"+hashA {
+		t.Fatalf("tab: panel %v focus %v cur %d", f.m.panel, f.m.panelFocus, f.m.panelCur)
+	}
+	if !strings.Contains(f.m.View().Content, "back to cards") {
+		t.Error("footer does not show the inspector keys")
+	}
+	sel := f.m.sel
+	f.keys("j", "j", "enter") // second commit, then the first issue
+	if f.m.sel != sel {
+		t.Fatal("j moved the card selection while the inspector had the keys")
+	}
+	if len(*urls) != 1 || (*urls)[0] != "https://example.com/o/r/issues/7" {
+		t.Fatalf("opened %v", *urls)
+	}
+	f.keys("k", "k", "o")
+	if f.m.openCommit != hashA {
+		t.Fatalf("k k o: openCommit %q", f.m.openCommit)
+	}
+	f.send(tab)
+	if f.m.panelFocus || !f.m.panel {
+		t.Fatal("second tab did not hand the keys back to the cards")
+	}
+	f.keys("j")
+	if f.m.sel == sel {
+		t.Fatal("j did not move the cards after tab back")
+	}
+	f.send(tab)
+	f.keys("esc")
+	if f.m.panelFocus || !f.m.panel {
+		t.Fatal("esc beside the cards should only leave the inspector")
+	}
+	f.send(tab)
+	f.keys("i")
+	if f.m.panel || f.m.panelFocus {
+		t.Fatal("i did not hide the inspector and drop the focus")
 	}
 }

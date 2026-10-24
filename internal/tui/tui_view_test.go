@@ -131,15 +131,15 @@ func TestViewNarrow(t *testing.T) {
 	if f.m.full {
 		t.Error("esc did not close the full inspector")
 	}
-	// Wide enough for one card column: i puts it beside the cards; Tab hides it again.
+	// Wide enough for one card column: i puts it beside the cards and hides it again.
 	sized(f, 90, 30)
 	f.keys("i")
 	if f.m.full || f.m.panelW == 0 {
 		t.Errorf("inspector not beside the cards at 90 (full %v, panelW %d)", f.m.full, f.m.panelW)
 	}
-	f.send(tea.KeyPressMsg{Code: tea.KeyTab})
+	f.keys("i")
 	if f.m.panelW != 0 {
-		t.Error("tab did not hide the inspector")
+		t.Error("i did not hide the inspector")
 	}
 }
 

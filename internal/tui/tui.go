@@ -121,6 +121,7 @@ type tuiModel struct {
 
 	panelActs  []string // what each panel line does ("commit:<hash>", "issue:<url>", ""), set by panelLines
 	panelCur   int      // panel cursor: a line index, -1 when none
+	panelFocus bool     // keys move inside the inspector (Tab) instead of over the cards
 	panelRepo  string   // repo the panel state below belongs to
 	openCommit string   // hash of the expanded commit, "" when none
 	details    map[string]detailCache
@@ -238,6 +239,19 @@ func (m *tuiModel) moveTo(i int) {
 	if m.sel != old {
 		m.panelScroll = 0
 		m.resetPanel()
+	}
+}
+
+// focusPanel opens the inspector if needed and moves the keys into it, cursor on its first line.
+func (m *tuiModel) focusPanel() {
+	m.panel = true
+	m.relayout()
+	if !m.panelVisible() {
+		return
+	}
+	m.panelFocus = true
+	if m.panelCur < 0 {
+		m.movePanelCur(1)
 	}
 }
 
@@ -574,6 +588,39 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	if m.panelFocus && !m.panelVisible() {
+		m.panelFocus = false
+	}
+	if m.panelFocus {
+		switch s {
+		case "j", "down", "J":
+			m.movePanelCur(1)
+			return m, nil
+		case "k", "up", "K":
+			m.movePanelCur(-1)
+			return m, nil
+		case "g", "home":
+			m.panelCur = -1
+			m.movePanelCur(1)
+			return m, nil
+		case "G", "end":
+			m.panelCur = len(m.panelActs)
+			m.movePanelCur(-1)
+			return m, nil
+		case "enter", "o":
+			return m, m.runPanelAct(m.panelCur)
+		case "tab", "shift+tab", "h", "left":
+			m.panelFocus = false
+			return m, nil
+		case "esc":
+			m.panelFocus = false
+			if m.full {
+				m.panel = false
+			}
+			return m, nil
+		}
+	}
+
 	switch s {
 	case "q":
 		return m, tea.Quit
@@ -592,8 +639,11 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.help = true
 	case "/":
 		m.searching = true
-	case "i", "tab":
+	case "i":
 		m.panel = !m.panel
+		m.panelFocus = false
+	case "tab":
+		m.focusPanel()
 	case "J":
 		m.movePanelCur(1)
 	case "K":
