@@ -67,7 +67,8 @@ A card appears for every repo in that folder. (Run from anywhere else, it falls 
   commits behind, stashes, merged worktrees, or "in sync". Cards are coloured by status (Needs action,
   Loose ends, Clean, Quiet) and refresh on their own as you work.
 - **GitHub issues.** For repos on GitHub, each card shows **Done** (the issue closed most recently)
-  and **Next** (the oldest open one), through the `gh` CLI. See [GitHub issues](#github-issues).
+  and **Next** (the oldest open one), through GitHub's `gh` CLI (install it and run `gh auth login` once). See
+  [GitHub issues](#github-issues).
 
 A few keys get you going:
 
@@ -258,8 +259,15 @@ For every repo whose `origin` is on github.com, RepoDash shows its GitHub issues
   Click one (or `o` on it) to open it on GitHub.
 - **The *issues* sort** in the terminal UI puts the repos with the most open issues first.
 
-The data comes from the [`gh`](https://cli.github.com) command line tool, using its own login, so
-RepoDash stores no token. It never creates or edits issues, and pull requests are not counted. It
+**Setup:** install GitHub's [`gh`](https://cli.github.com) command line tool and log in once:
+
+```sh
+gh auth login
+```
+
+That's all. Without it, everything else works and the issue lines just stay empty.
+
+RepoDash reads issues through `gh` and its login, so it stores no token. It never creates or edits issues, and pull requests are not counted. It
 refreshes every few minutes, separately from the git scan so that stays fast, and the terminal UI
 keeps a small private cache so issues show the moment it opens. If `gh` is missing or logged out,
 the web page's gear button shows a red dot with the reason. Turn it off with `card.issues: false`
