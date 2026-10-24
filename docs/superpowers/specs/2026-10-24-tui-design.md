@@ -1,6 +1,13 @@
 # RepoDash TUI and herdr plugin: design
 
-Date: 2026-10-24. Status: draft for the owner's approval.
+Date: 2026-10-24. Status: built and merged.
+
+**Changes after the build, at the owner's request:** herdr opens the TUI in its own tab, not a
+popup (a herdr popup takes all input until it closes), and the open action reuses that tab; the
+TUI keeps running after a jump. The inspector (side panel) starts hidden and `i` toggles it at
+any width. Plain `repodash` from a terminal is now the TUI (`w` opens the web page, starting the
+server if needed; `-web` is the server). The web page gained the same inspector. Where this
+document says popup, read tab.
 
 ## Intent
 
