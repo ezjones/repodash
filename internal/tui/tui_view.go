@@ -396,8 +396,7 @@ func (m *tuiModel) click(ms tea.Mouse) tea.Cmd {
 		return nil
 	}
 	if ms.Y == 0 && !m.help {
-		m.barClick(ms.X)
-		return nil
+		return m.barClick(ms.X)
 	}
 	if !m.help && m.panelVisible() && (m.full || ms.X >= m.width-m.panelW+1) {
 		m.panelFocus = true
@@ -862,7 +861,12 @@ func (m *tuiModel) topBar() string {
 		}
 		return o
 	}
+	var upd []bseg
+	if m.newTag != "" {
+		upd = []bseg{{seg{"↑ " + m.newTag + " · U update", fg(cYellow).Bold(true)}, "update"}, sp}
+	}
 	try := [][]bseg{
+		cat(head, sortSeg, filt(0), search, warn, upd),
 		cat(head, sortSeg, filt(0), search, warn),
 		cat(head, sortSeg, filt(1), search, warn),
 		cat(head, sortSeg, filt(2), search),
@@ -872,7 +876,7 @@ func (m *tuiModel) topBar() string {
 	extra := ""
 	for i, c := range try {
 		w := segsWidth(plain(c))
-		if i == 0 && agents != "" && w+lipgloss.Width(agents) <= m.width {
+		if i <= 1 && agents != "" && w+lipgloss.Width(agents) <= m.width {
 			pick, extra = c, agents
 			break
 		}
@@ -920,7 +924,7 @@ func plain(bs []bseg) []seg {
 }
 
 // barClick runs the top-bar action under column x, if any.
-func (m *tuiModel) barClick(x int) {
+func (m *tuiModel) barClick(x int) tea.Cmd {
 	for _, z := range m.barZones {
 		if x < z.x0 || x >= z.x1 {
 			continue
@@ -930,6 +934,8 @@ func (m *tuiModel) barClick(x int) {
 			m.sortBy = cycle(tuiSorts, m.sortBy, 1)
 		case z.act == "reverse":
 			m.rev = !m.rev
+		case z.act == "update":
+			return m.updateKey()
 		case strings.HasPrefix(z.act, "filter:"):
 			f := strings.TrimPrefix(z.act, "filter:")
 			if f == m.filter {
@@ -938,8 +944,9 @@ func (m *tuiModel) barClick(x int) {
 			m.filter = f
 		}
 		m.rebuild()
-		return
+		return nil
 	}
+	return nil
 }
 
 func (m *tuiModel) footerLine() string {
@@ -981,6 +988,7 @@ var helpText = [][2]string{
 	{"f / F", "next / previous status filter"},
 	{"e", "edit the repo's notes in $VISUAL / $EDITOR"},
 	{"r", "rescan now"},
+	{"U", "update to the new release, when the top bar offers one"},
 	{"w", "open the web page (starts the server if needed)"},
 	{"i", "show / hide the inspector (beside the cards, or full screen when narrow)"},
 	{"Tab", "move into the inspector (opens it); j/k move, Enter opens, Tab or Esc back"},

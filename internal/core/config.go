@@ -59,6 +59,7 @@ type Settings struct {
 	coverReadme bool
 	Multiplexer string // prefer-tmux | prefer-herdr | tmux | herdr
 	IssuesOn    bool   // card.issues: poll GitHub issues through gh
+	UpdateCheck bool   // updates.check: ask GitHub once a day for a newer release
 	repos       map[string]repoCfg
 }
 
@@ -337,6 +338,7 @@ func ParseSettings(path string, data []byte) (*Settings, error) {
 	s.coverReadme, _ = Lookup(m, "covers.readme").(bool)
 	s.Multiplexer, _ = Lookup(m, "terminal.multiplexer").(string)
 	s.IssuesOn, _ = Lookup(m, "card.issues").(bool)
+	s.UpdateCheck, _ = Lookup(m, "updates.check").(bool)
 	for name, v := range m["repos"].(map[string]any) {
 		e := v.(map[string]any)
 		rc := repoCfg{}

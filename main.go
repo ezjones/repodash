@@ -28,6 +28,7 @@ import (
 var buildVersion = "dev"
 
 func main() {
+	core.Version = buildVersion
 	home, _ := os.UserHomeDir()
 	cwd, _ := os.Getwd()
 	root := flag.String("root", core.DefaultRoot(cwd, home), "directory holding the repos (default: the current folder if it holds git repos, else ~/gitrepos)")

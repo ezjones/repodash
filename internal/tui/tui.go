@@ -32,6 +32,10 @@ type tuiDeps struct {
 	Now           func() time.Time
 	Web           func() (url string, err error) // open the web page, starting the server if needed
 	QuitAfterJump bool                           // in a herdr popup, which blocks herdr until it closes
+
+	CheckUpdate   func() (string, error) // newest release tag when newer than this one, else ""
+	UpdateBlocker func() string          // why this binary cannot update itself, "" when it can
+	ApplyUpdate   func(tag string) error // download, verify and replace the binary
 }
 
 type (
@@ -50,7 +54,16 @@ type (
 		name string
 		err  error
 	}
-	tickMsg string // "scan", "panes", "issues" or "spin"
+	updateMsg struct {
+		tag string
+		err error
+		ask bool // the user pressed U, so say the answer
+	}
+	appliedMsg struct {
+		tag string
+		err error
+	}
+	tickMsg string // "scan", "panes", "issues", "update" or "spin"
 )
 
 const spinEvery = 120 * time.Millisecond
@@ -93,6 +106,8 @@ type tuiModel struct {
 	promptDir   string // folder the prompt will open on y
 	promptLabel string // what the prompt calls it
 	msg         string
+	newTag      string // newest release tag when newer than this one, "" when none is known
+	restart     bool   // an update was installed: restart the new binary after quitting
 	width       int
 	height      int
 	scroll      int // first visible card row
@@ -289,7 +304,51 @@ func (m *tuiModel) applyPanes() {
 }
 
 func (m *tuiModel) Init() tea.Cmd {
-	return tea.Batch(m.scanCmd(), m.panesCmd(), tick("scan", m.interval), tick("panes", time.Second), tick("issues", 30*time.Second))
+	return tea.Batch(m.scanCmd(), m.panesCmd(), tick("scan", m.interval), tick("panes", time.Second), tick("issues", 30*time.Second), m.updateTick())
+}
+
+// updateTick schedules the once-per-start update check, unless the setting or the dependency is off.
+func (m *tuiModel) updateTick() tea.Cmd {
+	if m.d.CheckUpdate == nil || !tuiSettings().UpdateCheck {
+		return nil
+	}
+	return tick("update", 3*time.Second)
+}
+
+// checkUpdateCmd runs the update check off the UI goroutine.
+func (m *tuiModel) checkUpdateCmd(ask bool) tea.Cmd {
+	check := m.d.CheckUpdate
+	if check == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		tag, err := check()
+		return updateMsg{tag, err, ask}
+	}
+}
+
+// updateKey handles U: offer, explain why not, or install and restart.
+func (m *tuiModel) updateKey() tea.Cmd {
+	if m.newTag == "" {
+		if m.d.CheckUpdate == nil {
+			return nil
+		}
+		m.msg = "checking for updates…"
+		return m.checkUpdateCmd(true)
+	}
+	if m.d.UpdateBlocker != nil {
+		if b := m.d.UpdateBlocker(); b != "" {
+			m.msg = b
+			return nil
+		}
+	}
+	apply := m.d.ApplyUpdate
+	if apply == nil {
+		return nil
+	}
+	tag := m.newTag
+	m.msg = "updating to " + tag + "…"
+	return func() tea.Msg { return appliedMsg{tag, apply(tag)} }
 }
 
 func tick(kind string, d time.Duration) tea.Cmd {
@@ -467,6 +526,8 @@ func (m *tuiModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tick("spin", spinEvery)
 			}
 			return m, nil
+		case "update":
+			return m, m.checkUpdateCmd(false)
 		case "issues":
 			if m.d.Issues != nil {
 				if is := m.d.Issues(); is != nil {
@@ -476,6 +537,26 @@ func (m *tuiModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, tick("issues", 30*time.Second)
 		}
+	case updateMsg:
+		if msg.err != nil {
+			if msg.ask {
+				m.msg = "update check failed: " + msg.err.Error()
+			}
+			return m, nil
+		}
+		m.newTag = msg.tag
+		if msg.ask && msg.tag == "" {
+			m.msg = "up to date (" + core.Version + ")"
+		} else if msg.ask {
+			m.msg = ""
+		}
+	case appliedMsg:
+		if msg.err != nil {
+			m.msg = "update failed: " + msg.err.Error()
+			return m, nil
+		}
+		m.restart = true
+		return m, tea.Quit
 	case editedMsg:
 		m.notes = nil
 		if msg.err != nil {
@@ -680,6 +761,8 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.rebuild()
 	case "r":
 		return m, m.scanCmd()
+	case "U":
+		return m, m.updateKey()
 	case "w":
 		if m.d.Web == nil {
 			return m, nil
@@ -797,6 +880,15 @@ func Run(root string, web func() (string, error)) error {
 		QuitAfterJump: core.InHerdrPopup(),
 		Web:           web,
 	}
+	exe, exeErr := core.Executable()
+	d.CheckUpdate = func() (string, error) { return core.CheckUpdate(time.Now()) }
+	d.UpdateBlocker = func() string {
+		if exeErr != nil {
+			return exeErr.Error()
+		}
+		return core.UpdateBlocker(exe)
+	}
+	d.ApplyUpdate = func(tag string) error { return core.ApplyUpdate(tag, exe) }
 	p := tea.NewProgram(newTUIModel(d))
 
 	done := make(chan struct{})
@@ -834,8 +926,16 @@ func Run(root string, web func() (string, error)) error {
 			}
 		}
 	}()
-	_, err := p.Run()
-	return err
+	final, err := p.Run()
+	if err != nil {
+		return err
+	}
+	if fm, ok := final.(*tuiModel); ok && fm.restart {
+		if err := core.Restart(exe); err != nil {
+			fmt.Printf("updated to %s; start repodash again\n", fm.newTag)
+		}
+	}
+	return nil
 }
 
 // readOrCore reads a repo's notes through the injected reader, else from disk.

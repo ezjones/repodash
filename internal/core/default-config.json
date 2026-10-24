@@ -73,6 +73,10 @@
     "multiplexer": "prefer-tmux"
   },
 
+  "updates": {
+    "check": true
+  },
+
   "kanban": {
     "columns": ["Todo", "Doing", "Done"],
     "unsortedLabel": "Unsorted"
