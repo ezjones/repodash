@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -65,8 +64,15 @@ type tuiModel struct {
 	panelScroll int
 	loaded      bool
 
-	cols     int // cards per row; Task 5's layout sets it
+	cols     int // cards per row; set by relayout
 	pageRows int // rows per page, for ctrl+d / ctrl+u
+
+	full          bool // the panel fills the screen (narrow terminals)
+	cardW, panelW int
+	cardH, vis    int
+	visKey        visKey
+	lastIdx       int
+	lastAt        time.Time
 
 	interval time.Duration
 	commits  map[string]commitCache
@@ -86,7 +92,7 @@ func newTUIModel(d tuiDeps) *tuiModel {
 	if d.Now == nil {
 		d.Now = time.Now
 	}
-	m := &tuiModel{d: d, panel: true, cols: 1, pageRows: 6, commits: map[string]commitCache{}}
+	m := &tuiModel{d: d, panel: true, cols: 1, pageRows: 6, lastIdx: -1, commits: map[string]commitCache{}}
 	m.applySettings(true)
 	return m
 }
@@ -227,7 +233,12 @@ func (m *tuiModel) panesCmd() tea.Cmd {
 }
 
 func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	defer m.relayout()
 	switch msg := msg.(type) {
+	case tea.MouseClickMsg:
+		return m, m.click(tea.Mouse(msg))
+	case tea.MouseWheelMsg:
+		m.wheel(tea.Mouse(msg))
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 	case scanMsg:
@@ -351,6 +362,10 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "q":
 		return m, tea.Quit
 	case "esc":
+		if m.full {
+			m.full = false
+			return m, nil
+		}
 		if m.query != "" {
 			m.query = ""
 			m.rebuild()
@@ -362,7 +377,11 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "/":
 		m.searching = true
 	case "tab":
-		m.panel = !m.panel
+		if m.width > 0 && !m.panelFits() {
+			m.full = !m.full
+		} else {
+			m.panel = !m.panel
+		}
 	case "h", "left":
 		m.moveTo(m.sel - 1)
 	case "l", "right":
@@ -439,22 +458,6 @@ func (m *tuiModel) footer() string {
 		return "/" + m.query
 	}
 	return m.msg
-}
-
-// View is a placeholder until the real rendering lands.
-func (m *tuiModel) View() tea.View {
-	var b strings.Builder
-	if r, ok := m.selected(); ok {
-		b.WriteString(r.Name)
-	} else if m.loaded {
-		b.WriteString("No repos match")
-	}
-	if f := m.footer(); f != "" {
-		b.WriteString("\n" + f)
-	}
-	v := tea.NewView(b.String())
-	v.AltScreen = true
-	return v
 }
 
 // runTUI runs the interface against the real repos and terminals. Settings must be loaded.
