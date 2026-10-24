@@ -333,6 +333,16 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
 #insp h3 small{color:var(--mute);letter-spacing:0;text-transform:none;font-size:12px;margin-left:6px}
 #insp ul.il{list-style:none;margin:0;padding:0}
 #insp ul.il li{display:flex;gap:8px;padding:2px 0}
+#insp ul.il li.row{flex-wrap:wrap;cursor:pointer;border-radius:6px;margin:0 -6px;padding:2px 6px}
+#insp ul.il li.row:hover{background:color-mix(in srgb,var(--ink) 8%,transparent)}
+#insp ul.il li.row:focus-visible{outline:2px solid var(--accent,var(--info));outline-offset:-1px}
+#insp .mk{flex:none;width:1em;color:var(--mute)}
+#insp .cs{flex:1;min-width:0;overflow-wrap:anywhere}
+#insp .cd{flex:0 0 100%;padding:4px 0 6px 62px;font-size:13px;cursor:auto}
+#insp .cd .who{color:var(--mute)}
+#insp .cd pre{margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
+#insp .cd .files{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--mute);overflow-wrap:anywhere}
+#insp .cd a{color:var(--info)}
 #insp ul.il .k{flex:none;min-width:54px;color:var(--mute);font-size:12.5px}
 #insp ul.il a{color:inherit;text-decoration:none}#insp ul.il a:hover{text-decoration:underline}
 #insp ul.il .n{color:var(--mute)}
@@ -1437,39 +1447,70 @@ async function loadLayout(){
 
 /* ---------- inspector: the selected repo's details, docked on the right ---------- */
 inspOn = ls('inspector') === '1';
-const inspCache = new Map();           // name -> {t, commits, notes}
+const inspCache = new Map();
+const inspOpen = new Set();            // hashes of expanded commits in the selected repo
+const commitCache = new Map();         // name/hash -> {state: 'load'|'ok'|'err', d, msg}
+let inspFocusKey = '';                 // data-k of the inspector row that has the keyboard cursor           // name -> {t, commits, notes}
 function inspNotes(text){ return String(text || '').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 5); }
 async function inspFetch(name, force){
   const c = inspCache.get(name);
   if (!force && c && Date.now() - c.t < 5000) return;
-  const e = {t: Date.now(), commits: c ? c.commits : [], notes: c ? c.notes : []};
+  const e = {t: Date.now(), commits: c ? c.commits : [], notes: c ? c.notes : [], web: c ? c.web : ''};
   inspCache.set(name, e);
   const u = encodeURIComponent(name);
   const [a, b] = await Promise.all([
     fetch('/api/commits/' + u, {cache: 'no-store'}).then(r => r.ok ? r.json() : null).catch(() => null),
     fetch('/api/info/' + u, {cache: 'no-store'}).then(r => r.ok ? r.json() : null).catch(() => null)]);
-  if (a) e.commits = a.commits || [];
+  if (a){ e.commits = a.commits || []; e.web = a.web || ''; }
   if (b) e.notes = inspNotes(b.notes);
   if (name === inspName) inspUpdate(false);
+}
+async function commitLoad(name, hash){
+  const key = name + '/' + hash, c = commitCache.get(key);
+  if (c && c.state !== 'err') return;
+  commitCache.set(key, {state: 'load'});
+  try {
+    const res = await fetch('/api/commit/' + encodeURIComponent(name) + '/' + encodeURIComponent(hash), {cache: 'no-store'});
+    if (!res.ok) throw new Error((await res.text()).trim() || res.status);
+    commitCache.set(key, {state: 'ok', d: await res.json()});
+  } catch (err) { commitCache.set(key, {state: 'err', msg: String(err.message || err)}); }
+  if (name === inspName) inspUpdate(false);
+}
+function commitDetailHTML(name, x, web){
+  const c = commitCache.get(name + '/' + x.hash);
+  let h;
+  if (!c || c.state === 'load') h = '<p>Loading…</p>';
+  else if (c.state === 'err') h = `<p>${esc(c.msg)}</p>`;
+  else {
+    const d = c.d, files = d.files || [];
+    h = `<div class="who">${esc(d.author)} · ${esc(new Date(d.at * 1000).toLocaleString())}</div>`
+      + (d.body ? `<pre>${esc(d.body)}</pre>` : '')
+      + (files.length ? `<div class="files">${files.map(f => `<div>${esc(f)}</div>`).join('')}</div>` : '');
+  }
+  if (web) h += `<div><a href="${esc(web + '/commit/' + x.hash)}" target="_blank" rel="noopener noreferrer">View on GitHub</a></div>`;
+  return `<div class="cd">${h}</div>`;
 }
 function inspHTML(r){
   const rc = (CFG.repos || {})[r.name] || {};
   const lang = r.language ? `<span class="langbadge" style="background:${mixHex(LANG_COLOR[r.language] || '#667788', '#000000', .38)}">${esc(r.language)}</span>` : '';
   const agent = {busy: 'working', waiting: 'waiting for you', idle: 'idle'}[r.claude] || 'no agent';
   const tabs = r.herdr && r.tmux ? 'open in herdr and tmux' : r.herdr ? 'open in herdr' : r.tmux ? 'open in tmux' : 'no workspace open';
-  const c = inspCache.get(r.name) || {commits: [], notes: []};
+  const c = inspCache.get(r.name) || {commits: [], notes: [], web: ''};
   let h = `<div class="ihead"><h2>${esc(rc.title || r.name)}</h2><button class="ib iclose" data-i="close" aria-label="Close inspector">✕</button></div>`
     + `<div class="ipills">${pillHTML(r, 'inline')}${lang}</div>`
     + (r.reasons && r.reasons.length ? `<ul class="reasons">${r.reasons.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '')
     + `<dl><dt>branch</dt><dd><code>${esc(r.branch)}</code>${r.base && r.base !== r.branch ? ' &nbsp;base ' + esc(r.base) : ''}</dd><dt>agent</dt><dd>${agent}</dd><dt>tab</dt><dd>${tabs}</dd></dl>`;
-  if (c.commits.length) h += `<h3>Recent commits</h3><ul class="il">${c.commits.map(x => `<li><span class="k" data-ago="${x.at}">${ago(x.at)}</span><span>${esc(x.subject)}</span></li>`).join('')}</ul>`;
+  if (c.commits.length) h += `<h3>Recent commits</h3><ul class="il">${c.commits.map(x => {
+    const open = inspOpen.has(x.hash);
+    return `<li class="row crow" tabindex="0" role="button" aria-expanded="${open}" data-k="c:${esc(x.hash)}" data-hash="${esc(x.hash)}"><span class="k" data-ago="${x.at}">${ago(x.at)}</span><span class="mk" aria-hidden="true">${open ? '▾' : '▸'}</span><span class="cs">${esc(x.subject)}</span>${open ? commitDetailHTML(r.name, x, c.web) : ''}</li>`;
+  }).join('')}</ul>`;
   const i = C('card.issues', true) && ISSUES[r.name];
   if (i && (i.open > 0 || i.done)){
     const list = i.open_list && i.open_list.length ? i.open_list : i.next ? [i.next] : [];
     const link = x => `<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer" title="#${x.number} ${esc(x.title)}"><span class="n">#${x.number}</span> ${esc(x.title)}</a>`;
     h += `<h3>Issues<small>${i.open} open</small></h3><ul class="il">`
-      + (i.done ? `<li class="done"><span class="k">✓ Done</span>${link(i.done)}</li>` : '')
-      + list.slice(0, 5).map((x, n) => `<li><span class="k">${n ? '·' : '→'}</span>${link(x)}</li>`).join('') + '</ul>';
+      + (i.done ? `<li class="done row irow" tabindex="0" role="link" data-k="i:${esc(i.done.url)}" data-url="${esc(i.done.url)}"><span class="k">✓ Done</span>${link(i.done)}</li>` : '')
+      + list.slice(0, 5).map((x, n) => `<li class="row irow" tabindex="0" role="link" data-k="i:${esc(x.url)}" data-url="${esc(x.url)}"><span class="k">${n ? '·' : '→'}</span>${link(x)}</li>`).join('') + '</ul>';
   }
   if (r.worktrees && r.worktrees.length) h += `<h3>Worktrees<small>${r.worktrees.length}</small></h3><ul class="il">${r.worktrees.map(w => `<li class="wt"><span>${esc(w.branch)}${w.merged ? '<b>merged</b>' : ''}${w.dirty ? `<i>${w.dirty} dirty</i>` : ''}</span></li>`).join('')}</ul>`;
   if (c.notes.length) h += `<h3>Notes</h3><div class="notes">${c.notes.map(n => `<div>${esc(n)}</div>`).join('')}</div>`;
@@ -1486,7 +1527,12 @@ function inspUpdate(force){
   if (!inspName) h = '<button class="ib iclose" data-i="close" aria-label="Close inspector">✕</button><p class="none">Click a card to inspect it</p>';
   else if (r) h = inspHTML(r);
   else return;                      // the repo vanished (hidden or filtered): keep showing it
-  if (h !== inspSig || force){ inspSig = h; const y = box.scrollTop; box.innerHTML = h; box.scrollTop = y; }
+  if (h !== inspSig || force){
+    inspSig = h; const y = box.scrollTop;
+    const fk = box.contains(document.activeElement) ? (document.activeElement.dataset || {}).k : '';
+    box.innerHTML = h; box.scrollTop = y;
+    if (fk){ const n = [...box.querySelectorAll('[data-k]')].find(x => x.dataset.k === fk); if (n) n.focus({preventScroll: true}); }
+  }
 }
 function toggleInsp(){
   inspOn = !inspOn; ls('inspector', inspOn ? '1' : '0');
@@ -1497,9 +1543,29 @@ function toggleInsp(){
 function paintPicked(){ for (const [n, e] of els) e.el.classList.toggle('picked', n === inspName); }
 function inspSelect(name){
   if (name === inspName) return;
-  inspName = name; paintPicked(); inspFetch(name, false); inspUpdate(false);
+  inspName = name; inspOpen.clear(); paintPicked(); inspFetch(name, false); inspUpdate(false);
 }
+const inspRows = () => [...$('#insp').querySelectorAll('.row')];
+function rowActivate(row){
+  if (row.classList.contains('crow')){
+    const h = row.dataset.hash;
+    if (inspOpen.has(h)) inspOpen.delete(h); else { inspOpen.add(h); commitLoad(inspName, h); }
+    inspUpdate(false);
+  } else if (row.dataset.url && /^https:\/\//.test(row.dataset.url)) window.open(row.dataset.url, '_blank', 'noopener,noreferrer');
+}
+function rowMove(step){
+  const rows = inspRows(); if (!rows.length) return false;
+  const i = rows.indexOf(document.activeElement.closest ? document.activeElement.closest('.row') : null);
+  const n = i < 0 ? (step > 0 ? 0 : rows.length - 1) : Math.min(rows.length - 1, Math.max(0, i + step));
+  rows[n].focus(); return true;
+}
+$('#insp').addEventListener('keydown', e => {
+  const row = e.target.classList && e.target.classList.contains('row') ? e.target : null;
+  if (row && (e.key === 'Enter' || e.key === ' ') && !e.metaKey && !e.ctrlKey && !e.altKey){ e.preventDefault(); e.stopPropagation(); rowActivate(row); }
+});
 $('#insp').addEventListener('click', e => {
+  const row = e.target.closest('.row');
+  if (row && !e.target.closest('a, .cd')){ rowActivate(row); return; }
   const b = e.target.closest('[data-i]'); if (!b) return;
   if (b.dataset.i === 'close') toggleInsp();
   else if (b.dataset.i === 'open' && inspName) openInfo(inspName);
@@ -1518,7 +1584,7 @@ for (const id of ['#recent', '#world', '#kanban']) $(id).addEventListener('click
 const HELP_KEYS = [
   ['h j k l / arrows', 'move between cards'], ['g / G', 'first / last card'], ['ctrl-d / ctrl-u', 'half a screen down / up'],
   ['Enter / n', "jump to the repo's terminal"], ['/', 'search by name (Enter keeps, Esc clears)'], ['s / S', 'next sort / reverse'],
-  ['f / F', 'next / previous status filter'], ['r', 'rescan now'], ['i', 'show / hide the inspector'], ['?', 'this help'],
+  ['f / F', 'next / previous status filter'], ['r', 'rescan now'], ['J / K', 'inspector: next / previous commit or issue'], ['o', 'inspector: expand the commit or open the issue'], ['i', 'show / hide the inspector'], ['?', 'this help'],
 ];
 const helpbg = document.createElement('div'); helpbg.className = 'info-bg'; helpbg.hidden = true;
 helpbg.innerHTML = `<div class="infobox helpbox" role="dialog" aria-modal="true" aria-labelledby="helptitle"><header><h3 id="helptitle">Keyboard shortcuts</h3><button class="ib" data-help="close" aria-label="Close">✕</button></header><div class="pane helppane">${HELP_KEYS.map(([k, t]) => `<div class="hk"><kbd>${esc(k)}</kbd><span>${esc(t)}</span></div>`).join('')}</div></div>`;
@@ -1592,6 +1658,8 @@ addEventListener('keydown', e => {
   else if (k === '?') toggleHelp(true);
   else if (e.repeat) used = false;
   else if (k === 'i') toggleInsp();
+  else if (k === 'J' || k === 'K'){ if (!(inspOn && rowMove(k === 'J' ? 1 : -1))) used = false; }
+  else if (k === 'o'){ const rw = inspOn && document.activeElement.closest && document.activeElement.closest('#insp .row'); if (rw) rowActivate(rw); else used = false; }
   else if (k === 'Enter' || k === 'n'){ if (inspName && repos.some(r => r.name === inspName)) openTerminal(inspName, null); else used = false; }
   else if (k === 's'){ sortBy = kbCycle(SORTS, sortBy, 1); ls('sort', sortBy); syncChrome(); place(); }
   else if (k === 'S'){ rev = !rev; ls('rev', rev ? '1' : '0'); syncChrome(); place(); }
