@@ -176,13 +176,25 @@ func writeIssueCache(path string, c issueCache) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
-	if err := os.WriteFile(path+".tmp", b, 0o644); err != nil {
+	f, err := os.CreateTemp(dir, "issues-*.json")
+	if err != nil {
 		return err
 	}
-	return os.Rename(path+".tmp", path)
+	_, err = f.Write(b)
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Rename(f.Name(), path)
+	}
+	if err != nil {
+		os.Remove(f.Name())
+	}
+	return err
 }
 
 // issueFeed keeps the last fetch and decides when the next one is due.

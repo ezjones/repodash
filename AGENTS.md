@@ -19,7 +19,7 @@ its settings**, and how to **change the code**.
 
 | Thing | Where |
 |---|---|
-| Source | `~/gitrepos/repodash` (module `repodash`, Go 1.22+, no dependencies) |
+| Source | `~/gitrepos/repodash` (module `repodash`, Go 1.26+, standard library only except Charm's Bubble Tea and Lip Gloss, used by the TUI (`tui*.go`) alone) |
 | Run it | `./repodash` then open <http://127.0.0.1:8092> |
 | Settings file | `repodash.json` **in this repo**, next to the binary (created on first run as a near-empty file: only put what you change, because a list you set replaces the default list and would hide items added in later releases; tracked in git; an installed binary uses `~/.config/repodash/repodash.json` instead). Override with `-config FILE` or `$REPODASH_CONFIG` |
 | Card positions, groups, kanban boards and columns | `~/.local/share/repodash/layout.json` (`$XDG_DATA_HOME` respected) |

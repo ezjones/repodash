@@ -154,3 +154,30 @@ func TestMouseWheel(t *testing.T) {
 		t.Errorf("scroll = %d", f.m.scroll)
 	}
 }
+
+func TestRenderCardHostileText(t *testing.T) {
+	evil := "a\tb\x1b]0;x\x07c\x1b[2Jd"
+	r := longRepo()
+	r.LastSubject, r.Branch = evil, evil
+	iss := &repoIssues{Open: 1, Done: &issueRef{Number: 1, Title: evil}, Next: &issueRef{Number: 2, Title: evil}}
+	c := renderCard(r, evil, iss, false, 32, time.Unix(1000, 0))
+	for _, l := range strings.Split(c, "\n") {
+		if w := lipgloss.Width(l); w != 34 {
+			t.Errorf("line width %d: %q", w, l)
+		}
+	}
+	for _, bad := range []string{"\t", "\x07", "\x1b]", "\x1b[2J"} {
+		if strings.Contains(c, bad) {
+			t.Errorf("output contains %q", bad)
+		}
+	}
+}
+
+func TestCardBandKeepsName(t *testing.T) {
+	r := Repo{Name: "pixel-forge-x", Level: "bad", Language: "TypeScript"}
+	c := renderCard(r, r.Name, nil, false, 28, time.Unix(1000, 0))
+	first := strings.Split(c, "\n")[1]
+	if !strings.Contains(first, "pixel-forge-x") || !strings.Contains(first, "●") {
+		t.Errorf("band lost the name or dot: %q", first)
+	}
+}

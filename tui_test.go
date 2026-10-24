@@ -272,3 +272,24 @@ func TestTUISelectionFollowsName(t *testing.T) {
 	}
 	_ = f.m.View()
 }
+
+func TestCachedIssuesShownAtOpen(t *testing.T) {
+	m := newTUIModel(tuiDeps{
+		Issues: func() map[string]repoIssues { return map[string]repoIssues{"my-app": {Open: 3}} },
+		Now:    func() time.Time { return time.Unix(1000, 0) },
+	})
+	if m.issues["my-app"].Open != 3 {
+		t.Fatalf("issues not loaded at open: %+v", m.issues)
+	}
+}
+
+func TestStatusShowFalseSkipsFilter(t *testing.T) {
+	s, _ := parseSettings("", []byte(`{"statuses":{"stale":{"show":false}}}`))
+	old := cfg.cur.Load()
+	cfg.cur.Store(s)
+	defer cfg.cur.Store(old)
+	m := newTUIModel(tuiDeps{Now: time.Now})
+	if contains(m.filters, "stale") || !contains(m.filters, "bad") {
+		t.Fatalf("filters %v", m.filters)
+	}
+}

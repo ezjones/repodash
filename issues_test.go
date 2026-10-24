@@ -19,8 +19,11 @@ func TestIssueCacheRoundTrip(t *testing.T) {
 	if !ok || out.Repos["my-app"].Open != 4 || len(out.Repos["my-app"].OpenList) != 2 || !out.At.Equal(in.At) {
 		t.Fatalf("round trip: %+v %v", out, ok)
 	}
-	if _, err := os.Stat(p + ".tmp"); !os.IsNotExist(err) {
-		t.Fatal("temp file left behind")
+	if fi, err := os.Stat(p); err != nil || fi.Mode().Perm() != 0o600 {
+		t.Fatalf("cache file mode: %v %v", fi, err)
+	}
+	if es, _ := os.ReadDir(filepath.Dir(p)); len(es) != 1 {
+		t.Fatalf("temp file left behind: %v", es)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -73,6 +74,20 @@ func segsWidth(segs []seg) int {
 	return n
 }
 
+// cleanText makes untrusted text safe to draw: tabs become spaces and every control
+// rune (ESC, BEL, newline...) is dropped, so it cannot move the cursor or send escapes.
+func cleanText(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r == '\t' {
+			return ' '
+		}
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, s)
+}
+
 // line renders segments into exactly w cells: cut with an ellipsis, then padded.
 func line(w int, segs ...seg) string {
 	var b strings.Builder
@@ -81,7 +96,7 @@ func line(w int, segs ...seg) string {
 		if left <= 0 {
 			break
 		}
-		t := trunc(s.s, left)
+		t := trunc(cleanText(s.s), left)
 		left -= lipgloss.Width(t)
 		b.WriteString(s.st.Render(t))
 	}
@@ -192,15 +207,17 @@ func cardBody(r Repo, title string, iss *repoIssues, inner int, now time.Time) [
 		badge = seg{" " + r.Language + " ", sty("#ffffff", langBadgeColor(r.Language), true)}
 	}
 	var right []seg
+	// the name gets its room first; then drop the badge, then the label, and cut the name last
+	need := 1 + lipgloss.Width(cleanText(title))
 	for _, try := range [][]seg{{icon, pillFull, badge}, {icon, pillFull}, {icon, pillDot}, {pillDot}} {
 		right = try
-		if inner-segsWidth(try)-2 >= 6 {
+		if inner-segsWidth(try)-1 >= need {
 			break
 		}
 	}
 	rw := segsWidth(right)
 	nameW := max(1, inner-rw-1)
-	name := " " + trunc(title, nameW-1)
+	name := " " + trunc(cleanText(title), nameW-1)
 	bandSegs := []seg{{padTo(name, nameW), sty(ink, bg, true)}}
 	bandSegs = append(bandSegs, right...)
 	bandSegs = append(bandSegs, seg{" ", sty("", bg, false)})
@@ -472,7 +489,7 @@ func panelLines(m *tuiModel, w int) []string {
 			add(seg{fmt.Sprintf("%5s ", shortAgo(now, c.At)), fg(cDim)}, seg{c.Subject, fg(cText)})
 		}
 	}
-	if iss := m.issueFor(r.Name); iss != nil && (iss.Open > 0 || iss.Done != nil) {
+	if iss := m.issueFor(r.Name); iss != nil && cardOn(tuiSettings().Raw, "issues") && (iss.Open > 0 || iss.Done != nil) {
 		head("ISSUES  ", fmt.Sprintf("%d open", iss.Open))
 		if iss.Done != nil {
 			add(seg{" ✓ ", fg(cGreen)}, seg{fmt.Sprintf("#%d %s", iss.Done.Number, iss.Done.Title), fg(cText2)}, seg{"  " + closedAgo(now, iss.Done.At), fg(cDim)})
@@ -616,11 +633,11 @@ func (m *tuiModel) topBar() string {
 	for i, c := range try {
 		extra := 0
 		if i == 0 && agents != "" {
-			extra = len(agents)
+			extra = lipgloss.Width(agents)
 		}
 		if segsWidth(c)+extra <= m.width {
 			if i == 0 && agents != "" {
-				pad := m.width - segsWidth(c) - len(agents)
+				pad := m.width - segsWidth(c) - lipgloss.Width(agents)
 				c = append(c, seg{strings.Repeat(" ", pad), lipgloss.NewStyle()}, seg{agents, fg(cYellow)})
 			}
 			return line(m.width, c...)

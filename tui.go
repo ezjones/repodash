@@ -94,6 +94,12 @@ func newTUIModel(d tuiDeps) *tuiModel {
 	}
 	m := &tuiModel{d: d, panel: true, cols: 1, pageRows: 6, lastIdx: -1, commits: map[string]commitCache{}}
 	m.applySettings(true)
+	if d.Issues != nil {
+		if is := d.Issues(); is != nil {
+			m.issues = is
+			m.rebuild()
+		}
+	}
 	return m
 }
 
@@ -102,7 +108,13 @@ func newTUIModel(d tuiDeps) *tuiModel {
 func (m *tuiModel) applySettings(first bool) {
 	s := tuiSettings()
 	m.interval = s.interval
-	m.filters = append([]string{"all"}, strs(s.Raw, "topbar.filters")...)
+	m.filters = []string{"all"}
+	for _, k := range strs(s.Raw, "topbar.filters") {
+		if show, ok := get(s.Raw, "statuses."+k+".show").(bool); ok && !show {
+			continue
+		}
+		m.filters = append(m.filters, k)
+	}
 	m.titles = map[string]string{}
 	if rs, ok := s.Raw["repos"].(map[string]any); ok {
 		for n, v := range rs {
@@ -517,12 +529,12 @@ func runTUI(root string) error {
 				now := time.Now()
 				mu.Lock()
 				fetchedAt = now
-				if problem == "" || len(res) > 0 { // a failed fetch keeps the cached issues
+				if problem == "" { // a failed or partial fetch keeps the cached issues
 					issues = res
 				}
 				cur := issues
 				mu.Unlock()
-				if problem == "" || len(res) > 0 {
+				if problem == "" {
 					if cachePath != "" {
 						writeIssueCache(cachePath, issueCache{At: now, Repos: res})
 					}
