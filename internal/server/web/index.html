@@ -46,9 +46,10 @@ button,input{font:inherit;color:inherit}
 .live i{width:8px;height:8px;border-radius:50%;background:var(--stale)}
 .live.on i{background:var(--ok);box-shadow:0 0 0 0 var(--ok);animation:pulse 2.4s infinite}
 .live.off i{background:var(--bad)}
-.updnote{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink);margin-right:6px;white-space:nowrap}
+.updnote{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--warn);margin-right:6px;white-space:nowrap}
 .updnote[hidden]{display:none}
-.updnote .tool{padding:3px 10px;font-size:12px}
+.updnote .tool{padding:3px 10px;font-size:12px;font-weight:700;background:var(--warn);color:var(--on-warn,#fff);border-color:var(--warn)}
+.updnote .tool:hover{filter:brightness(1.08)}
 .updnote.err{color:var(--bad)}
 @keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 55%,transparent)}70%,100%{box-shadow:0 0 0 7px transparent}}
 @media (prefers-reduced-motion:reduce){.live.on i{animation:none}}

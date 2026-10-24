@@ -863,7 +863,7 @@ func (m *tuiModel) topBar() string {
 	}
 	var upd []bseg
 	if m.newTag != "" {
-		upd = []bseg{{seg{"↑ " + m.newTag + " · U update", fg(cYellow).Bold(true)}, "update"}, sp}
+		upd = []bseg{{seg{" ↑ " + m.newTag + " · U update ", sty("#1a1b26", cYellow, true)}, "update"}, sp}
 	}
 	try := [][]bseg{
 		cat(head, sortSeg, filt(0), search, warn, upd),
