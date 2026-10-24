@@ -20,7 +20,7 @@
   },
 
   "topbar": {
-    "items": ["title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "remote", "search", "agents", "spacer", "addGroup", "arrange", "appearance", "settings"],
+    "items": ["title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "remote", "search", "agents", "spacer", "addGroup", "arrange", "inspector", "appearance", "settings"],
     "filters": ["bad", "warn", "ok", "stale"]
   },
 

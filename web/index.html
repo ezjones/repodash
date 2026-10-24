@@ -314,6 +314,37 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
 .coladd:hover{color:var(--ink);border-color:var(--mute)}
 .kboard .card{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
 .kboard .card.kdrag{position:fixed;z-index:100000;box-shadow:0 14px 36px rgba(0,0,0,.3);cursor:grabbing}
+
+/* inspector: docked right panel (full-screen overlay on a phone) */
+#main{flex:1;display:flex;min-height:0;min-width:0}
+#stage{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+#insp{width:360px;flex:none;overflow:auto;border-left:1px solid var(--line);background:var(--panel);padding:14px 16px 20px;font-size:14px}
+#insp .ihead{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+#insp .ihead h2{margin:0;font-size:17px;flex:1;min-width:0;overflow-wrap:anywhere}
+#insp .iclose{display:none}
+#insp .ipills{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+#insp .ipills .langbadge{position:static}
+#insp .reasons{margin:0 0 10px;padding-left:18px;color:var(--mute)}
+#insp dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:0 0 6px}
+#insp dt{color:var(--mute)}#insp dd{margin:0;overflow-wrap:anywhere}
+#insp h3{margin:16px 0 6px;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--info)}
+#insp h3 small{color:var(--mute);letter-spacing:0;text-transform:none;font-size:12px;margin-left:6px}
+#insp ul.il{list-style:none;margin:0;padding:0}
+#insp ul.il li{display:flex;gap:8px;padding:2px 0}
+#insp ul.il .k{flex:none;min-width:54px;color:var(--mute);font-size:12.5px}
+#insp ul.il a{color:inherit;text-decoration:none}#insp ul.il a:hover{text-decoration:underline}
+#insp ul.il .n{color:var(--mute)}
+#insp .done .k{color:var(--ok)}
+#insp .wt b,#insp .wt i{font-style:normal;font-weight:600;color:var(--warn);margin-left:6px;font-size:12.5px}
+#insp .notes{color:var(--ink);opacity:.85}#insp .notes div{padding:1px 0;overflow-wrap:anywhere}
+#insp .iopen{margin-top:16px;width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:transparent;cursor:pointer}
+#insp .iopen:hover{background:color-mix(in srgb,var(--ink) 8%,transparent)}
+#insp .none{color:var(--mute);padding:20px 0}
+.card.picked{outline:2px solid var(--info);outline-offset:2px}
+@media (max-width:700px){
+  #insp:not([hidden]){position:fixed;inset:0;z-index:300;width:auto;border-left:0}
+  #insp .iclose{display:inline-grid}
+}
 [hidden]{display:none!important}
 .empty{color:var(--mute);padding:28px 16px}
 </style>
@@ -321,6 +352,7 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
 <body>
 <div class="top" id="top"></div>
 
+<div id="main"><div id="stage">
 <div id="recent"></div>
 <div id="ktabs" class="ktabs" hidden></div>
 <div id="kanban" class="kanban" hidden></div>
@@ -330,6 +362,8 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
   <div class="zoomctl"><button id="zout" aria-label="Zoom out">−</button><button id="zin" aria-label="Zoom in">+</button><button id="zfit" aria-label="Reset view">⌂</button></div>
 </div>
 <p class="empty" id="empty" hidden>No repos match.</p>
+</div>
+<aside id="insp" aria-label="Inspector" hidden></aside></div>
 <div class="info-bg" id="infobg" hidden><div class="infobox" role="dialog" aria-modal="true" aria-labelledby="infotitle"><header><h3 id="infotitle"></h3><button class="ib" id="infoclose" aria-label="Close">✕</button></header><div class="pane" id="infopane"></div></div></div>
 <input type="file" id="pick" accept="image/*" hidden>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -346,6 +380,7 @@ const S = k => C('statuses.' + k, {label: k});
 const cardW = () => C('canvas.cardWidth', 280), gapX = () => cardW() + C('canvas.gap', 30), cols = () => C('canvas.columns', 4);
 const COLORS = ['g1','g2','g3','g4','g5','g6'];
 
+let inspOn = false, inspName = '';    // inspector: shown? which repo?
 let repos = [];                       // latest scan, newest activity first
 const sel = new Set();                // canvas: selected repo names (lasso)
 const els = new Map();                // repo name -> {el, sig}
@@ -556,6 +591,7 @@ const ICON_SUN = svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.
 const ICON_MOON = svg('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>');
 const ICON_AUTO = svg('<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/>');
 const ICON_PALETTE = svg('<circle cx="7.5" cy="11" r="1.1"/><circle cx="10.5" cy="7" r="1.1"/><circle cx="15" cy="7.5" r="1.1"/><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.9-1 1.5-2-.4-1.1.3-2.2 1.5-2.2H17a4 4 0 0 0 4-4C21 6.9 17 3 12 3z"/>');
+const ICON_INSP = svg('<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M15 4v16"/>');
 const ICON_GEAR = svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>');
 let liveState = {cls: '', txt: 'connecting'};
 const seg = (items, key) => items.map(([v, label, icon]) => `<button data-top="${key}:${v}" aria-pressed="false" title="${esc(label)}" aria-label="${esc(label)}">${icon || ''}<span class="lbl">${esc(label)}</span></button>`).join('');
@@ -577,6 +613,7 @@ const BAR = {
   arrange:    () => `<button class="tool" data-only="canvas" data-top="arrange" title="Re-grid the cards that are not in a group, in the current sort order">${esc(L('arrange'))}</button>`,
   cover:      () => `<span class="coverctl"><select id="coverSel" class="tool" title="Cover style for repos without an image (this browser)" aria-label="Cover style">${[['', 'Cover: file default'], ['aurora', 'Aurora'], ['deep', 'Deep gradient'], ['name', 'Big name'], ['gradient', 'Soft gradient']].map(([v, t]) => `<option value="${v}" ${(ls('cover') || '') === v ? 'selected' : ''}>${t}</option>`).join('')}</select><button class="tool icon" data-top="badge" aria-pressed="${badgeOn()}" title="Language badge on covers" aria-label="Language badge">${ICON_LANG}</button></span>`,
   theme:      () => `<button class="tool icon" data-top="theme" id="themebtn" title="" aria-label="Theme"></button>`,
+  inspector:  () => `<button class="tool icon" data-top="inspector" aria-pressed="${inspOn}" title="Inspector: details of the selected repo (i)" aria-label="Inspector">${ICON_INSP}</button>`,
   appearance: () => `<button class="tool icon" data-top="appearance" id="appbtn" title="Appearance: theme, cover style, language badge" aria-label="Appearance">${ICON_PALETTE}</button>`,
   settings:   () => `<button class="tool icon" data-top="settings" id="cfgbtn" ${CFG_WARN.length || ISSUES_ERR ? 'data-warn="1"' : ''} title="Settings" aria-label="Settings">${ICON_GEAR}</button>`,
 };
@@ -590,6 +627,7 @@ function syncChrome(){
   const on = (prefix, val) => document.querySelectorAll(`#top [data-top^="${prefix}:"]`).forEach(b => b.setAttribute('aria-pressed', b.dataset.top === `${prefix}:${val}`));
   on('view', view); on('sort', sortBy); on('kmode', kanbanMode);
   document.querySelectorAll('#top .sortsel').forEach(s => s.value = sortBy);
+  document.querySelectorAll('#top [data-top="inspector"]').forEach(b => b.setAttribute('aria-pressed', inspOn));
   document.querySelectorAll('#top [data-top="reverse"]').forEach(b => b.setAttribute('aria-pressed', rev));
 }
 $('#top').addEventListener('click', e => {
@@ -607,6 +645,7 @@ $('#top').addEventListener('click', e => {
   else if (k === 'arrange') arrangeCards();
   else if (k === 'theme'){ const o = ['auto', 'light', 'dark']; ls('theme', o[(o.indexOf(themeNow()) + 1) % 3]); applyStyle(); }
   else if (k === 'badge'){ ls('badge', badgeOn() ? '0' : '1'); b.setAttribute('aria-pressed', badgeOn()); rerenderCards(); }
+  else if (k === 'inspector') toggleInsp();
   else if (k === 'appearance') showAppearance(b);
   else if (k === 'settings') showSettings(b);
 });
@@ -703,13 +742,14 @@ function applyRepos(list){
       e.el.innerHTML = cardHTML(r);
       e.el.querySelectorAll('details').forEach((d,i) => d.open = !!open[i]);
     }
-    e.el.className = 'card ' + r.level + (view === 'canvas' ? ' on-canvas' : '') + (sel.has(r.name) ? ' sel' : '');
+    e.el.className = 'card ' + r.level + (view === 'canvas' ? ' on-canvas' : '') + (sel.has(r.name) ? ' sel' : '') + (r.name === inspName ? ' picked' : '');
   }
   for (const [n,e] of els) if (!seen.has(n)){ e.el.remove(); els.delete(n); }
   renderFilters();
   place();
   tickAgo();
   paintAgents();
+  inspUpdate(false);
 }
 
 /* ---------- agent state (fast feed) ---------- */
@@ -1387,6 +1427,93 @@ async function loadLayout(){
     } } catch {}
   curBoard();
 }
+
+/* ---------- inspector: the selected repo's details, docked on the right ---------- */
+inspOn = ls('inspector') === '1';
+const inspCache = new Map();           // name -> {t, commits, notes}
+function inspNotes(text){ return String(text || '').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 5); }
+async function inspFetch(name, force){
+  const c = inspCache.get(name);
+  if (!force && c && Date.now() - c.t < 5000) return;
+  const e = {t: Date.now(), commits: c ? c.commits : [], notes: c ? c.notes : []};
+  inspCache.set(name, e);
+  const u = encodeURIComponent(name);
+  const [a, b] = await Promise.all([
+    fetch('/api/commits/' + u, {cache: 'no-store'}).then(r => r.ok ? r.json() : null).catch(() => null),
+    fetch('/api/info/' + u, {cache: 'no-store'}).then(r => r.ok ? r.json() : null).catch(() => null)]);
+  if (a) e.commits = a.commits || [];
+  if (b) e.notes = inspNotes(b.notes);
+  if (name === inspName) inspUpdate(false);
+}
+function inspHTML(r){
+  const rc = (CFG.repos || {})[r.name] || {};
+  const lang = r.language ? `<span class="langbadge" style="background:${mixHex(LANG_COLOR[r.language] || '#667788', '#000000', .38)}">${esc(r.language)}</span>` : '';
+  const agent = {busy: 'working', waiting: 'waiting for you', idle: 'idle'}[r.claude] || 'no agent';
+  const tabs = r.herdr && r.tmux ? 'open in herdr and tmux' : r.herdr ? 'open in herdr' : r.tmux ? 'open in tmux' : 'no workspace open';
+  const c = inspCache.get(r.name) || {commits: [], notes: []};
+  let h = `<div class="ihead"><h2>${esc(rc.title || r.name)}</h2><button class="ib iclose" data-i="close" aria-label="Close inspector">✕</button></div>`
+    + `<div class="ipills">${pillHTML(r, 'inline')}${lang}</div>`
+    + (r.reasons && r.reasons.length ? `<ul class="reasons">${r.reasons.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '')
+    + `<dl><dt>branch</dt><dd><code>${esc(r.branch)}</code>${r.base && r.base !== r.branch ? ' &nbsp;base ' + esc(r.base) : ''}</dd><dt>agent</dt><dd>${agent}</dd><dt>tab</dt><dd>${tabs}</dd></dl>`;
+  if (c.commits.length) h += `<h3>Recent commits</h3><ul class="il">${c.commits.map(x => `<li><span class="k" data-ago="${x.at}">${ago(x.at)}</span><span>${esc(x.subject)}</span></li>`).join('')}</ul>`;
+  const i = C('card.issues', true) && ISSUES[r.name];
+  if (i && (i.open > 0 || i.done)){
+    const list = i.open_list && i.open_list.length ? i.open_list : i.next ? [i.next] : [];
+    const link = x => `<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer" title="#${x.number} ${esc(x.title)}"><span class="n">#${x.number}</span> ${esc(x.title)}</a>`;
+    h += `<h3>Issues<small>${i.open} open</small></h3><ul class="il">`
+      + (i.done ? `<li class="done"><span class="k">✓ Done</span>${link(i.done)}</li>` : '')
+      + list.slice(0, 5).map((x, n) => `<li><span class="k">${n ? '·' : '→'}</span>${link(x)}</li>`).join('') + '</ul>';
+  }
+  if (r.worktrees && r.worktrees.length) h += `<h3>Worktrees<small>${r.worktrees.length}</small></h3><ul class="il">${r.worktrees.map(w => `<li class="wt"><span>${esc(w.branch)}${w.merged ? '<b>merged</b>' : ''}${w.dirty ? `<i>${w.dirty} dirty</i>` : ''}</span></li>`).join('')}</ul>`;
+  if (c.notes.length) h += `<h3>Notes</h3><div class="notes">${c.notes.map(n => `<div>${esc(n)}</div>`).join('')}</div>`;
+  return h + '<button class="iopen" data-i="open">Open README &amp; notes</button>';
+}
+let inspSig = '';
+function inspUpdate(force){
+  const box = $('#insp'); if (!box) return;
+  box.hidden = !inspOn;
+  document.querySelectorAll('#top [data-top="inspector"]').forEach(b => b.setAttribute('aria-pressed', inspOn));
+  if (!inspOn) return;
+  const r = repos.find(x => x.name === inspName);
+  let h;
+  if (!inspName) h = '<button class="ib iclose" data-i="close" aria-label="Close inspector">✕</button><p class="none">Click a card to inspect it</p>';
+  else if (r) h = inspHTML(r);
+  else return;                      // the repo vanished (hidden or filtered): keep showing it
+  if (h !== inspSig || force){ inspSig = h; const y = box.scrollTop; box.innerHTML = h; box.scrollTop = y; }
+}
+function toggleInsp(){
+  inspOn = !inspOn; ls('inspector', inspOn ? '1' : '0');
+  if (inspOn && inspName) inspFetch(inspName, false);
+  inspUpdate(false);
+  if (view === 'canvas') requestAnimationFrame(() => typeof applyVP === 'function' && applyVP());
+}
+function paintPicked(){ for (const [n, e] of els) e.el.classList.toggle('picked', n === inspName); }
+function inspSelect(name){
+  if (name === inspName) return;
+  inspName = name; paintPicked(); inspFetch(name, false); inspUpdate(false);
+}
+$('#insp').addEventListener('click', e => {
+  const b = e.target.closest('[data-i]'); if (!b) return;
+  if (b.dataset.i === 'close') toggleInsp();
+  else if (b.dataset.i === 'open' && inspName) openInfo(inspName);
+});
+// A plain click on a card (not on a button or link, and not the end of a drag) selects it.
+let downAt = null;
+addEventListener('pointerdown', e => { downAt = {x: e.clientX, y: e.clientY}; }, true);
+function cardClick(e){
+  const el = e.target.closest('.card'); if (!el || e.button > 0 || e.shiftKey || e.ctrlKey || e.metaKey) return;
+  if (e.target.closest('button, a, summary, input, textarea, [contenteditable]')) return;
+  if (downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 5) return;
+  inspSelect(el.dataset.name);
+}
+for (const id of ['#recent', '#world', '#kanban']) $(id).addEventListener('click', cardClick);
+addEventListener('keydown', e => {
+  if (e.key !== 'i' || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+  const t = e.target;
+  if (t && (t.closest && t.closest('input, textarea, select, [contenteditable]'))) return;
+  if (!$('#infobg').hidden || !ctx.hidden) return;
+  toggleInsp();
+});
 
 /* ---------- live feed ---------- */
 function setLive(cls, txt){ liveState = {cls, txt}; const l = $('#live'); if (l){ l.className = 'live ' + cls; $('#livetxt').textContent = txt; } }

@@ -86,6 +86,28 @@ func infoGet(root string) http.HandlerFunc {
 	}
 }
 
+// commitsGet answers {commits:[{at,subject}]}: the repo's 5 newest commits.
+func commitsGet(root string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		dir, ok := validRepo(root, r.PathValue("name"))
+		if !ok {
+			http.Error(w, "not a repo", http.StatusNotFound)
+			return
+		}
+		type c struct {
+			At      int64  `json:"at"`
+			Subject string `json:"subject"`
+		}
+		out := []c{}
+		for _, l := range recentCommits(dir, 5) {
+			out = append(out, c{l.At, l.Subject})
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		json.NewEncoder(w).Encode(map[string]any{"commits": out})
+	}
+}
+
 // notesPut saves {"text": "..."}; empty text removes the file. JSON content type
 // only, for the same cross-site reason as the layout PUT.
 func notesPut(root string) http.HandlerFunc {

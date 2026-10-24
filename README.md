@@ -27,6 +27,7 @@ think about them, and to sort them in different ways. So I built RepoDash.
 - **Status at a glance**: *Needs action* (unpushed commits, unpushed branch, merge
   conflicts), *Loose ends* (uncommitted files, behind upstream, merged worktrees to clean up),
   *Clean*, and *Quiet* (clean and untouched for a while).
+- **Inspector**: click a card, then press `i` (or the panel button in the top bar) for a side panel with its status, branch, agent, recent commits, issues, worktrees and notes.
 - **Info and notes**: the ⓘ icon on a card opens one panel with the repo's README (rendered as
   markdown, read-only) on top and your own notes underneath. Notes are markdown and edit in place,
   Obsidian-style: click a block to edit its text, click away and it renders. There is a small toolbar,

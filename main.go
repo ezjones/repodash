@@ -167,6 +167,7 @@ func main() {
 	mux.HandleFunc("PUT /api/image/{name}", imageWrite(putImage(*root)))
 	mux.HandleFunc("DELETE /api/image/{name}", deleteImage(*root))
 	mux.HandleFunc("GET /api/info/{name}", infoGet(*root))
+	mux.HandleFunc("GET /api/commits/{name}", commitsGet(*root))
 	mux.HandleFunc("PUT /api/notes/{name}", notesPut(*root))
 	mux.HandleFunc("GET /events", hub.serveSSE)
 	mux.HandleFunc("GET /api/layout", layout.get)
