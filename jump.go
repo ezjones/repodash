@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"strings"
@@ -85,17 +86,37 @@ func herdrOpenTUI() error {
 		return errors.New("no herdr server running")
 	}
 	for _, p := range ps {
-		if p.Title == tuiTitle {
-			if _, err := herdr("workspace", "focus", p.WorkspaceID); err != nil {
-				return err
-			}
-			_, err := herdr("tab", "focus", p.TabID)
-			return err
+		// The label is set at open; the title only once the TUI has drawn.
+		if p.Label == tuiTitle || p.Title == tuiTitle {
+			return herdrFocusTab(p.WorkspaceID, p.TabID)
 		}
 	}
 	// Start in the home folder so the tab's cwd never matches a repo card.
 	home, _ := os.UserHomeDir()
-	_, err = herdr("plugin", "pane", "open", "--plugin", "repodash", "--entrypoint", "grid",
+	b, err := herdr("plugin", "pane", "open", "--plugin", "repodash", "--entrypoint", "grid",
 		"--placement", "tab", "--cwd", home, "--focus")
+	if err != nil {
+		return err
+	}
+	// --focus does not switch to the new tab, so focus it by id.
+	var res struct {
+		Result struct {
+			PluginPane struct {
+				Pane herdrPane `json:"pane"`
+			} `json:"plugin_pane"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(b, &res); err != nil {
+		return err
+	}
+	p := res.Result.PluginPane.Pane
+	return herdrFocusTab(p.WorkspaceID, p.TabID)
+}
+
+func herdrFocusTab(workspace, tab string) error {
+	if _, err := herdr("workspace", "focus", workspace); err != nil {
+		return err
+	}
+	_, err := herdr("tab", "focus", tab)
 	return err
 }
