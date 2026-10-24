@@ -4,6 +4,7 @@ What each release added. The release workflow copies the section for the tag it 
 
 ## Unreleased
 
+- Terminal UI: an Appearance menu (`a`, or click ◐ in the top bar). Pick a card theme (colourful, plain, soft, ink, or coloured by status), show the status as words or just a coloured dot, turn the language badge on or off, and give any repo a colour of its own that stays under every theme. Works with keys and the mouse, and RepoDash remembers it all.
 - The terminal UI lists `U update` in the key hints; `U` checks GitHub for a new release right away.
 
 ## v0.7.7
