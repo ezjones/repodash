@@ -1,3 +1,4 @@
 repodash
 *.tmp
 CLAUDE.local.md
+.playwright-mcp/
