@@ -16,6 +16,16 @@ modified: RepoDash only reads.
 
 ![The same repos in the browser: a card per repo with its status, branch, last commit and activity](https://github.com/user-attachments/assets/2f9d0c43-20ac-4921-bbc0-6a13411a2581)
 
+## Install
+
+```sh
+curl -fsSL https://github.com/ezjones/repodash/releases/latest/download/install.sh | sh
+repodash
+```
+
+Linux, macOS, or Windows through WSL2. It installs one binary in `~/.local/bin` without sudo; see
+[Install and run](#install-and-run) for building from source and every option.
+
 ## Why I made this
 
 I have a lot of git repos, and I kept losing track of where each one was at. I wanted a visual way
