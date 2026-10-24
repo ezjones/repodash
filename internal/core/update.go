@@ -157,11 +157,11 @@ func releaseSupported() bool {
 
 // UpdateBlocker returns "" when this binary can replace itself, else a short sentence saying why not.
 func UpdateBlocker(exe string) string {
-	if _, ok := parseVersion(Version); !ok {
-		return "built from source: git pull and rebuild"
-	}
 	if strings.Contains(filepath.ToSlash(exe), "/herdr/plugins/") {
 		return "installed by herdr: run herdr plugin update repodash"
+	}
+	if _, ok := parseVersion(Version); !ok {
+		return "built from source: git pull and rebuild"
 	}
 	dir := filepath.Dir(exe)
 	f, err := os.CreateTemp(dir, ".repodash-write-test-*")
