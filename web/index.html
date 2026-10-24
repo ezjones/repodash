@@ -267,6 +267,8 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
 .md hr{border:0;border-top:1px solid var(--line)}
 .mdbar{display:flex;gap:4px;margin:-4px 0 8px}.mdbar button{border:1px solid var(--line);background:transparent;color:inherit;border-radius:6px;min-width:30px;height:28px;font-size:13px;cursor:pointer}
 .md li.task{list-style:none;margin-left:-1.2em}.md li.task input{margin-right:6px;vertical-align:-1px}
+.helpbox{width:min(480px,100%);height:auto;max-height:84vh}.helppane{padding:10px 20px 16px;overflow:auto}
+.hk{display:flex;gap:14px;align-items:baseline;padding:5px 0;font-size:14px}.hk kbd{flex:none;width:150px;font:600 12.5px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--info)}.hk span{color:var(--ink)}
 .infobox .none{color:var(--mute);text-align:center;margin-top:30px}
 .ib{display:inline-grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:7px;background:transparent;color:var(--mute);cursor:pointer}
 .ib:hover{background:color-mix(in srgb,var(--ink) 9%,transparent);color:var(--ink)}
@@ -613,7 +615,7 @@ const BAR = {
   arrange:    () => `<button class="tool" data-only="canvas" data-top="arrange" title="Re-grid the cards that are not in a group, in the current sort order">${esc(L('arrange'))}</button>`,
   cover:      () => `<span class="coverctl"><select id="coverSel" class="tool" title="Cover style for repos without an image (this browser)" aria-label="Cover style">${[['', 'Cover: file default'], ['aurora', 'Aurora'], ['deep', 'Deep gradient'], ['name', 'Big name'], ['gradient', 'Soft gradient']].map(([v, t]) => `<option value="${v}" ${(ls('cover') || '') === v ? 'selected' : ''}>${t}</option>`).join('')}</select><button class="tool icon" data-top="badge" aria-pressed="${badgeOn()}" title="Language badge on covers" aria-label="Language badge">${ICON_LANG}</button></span>`,
   theme:      () => `<button class="tool icon" data-top="theme" id="themebtn" title="" aria-label="Theme"></button>`,
-  inspector:  () => `<button class="tool icon" data-top="inspector" aria-pressed="${inspOn}" title="Inspector: details of the selected repo (i)" aria-label="Inspector">${ICON_INSP}</button>`,
+  inspector:  () => `<button class="tool icon" data-top="inspector" aria-pressed="${inspOn}" title="Inspector: details of the selected repo (i) · all keys: ?" aria-label="Inspector">${ICON_INSP}</button>`,
   appearance: () => `<button class="tool icon" data-top="appearance" id="appbtn" title="Appearance: theme, cover style, language badge" aria-label="Appearance">${ICON_PALETTE}</button>`,
   settings:   () => `<button class="tool icon" data-top="settings" id="cfgbtn" ${CFG_WARN.length || ISSUES_ERR ? 'data-warn="1"' : ''} title="Settings" aria-label="Settings">${ICON_GEAR}</button>`,
 };
@@ -788,6 +790,7 @@ function applyAgents(m){
 }
 
 /* ---------- filters ---------- */
+const shownFilters = counts => C('topbar.filters', []).filter(k => S(k).show !== false && (counts[k] || filter === k));
 function renderFilters(){
   const rbox = $('#remotef');
   if (rbox){
@@ -799,7 +802,7 @@ function renderFilters(){
   const counts = {bad:0, warn:0, ok:0, stale:0};
   repos.forEach(r => counts[r.level]++);
   const btn = (f, t, n) => `<button class="chip-btn ${f}" data-f="${f}" aria-pressed="${filter === f}" title="${esc(t)}">${f === 'all' ? '' : '<i></i>'}<span class="t">${esc(t)}</span><b>${n}</b></button>`;
-  const shown = C('topbar.filters', []).filter(k => S(k).show !== false && (counts[k] || filter === k));
+  const shown = shownFilters(counts);
   box.innerHTML = `<span class="chips">${btn('all', L('all'), repos.length) + shown.map(k => ' ' + btn(k, S(k).label, counts[k])).join('')}</span>` +
     `<select class="tool filtersel" aria-label="Filter by status">${[['all', L('all'), repos.length], ...shown.map(k => [k, S(k).label, counts[k]])].map(([f, t, n]) => `<option value="${f}" ${filter === f ? 'selected' : ''}>${esc(t)} (${n})</option>`).join('')}</select>`;
 }
@@ -1214,14 +1217,18 @@ async function onAct(e){
     const res = await fetch('/api/image/' + encodeURIComponent(name), {method:'DELETE', headers:{'Content-Type':'image/png'}}).catch(() => null);
     toast(res && res.ok ? 'Cover image removed' : 'Could not remove the image'); refreshNow(); return;
   }
-  b.disabled = true;
+  openTerminal(name, b);
+}
+// Jump to the repo's tmux/herdr tab (or open one). `b` is the card's button, disabled while waiting.
+async function openTerminal(name, b){
+  if (b) b.disabled = true;
   try {
     const res = await fetch('/api/open', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name, mux: ls('mux') || ''})});
     if (!res.ok) throw new Error((await res.text()).trim() || res.status);
     const j = await res.json();
     toast((j.action === 'jumped' ? 'Jumped to tab ' : 'Opened new tab ') + j.window + ' · ' + name);
   } catch (err) { toast('Terminal: ' + err.message); }
-  finally { b.disabled = false; }
+  finally { if (b) b.disabled = false; }
 }
 
 /* ---------- info panel: README + your own notes ---------- */
@@ -1507,12 +1514,100 @@ function cardClick(e){
   inspSelect(el.dataset.name);
 }
 for (const id of ['#recent', '#world', '#kanban']) $(id).addEventListener('click', cardClick);
-addEventListener('keydown', e => {
-  if (e.key !== 'i' || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+/* ---------- keyboard: the same vim-style keys as the terminal UI ---------- */
+const HELP_KEYS = [
+  ['h j k l / arrows', 'move between cards'], ['g / G', 'first / last card'], ['ctrl-d / ctrl-u', 'half a screen down / up'],
+  ['Enter / n', "jump to the repo's terminal"], ['/', 'search by name (Enter keeps, Esc clears)'], ['s / S', 'next sort / reverse'],
+  ['f / F', 'next / previous status filter'], ['r', 'rescan now'], ['i', 'show / hide the inspector'], ['?', 'this help'],
+];
+const helpbg = document.createElement('div'); helpbg.className = 'info-bg'; helpbg.hidden = true;
+helpbg.innerHTML = `<div class="infobox helpbox" role="dialog" aria-modal="true" aria-labelledby="helptitle"><header><h3 id="helptitle">Keyboard shortcuts</h3><button class="ib" data-help="close" aria-label="Close">✕</button></header><div class="pane helppane">${HELP_KEYS.map(([k, t]) => `<div class="hk"><kbd>${esc(k)}</kbd><span>${esc(t)}</span></div>`).join('')}</div></div>`;
+document.body.appendChild(helpbg);
+const toggleHelp = on => { helpbg.hidden = on === undefined ? !helpbg.hidden : !on; };
+helpbg.addEventListener('mousedown', e => { if (e.target === helpbg || e.target.closest('[data-help=close]')) toggleHelp(false); });
+
+// One check for every single-key shortcut: typing somewhere, or a dialog or popover open, means the key is not ours.
+function keysBlocked(e){
   const t = e.target;
-  if (t && (t.closest && t.closest('input, textarea, select, [contenteditable]'))) return;
-  if (!$('#infobg').hidden || !ctx.hidden) return;
-  toggleInsp();
+  if (t && t.closest && t.closest('input, textarea, select, [contenteditable]')) return true;
+  return !$('#infobg').hidden || !ctx.hidden || !panel.hidden || !pop.hidden || !helpbg.hidden;
+}
+const visibleCards = () => [...els.values()].map(x => x.el).filter(el => !el.hidden && el.getClientRects().length);
+const centre = r => ({x: r.left + r.width / 2, y: r.top + r.height / 2});
+function kbShow(el){
+  inspSelect(el.dataset.name);
+  if (view !== 'canvas'){ el.scrollIntoView({block: 'nearest', inline: 'nearest'}); return; }
+  const r = el.getBoundingClientRect(), v = rectOf(), m = 24, d = layout.vp;
+  const dx = r.left < v.left + m ? v.left + m - r.left : r.right > v.right - m ? v.right - m - r.right : 0;
+  const dy = r.top < v.top + m ? v.top + m - r.top : r.bottom > v.bottom - m ? v.bottom - m - r.bottom : 0;
+  if (dx || dy){ d.x += dx; d.y += dy; applyVP(); save(); }
+}
+function kbEdge(last){
+  const cs = visibleCards(); if (!cs.length) return;
+  let pick;
+  if (view === 'grid'){ const vis = new Set(cs); const o = sorted().map(r => els.get(r.name).el).filter(el => vis.has(el)); pick = last ? o[o.length - 1] : o[0]; }
+  else {
+    const key = el => { const r = el.getBoundingClientRect(); return [r.top, r.left]; };
+    const cmp = (a, b) => { const p = key(a), q = key(b); return p[0] - q[0] || p[1] - q[1]; };
+    cs.sort(cmp); pick = last ? cs[cs.length - 1] : cs[0];
+  }
+  if (pick) kbShow(pick);
+}
+// dir: 'h' 'j' 'k' 'l'. Nearest card in that direction by screen position, favouring cards in line.
+// half: pick the card about half a viewport down/up instead of the nearest.
+function kbMove(dir, half){
+  const cs = visibleCards(); if (!cs.length) return;
+  const cur = inspName && els.get(inspName);
+  if (!cur || cur.el.hidden || !cur.el.getClientRects().length) return kbEdge(false);
+  const c0 = centre(cur.el.getBoundingClientRect());
+  const sx = dir === 'l' ? 1 : dir === 'h' ? -1 : 0, sy = dir === 'j' ? 1 : dir === 'k' ? -1 : 0;
+  let best = null, bs = Infinity;
+  for (const el of cs){
+    if (el === cur.el) continue;
+    const c = centre(el.getBoundingClientRect()), dx = c.x - c0.x, dy = c.y - c0.y;
+    const prim = sx ? dx * sx : dy * sy, perp = sx ? Math.abs(dy) : Math.abs(dx);
+    if (prim <= 4) continue;
+    const score = half ? Math.abs(prim - innerHeight / 2) + perp * .5 : prim + perp * 3;
+    if (score < bs){ bs = score; best = el; }
+  }
+  if (best) kbShow(best);
+}
+function kbCycle(list, cur, step){ return list[(Math.max(0, list.indexOf(cur)) + step + list.length) % list.length]; }
+addEventListener('keydown', e => {
+  if (e.metaKey || e.altKey) return;
+  const k = e.key;
+  if (!helpbg.hidden){ if (k === 'Escape' || k === '?'){ e.preventDefault(); toggleHelp(false); } return; }
+  const half = e.ctrlKey && !e.shiftKey && (k === 'd' || k === 'u');
+  if (e.ctrlKey && !half) return;
+  if (keysBlocked(e)) return;
+  if (e.target.closest && e.target.closest('button, a, summary, [role=tab]') && (k === 'Enter' || k === ' ')) return;
+  let used = true;
+  if (half) kbMove(k === 'd' ? 'j' : 'k', true);
+  else if (k === 'h' || k === 'ArrowLeft') kbMove('h');
+  else if (k === 'j' || k === 'ArrowDown') kbMove('j');
+  else if (k === 'k' || k === 'ArrowUp') kbMove('k');
+  else if (k === 'l' || k === 'ArrowRight') kbMove('l');
+  else if (k === 'g' || k === 'G') kbEdge(k === 'G');
+  else if (k === '/'){ const q = $('#q'); if (q && q.getClientRects().length){ q.focus(); q.select(); } else used = false; }
+  else if (k === '?') toggleHelp(true);
+  else if (e.repeat) used = false;
+  else if (k === 'i') toggleInsp();
+  else if (k === 'Enter' || k === 'n'){ if (inspName && repos.some(r => r.name === inspName)) openTerminal(inspName, null); else used = false; }
+  else if (k === 's'){ sortBy = kbCycle(SORTS, sortBy, 1); ls('sort', sortBy); syncChrome(); place(); }
+  else if (k === 'S'){ rev = !rev; ls('rev', rev ? '1' : '0'); syncChrome(); place(); }
+  else if (k === 'f' || k === 'F'){
+    const counts = {bad:0, warn:0, ok:0, stale:0}; repos.forEach(r => counts[r.level]++);
+    filter = kbCycle(['all', ...shownFilters(counts)], filter, k === 'f' ? 1 : -1); renderFilters(); applyFilter();
+  }
+  else if (k === 'r') refreshNow();
+  else used = false;
+  if (used) e.preventDefault();
+});
+// In the search box: Enter keeps the text and leaves the box, Escape clears it and leaves.
+$('#top').addEventListener('keydown', e => {
+  if (e.target.id !== 'q') return;
+  if (e.key === 'Enter'){ e.preventDefault(); e.target.blur(); }
+  else if (e.key === 'Escape'){ e.preventDefault(); e.target.value = ''; query = ''; applyFilter(); e.target.blur(); }
 });
 
 /* ---------- live feed ---------- */
