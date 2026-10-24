@@ -46,6 +46,44 @@ repodash
 Linux, macOS, or Windows through WSL2. It installs one binary in `~/.local/bin` without sudo; see
 [Install and run](#install-and-run) for building from source and every option.
 
+## How to use it
+
+Go to the folder that holds your git repos and start it:
+
+```sh
+cd ~/gitrepos      # the folder with all your git repos in it
+repodash
+```
+
+A card appears for every repo in that folder. (Run from anywhere else, it falls back to `~/gitrepos`;
+`repodash -root DIR` points it at any folder.) It keeps watching while it runs, so you can leave it open:
+
+- **What your agents are doing, live.** If an AI coding agent (Claude Code and others) runs in a repo's
+  herdr or tmux pane, its card shows a yellow spinner while it works, a red dot when it waits for you
+  and a green dot when it is idle. It follows the agent within about a second. herdr reports this by
+  itself; tmux needs a small hook (see [Tab and agent badges](#tab-and-agent-badges)).
+- **Git status.** Each card says what needs doing: unpushed commits, uncommitted or untracked files,
+  commits behind, stashes, merged worktrees, or "in sync". Cards are coloured by status (Needs action,
+  Loose ends, Clean, Quiet) and refresh on their own as you work.
+- **GitHub issues.** For repos on GitHub, each card shows **Done** (the issue closed most recently)
+  and **Next** (the oldest open one), through the `gh` CLI. See [GitHub issues](#github-issues).
+
+A few keys get you going:
+
+| Key | What it does |
+|---|---|
+| `h` `j` `k` `l` / arrows | Move between cards (the mouse works too) |
+| Enter | Jump to that repo in a herdr workspace or tmux window |
+| `i` | Show or hide the inspector: commits, issues, worktrees and notes |
+| `n` | Read or write notes for the repo |
+| `/` | Search by name |
+| `s` / `f` | Change the sort / filter by status |
+| `w` | Open the web page (canvas, kanban) in your browser |
+| `?` | Every key |
+| `q` | Quit |
+
+The full list is in [Terminal UI and herdr](#terminal-ui-and-herdr).
+
 ## Why I made this
 
 I have a lot of git repos, and I kept losing track of where each one was at. I wanted a visual way
