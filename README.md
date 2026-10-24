@@ -1,6 +1,7 @@
 <p align="center">
   <img src="https://github.com/user-attachments/assets/906d3625-d899-4a2a-a346-d881c93ca7e5" alt="RepoDash" width="260">
 </p>
+<p align="center"><em>All your repos. One glance.</em></p>
 
 Your gitrepos folder is chaos. RepoDash turns it into one live dashboard where you see every repo at
 a glance: which ones have uncommitted work, unpushed commits, open GitHub issues, branches that are already
