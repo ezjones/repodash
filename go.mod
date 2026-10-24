@@ -1,4 +1,4 @@
-module repodash
+module github.com/ezjones/repodash
 
 go 1.26.0
 
