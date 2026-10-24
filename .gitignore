@@ -2,3 +2,4 @@ repodash
 *.tmp
 CLAUDE.local.md
 .playwright-mcp/
+PROGRESS.local.md
