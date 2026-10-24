@@ -57,6 +57,12 @@ func main() {
 		os.Stdout.Write(defaultConfigJSON)
 		return
 	}
+	if *herdrOpen {
+		if err := herdrOpenTUI(); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	cfg.path = settingsPath(*cfgPath)
 	if !*check && !*once {
 		ensureConfigFile(cfg.path)
@@ -90,12 +96,6 @@ func main() {
 	}
 
 	layout := &layoutStore{path: filepath.Join(dataDir, "repodash", "layout.json")}
-	if *herdrOpen {
-		if err := herdrOpenTUI(); err != nil {
-			log.Fatal(err)
-		}
-		return
-	}
 	if *tui {
 		if err := runTUI(*root); err != nil {
 			log.Fatal(err)
