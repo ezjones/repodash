@@ -25,13 +25,14 @@ its settings**, and how to **change the code**.
 | Card positions, groups, kanban boards and columns | `~/.local/share/repodash/layout.json` (`$XDG_DATA_HOME` respected) |
 | Images added in the UI | `~/.local/share/repodash/images/<repo>.<ext>` |
 | Notes written in the info panel | `~/.local/share/repodash/notes/<repo>.md` (markdown; never inside the repo) |
+| GitHub issues cache (TUI) | `~/.cache/repodash/issues.json` (`$XDG_CACHE_HOME` respected) |
 | Log when started in the background | `~/.local/share/repodash/repodash.log` |
 | Defaults, embedded in the binary | `default-config.json` (`repodash -print-config` prints it) |
 
 Flags: `-root DIR` (repos folder, default `~/gitrepos`), `-addr HOST:PORT` (default `127.0.0.1:8092`; use `:8092` to
 reach it from other devices, only on a trusted network such as the tailnet), `-allow-host a,b`
 (host names the page may be opened by, see Security notes), `-config FILE`, `-json` (scan once,
-print JSON, exit), `-check` (validate settings, exit 1 on problems), `-print-config`.
+print JSON, exit), `-check` (validate settings, exit 1 on problems), `-print-config`, `-tui` (terminal UI instead of the web server).
 
 ## Changing settings (the common job)
 
@@ -163,6 +164,7 @@ comes from the modification times of uncommitted files.
   in `layout.json` under `boards` and `activeBoard`. *By status* is the automatic read-only alternative.
 - **Agent state**: a card's small icon shows the agent in that repo's tmux/herdr pane: spinning ring = working, pulsing red dot = waiting for you, green dot = idle (hover for the words). Canvas group frames show their worst member; the tab title shows totals. It is fed by a separate 1-second poll of the multiplexers (`pollAgents` in `main.go`, SSE event `agents`), so it follows the agent within about a second without the slow git scan. Hidden by `card.agent: false`.
 - **GitHub issues** (`issues.go`): for a repo whose `origin` is on github.com, the card shows **Done** (the most recently closed issue, with how long ago) and **Next** (the oldest open issue, lowest number); each links to the issue on GitHub in a new tab. Pull requests are not counted. Repos with no issues show nothing. The data comes from the `gh` CLI (its own login; RepoDash stores no token) every 5 minutes while a browser tab is open, as a separate feed (SSE event `issues`) so the git scan stays fast. If `gh` is missing or logged out, the gear button shows a red dot with the reason. Read-only: it never creates or edits issues. Turn it off with `card.issues: false`.
+- **Terminal UI** (`repodash -tui`, no web server): the same cards in a terminal, always dark, adapting to narrow screens (1 column at ~40 cols; the side panel sits beside the grid from 107 cols, otherwise Tab opens it full screen). Keys: hjkl/arrows move, g/G, ctrl-d/u, `/` search, `s`/`S` sort and reverse (recent, activity, language, alpha, issues), `f`/`F` status filter, `r` rescan, Tab panel, `?` help, `q`/Esc close. Enter jumps to the repo's workspace (asks "Create a workspace for X? y/n" if none; `n` creates without asking). Mouse: click selects, double-click jumps, wheel scrolls. Inside herdr, Enter always uses herdr and the TUI exits after a jump; outside herdr it follows `terminal.multiplexer`. Also runs as a herdr popup via the plugin (`herdr-plugin.toml`).
 - **Info panel** (ⓘ icon): one panel, no tabs. The repo's `README.md` is on top (read-only, rendered as markdown, 256 KB cap, collapsible, and the divider between the two can be dragged; the split is remembered per browser). Your own **Notes** are underneath, ready to type in. Notes are markdown, Obsidian-style: every block shows rendered, click one to edit its raw markdown, click away to render it. A small toolbar inserts bold, italic, code, heading, list, task and link, Enter continues a list, and `- [ ] ` tasks tick with a click. Notes autosave to the notes folder.
 - **Card icons**: picture icon sets a cover (or drop an image file on the card); terminal icon
   jumps to that repo's tmux tab or herdr workspace, or opens one; copy icon copies `cd <path>`.
@@ -197,6 +199,9 @@ Handy for scripts and tests. All local; see the security notes before exposing t
 | `issues.go` | GitHub issues feed: `gh api` per github.com repo, slow poll, SSE event `issues` |
 | `tmux.go` | "Open in tmux", and `openInTerminal` which picks tmux or herdr |
 | `herdr.go` | Same for herdr, through its CLI (`herdr pane list`, `workspace focus`, `tab focus`, `workspace create`) |
+| `jump.go` | Shared jump/create logic for tmux and herdr (used by the TUI) |
+| `tui*.go` | The terminal UI (Bubble Tea): model and keys, data, view, colours |
+| `herdr-plugin.toml` | herdr plugin manifest: action `open`, popup pane `grid` running `./repodash -tui`; `scripts/herdr-build.sh` builds the binary into the plugin root |
 | `default-config.json` | Every setting and its default; embedded with `go:embed` |
 | `web/index.html` | The entire UI (HTML, CSS, vanilla JS), embedded with `go:embed`. No framework, no build step |
 
@@ -218,7 +223,7 @@ Check the page script parses: `node -e "const s=require('fs').readFileSync('web/
 
 **Changing a default list** (`topbar.items`, `card.actions`): older releases wrote a full copy of the defaults into users' settings files, and a list in the file replaces the default. Add the OLD list to `retiredLists` in `config.go`, so files that never edited it pick up the new default. `go test ./...` checks this.
 
-Conventions: standard library only, `CGO_ENABLED=0`, no JS dependencies. Git is always run with
+Conventions: standard library only for the server (the TUI, `tui*.go`, alone uses Charm's Bubble Tea and Lip Gloss), `CGO_ENABLED=0`, no JS dependencies. Git is always run with
 `GIT_OPTIONAL_LOCKS=0` so a scan never blocks someone's `git commit`. The app is read-only toward
 the repos: it never fetches, checks out, or writes inside a repo.
 

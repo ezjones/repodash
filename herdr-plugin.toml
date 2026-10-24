@@ -1,0 +1,28 @@
+id = "repodash"
+name = "RepoDash"
+version = "0.1.0"
+min_herdr_version = "0.9.0"
+description = "Full-screen grid of your git repos with status; jump to a repo's workspace"
+platforms = ["linux", "macos"]
+
+# herdr resolves "./" programs against the plugin root.
+[[build]]
+platforms = ["linux", "macos"]
+command = ["sh", "scripts/herdr-build.sh"]
+
+[[actions]]
+id = "open"
+title = "Open RepoDash"
+description = "Open the repo grid as a full-screen popup"
+contexts = ["global"]
+command = ["herdr", "plugin", "pane", "open", "--plugin", "repodash", "--entrypoint", "grid", "--focus"]
+
+# The manifest selects popup: the CLI --placement enum does not list it.
+[[panes]]
+id = "grid"
+title = "RepoDash"
+description = "Repo status cards; Enter jumps to the repo's workspace"
+placement = "popup"
+width = "100%"
+height = "100%"
+command = ["./repodash", "-tui"]

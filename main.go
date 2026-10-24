@@ -42,6 +42,7 @@ func main() {
 	cfgPath := flag.String("config", "", "settings file (default: repodash.json next to the binary, or $REPODASH_CONFIG)")
 	once := flag.Bool("json", false, "scan once, print JSON, exit")
 	check := flag.Bool("check", false, "validate the settings file, print problems, exit 1 if there are any")
+	tui := flag.Bool("tui", false, "open the terminal UI (no web server)")
 	noOpen := flag.Bool("no-open", false, "do not open the page in a browser on start")
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	printCfg := flag.Bool("print-config", false, "print the default settings and exit")
@@ -60,6 +61,13 @@ func main() {
 		ensureConfigFile(cfg.path)
 	}
 	cfg.load()
+
+	dataDir := os.Getenv("XDG_DATA_HOME")
+	if dataDir == "" {
+		dataDir = filepath.Join(home, ".local", "share")
+	}
+	imageDir = filepath.Join(dataDir, "repodash", "images")
+	notesDir = filepath.Join(dataDir, "repodash", "notes")
 
 	if *check {
 		s := cfg.get()
@@ -80,13 +88,13 @@ func main() {
 		return
 	}
 
-	dataDir := os.Getenv("XDG_DATA_HOME")
-	if dataDir == "" {
-		dataDir = filepath.Join(home, ".local", "share")
-	}
 	layout := &layoutStore{path: filepath.Join(dataDir, "repodash", "layout.json")}
-	imageDir = filepath.Join(dataDir, "repodash", "images")
-	notesDir = filepath.Join(dataDir, "repodash", "notes")
+	if *tui {
+		if err := runTUI(*root); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	hub := newHub(func() []Repo { return scanAll(*root) })
 	go hub.run()
 

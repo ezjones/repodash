@@ -156,6 +156,35 @@ optional in the same way tmux is.
 Like tmux, it selects the tab but cannot raise the terminal application, and RepoDash must run as the
 same user as the herdr server.
 
+## Terminal UI and herdr
+
+`repodash -tui` shows the same status cards in your terminal, with no web server. Move with
+`hjkl` or the arrow keys, search with `/`, sort with `s`, filter with `f`, open the side panel
+(commits, issues, notes) with Tab, and press `?` for all keys. Enter jumps to the repo's tmux or
+herdr workspace, and offers to create one if there is none. The mouse works too: click to select,
+double-click to jump. It fits phone-width terminals.
+
+To open it as a full-screen popup inside herdr, link this folder as a plugin (it needs Go, or a
+release binary, to build `./repodash`):
+
+```sh
+herdr plugin link /path/to/repodash
+herdr plugin action invoke repodash.open
+```
+
+To bind a key, add this to `~/.config/herdr/config.toml` (pick any free key), then run
+`herdr server reload-config`:
+
+```toml
+[[keys.command]]
+key = ["prefix+r"]
+type = "plugin_action"
+command = "repodash.open"
+description = "repodash"
+```
+
+Inside the popup, Enter jumps with herdr and closes the popup; `q` closes it without jumping.
+
 ## Install and run
 
 You need git. tmux or herdr is optional (they power the jump-to-terminal button).
