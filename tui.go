@@ -74,6 +74,7 @@ type tuiModel struct {
 
 	full          bool // the panel is on and fills the screen (narrow terminals); set by relayout
 	cardW, panelW int
+	barZones      []barZone // clickable words in the top bar, set by topBar
 	cardH, vis    int
 	visKey        visKey
 	lastIdx       int

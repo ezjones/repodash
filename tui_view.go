@@ -387,6 +387,10 @@ func (m *tuiModel) click(ms tea.Mouse) tea.Cmd {
 	if ms.Button != tea.MouseLeft {
 		return nil
 	}
+	if ms.Y == 0 && !m.help {
+		m.barClick(ms.X)
+		return nil
+	}
 	i, ok := m.cardAt(ms.X, ms.Y)
 	if !ok {
 		return nil
@@ -548,18 +552,18 @@ func (m *tuiModel) topBar() string {
 	if title == "" {
 		title = "RepoDash"
 	}
-	sp := seg{" ", lipgloss.NewStyle()}
-	head := []seg{{" " + title, fg(cText).Bold(true)}, sp, {"●", fg(cGreen)}, sp}
-	sortS := "sort " + m.sortBy
+	sp := bseg{seg: seg{" ", lipgloss.NewStyle()}}
+	head := []bseg{{seg: seg{" " + title, fg(cText).Bold(true)}}, sp, {seg: seg{"●", fg(cGreen)}}, sp}
+	arrow := "↕"
 	if m.rev {
-		sortS += " ↓"
+		arrow = "↓"
 	}
 	counts := map[string]int{}
 	for _, r := range m.repos {
 		counts[r.Level]++
 	}
-	filt := func(mode int) []seg { // 0 labels and counts, 1 counts only, 2 active filter only
-		var s []seg
+	filt := func(mode int) []bseg { // 0 labels and counts, 1 counts only, 2 active filter only
+		var s []bseg
 		for _, f := range m.filters {
 			if mode == 2 && f != m.filter {
 				continue
@@ -577,16 +581,16 @@ func (m *tuiModel) topBar() string {
 			if f == m.filter {
 				st = st.Bold(true).Underline(true)
 			}
-			s = append(s, seg{t, st}, sp)
+			s = append(s, bseg{seg{t, st}, "filter:" + f}, sp)
 		}
 		return s
 	}
-	var search []seg
+	var search []bseg
 	switch {
 	case m.searching:
-		search = []seg{{"/" + m.query + "█", fg(cText)}, sp}
+		search = []bseg{{seg: seg{"/" + m.query + "█", fg(cText)}}, sp}
 	case m.query != "":
-		search = []seg{{"/" + m.query, fg(cText)}, sp}
+		search = []bseg{{seg: seg{"/" + m.query, fg(cText)}}, sp}
 	}
 	var agents string
 	busy, wait := 0, 0
@@ -608,38 +612,96 @@ func (m *tuiModel) topBar() string {
 		}
 		agents = strings.Join(p, " · ") + " "
 	}
-	warn := []seg{}
+	warn := []bseg{}
 	if n := len(tuiSettings().Warnings); n > 0 {
-		warn = []seg{{fmt.Sprintf("⚠ %d ", n), fg(cRed)}}
+		warn = []bseg{{seg: seg{fmt.Sprintf("⚠ %d ", n), fg(cRed)}}}
 	}
-	sortSeg := []seg{{sortS, fg(cMuted)}, sp, sp}
-	cat := func(parts ...[]seg) []seg {
-		var o []seg
+	sortSeg := []bseg{{seg{"sort " + m.sortBy, fg(cMuted)}, "sort"}, sp, {seg{arrow, fg(cMuted)}, "reverse"}, sp, sp}
+	cat := func(parts ...[]bseg) []bseg {
+		var o []bseg
 		for _, p := range parts {
 			o = append(o, p...)
 		}
 		return o
 	}
-	try := [][]seg{
+	try := [][]bseg{
 		cat(head, sortSeg, filt(0), search, warn),
 		cat(head, sortSeg, filt(1), search, warn),
 		cat(head, sortSeg, filt(2), search),
 		cat(head, sortSeg, search),
 	}
+	pick := try[len(try)-1]
+	extra := ""
 	for i, c := range try {
-		extra := 0
-		if i == 0 && agents != "" {
-			extra = lipgloss.Width(agents)
+		w := segsWidth(plain(c))
+		if i == 0 && agents != "" && w+lipgloss.Width(agents) <= m.width {
+			pick, extra = c, agents
+			break
 		}
-		if segsWidth(c)+extra <= m.width {
-			if i == 0 && agents != "" {
-				pad := m.width - segsWidth(c) - lipgloss.Width(agents)
-				c = append(c, seg{strings.Repeat(" ", pad), lipgloss.NewStyle()}, seg{agents, fg(cYellow)})
-			}
-			return line(m.width, c...)
+		if w <= m.width {
+			pick = c
+			break
 		}
 	}
-	return line(m.width, try[len(try)-1]...)
+	// Remember where the clickable words are, for mouse clicks on the bar.
+	m.barZones = m.barZones[:0]
+	x := 0
+	for _, b := range pick {
+		w := lipgloss.Width(b.s)
+		if b.act != "" {
+			m.barZones = append(m.barZones, barZone{x, x + w, b.act})
+		}
+		x += w
+	}
+	segs := plain(pick)
+	if extra != "" {
+		pad := m.width - segsWidth(segs) - lipgloss.Width(extra)
+		segs = append(segs, seg{strings.Repeat(" ", pad), lipgloss.NewStyle()}, seg{extra, fg(cYellow)})
+	}
+	return line(m.width, segs...)
+}
+
+// bseg is a top-bar segment; act names what a click on it does ("sort", "reverse",
+// "filter:<level>"), or "" when it is not clickable.
+type bseg struct {
+	seg
+	act string
+}
+
+type barZone struct {
+	x0, x1 int
+	act    string
+}
+
+func plain(bs []bseg) []seg {
+	out := make([]seg, len(bs))
+	for i, b := range bs {
+		out[i] = b.seg
+	}
+	return out
+}
+
+// barClick runs the top-bar action under column x, if any.
+func (m *tuiModel) barClick(x int) {
+	for _, z := range m.barZones {
+		if x < z.x0 || x >= z.x1 {
+			continue
+		}
+		switch {
+		case z.act == "sort":
+			m.sortBy = cycle(tuiSorts, m.sortBy, 1)
+		case z.act == "reverse":
+			m.rev = !m.rev
+		case strings.HasPrefix(z.act, "filter:"):
+			f := strings.TrimPrefix(z.act, "filter:")
+			if f == m.filter {
+				f = "all"
+			}
+			m.filter = f
+		}
+		m.rebuild()
+		return
+	}
 }
 
 func (m *tuiModel) footerLine() string {

@@ -194,3 +194,38 @@ func TestCardBandKeepsName(t *testing.T) {
 		t.Errorf("band lost the name or dot: %q", first)
 	}
 }
+
+func TestTopBarClicks(t *testing.T) {
+	f := newFakeTUI(t, false)
+	sized(f, 200, 50)
+	f.m.View()
+	zone := func(act string) int {
+		for _, z := range f.m.barZones {
+			if z.act == act {
+				return z.x0
+			}
+		}
+		t.Fatalf("no %q zone in %v", act, f.m.barZones)
+		return 0
+	}
+	sort0 := f.m.sortBy
+	f.send(tea.MouseClickMsg{X: zone("sort"), Y: 0, Button: tea.MouseLeft})
+	if f.m.sortBy == sort0 {
+		t.Error("clicking sort did not change it")
+	}
+	f.m.View()
+	f.send(tea.MouseClickMsg{X: zone("reverse"), Y: 0, Button: tea.MouseLeft})
+	if !f.m.rev {
+		t.Error("clicking the arrow did not reverse")
+	}
+	f.m.View()
+	f.send(tea.MouseClickMsg{X: zone("filter:bad"), Y: 0, Button: tea.MouseLeft})
+	if f.m.filter != "bad" {
+		t.Errorf("filter = %q", f.m.filter)
+	}
+	f.m.View()
+	f.send(tea.MouseClickMsg{X: zone("filter:bad"), Y: 0, Button: tea.MouseLeft})
+	if f.m.filter != "all" {
+		t.Errorf("clicking the active filter again: filter = %q", f.m.filter)
+	}
+}
