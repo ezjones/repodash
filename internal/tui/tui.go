@@ -38,8 +38,8 @@ type tuiDeps struct {
 	UpdateBlocker  func() string          // why this binary cannot update itself, "" when it can
 	ApplyUpdate    func(tag string) error // download, verify and replace the binary
 
-	Prefs     core.TUIPrefs       // choices remembered from last time (H, the Appearance menu)
-	SavePrefs func(core.TUIPrefs) // remember them; nil keeps them for this run only
+	Prefs     core.TUIPrefs                           // choices remembered from last time (H, the Appearance menu)
+	SavePrefs func(change func(*core.TUIPrefs)) error // apply a change to the saved choices; nil keeps them for this run only
 }
 
 type (
@@ -743,11 +743,11 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "a":
 		m.openLook()
 	case "H":
-		m.prefs.HideHints = !m.prefs.HideHints
-		if m.prefs.HideHints {
+		hide := !m.prefs.HideHints
+		if hide {
 			m.msg = "key hints hidden · H shows them"
 		}
-		m.savePrefs()
+		m.change(func(p *core.TUIPrefs) { p.HideHints = hide })
 	case "/":
 		m.searching = true
 	case "i":
@@ -922,7 +922,7 @@ func Run(root string, web func() (string, error)) error {
 	d.ApplyUpdate = func(tag string) error { return core.ApplyUpdate(tag, exe) }
 	if prefsPath := core.TUIPrefsPath(); prefsPath != "" {
 		d.Prefs = core.ReadTUIPrefs(prefsPath)
-		d.SavePrefs = func(p core.TUIPrefs) { core.WriteTUIPrefs(prefsPath, p) }
+		d.SavePrefs = func(change func(*core.TUIPrefs)) error { return core.UpdateTUIPrefs(prefsPath, change) }
 	}
 	p := tea.NewProgram(newTUIModel(d))
 

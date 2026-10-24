@@ -93,9 +93,14 @@ type lookZone struct {
 
 func (m *tuiModel) openLook() { m.lookOpen, m.lookRow = true, 0 }
 
-func (m *tuiModel) savePrefs() {
+// change applies a change to the choices in use and to the saved ones. A failed save is said in
+// the footer; the change still holds for this run.
+func (m *tuiModel) change(fn func(*core.TUIPrefs)) {
+	fn(&m.prefs)
 	if m.d.SavePrefs != nil {
-		m.d.SavePrefs(m.prefs)
+		if err := m.d.SavePrefs(fn); err != nil {
+			m.msg = "not saved: " + err.Error()
+		}
 	}
 }
 
@@ -113,7 +118,7 @@ func (m *tuiModel) stepTheme(step int) {
 	if t == themes[0] {
 		t = "" // the default is not written to the file
 	}
-	m.prefs.Theme = t
+	m.change(func(p *core.TUIPrefs) { p.Theme = t })
 }
 
 // swatchIndex is the selected repo's colour in swatches, -1 for none and len(swatches) for a
@@ -144,14 +149,16 @@ func (m *tuiModel) setColor(i int) {
 		return
 	}
 	name := m.view[m.sel].Name
-	if i < 0 || i >= len(swatches) {
-		delete(m.prefs.Colors, name)
-		return
-	}
-	if m.prefs.Colors == nil {
-		m.prefs.Colors = map[string]string{}
-	}
-	m.prefs.Colors[name] = swatches[i]
+	m.change(func(p *core.TUIPrefs) {
+		if i < 0 || i >= len(swatches) {
+			delete(p.Colors, name)
+			return
+		}
+		if p.Colors == nil {
+			p.Colors = map[string]string{}
+		}
+		p.Colors[name] = swatches[i]
+	})
 }
 
 func (m *tuiModel) lookKey(s string) {
@@ -176,9 +183,9 @@ func (m *tuiModel) lookKey(s string) {
 	case 0:
 		m.stepTheme(step)
 	case 1:
-		m.prefs.StatusDot = !m.prefs.StatusDot
+		m.setDot(!m.prefs.StatusDot)
 	case 2:
-		m.prefs.HideLanguage = !m.prefs.HideLanguage
+		m.setNoLang(!m.prefs.HideLanguage)
 	case 3:
 		if m.sel < 0 || m.sel >= len(m.view) {
 			return
@@ -190,8 +197,10 @@ func (m *tuiModel) lookKey(s string) {
 		k := len(swatches) + 1
 		m.setColor((cur+1+step+k)%k - 1)
 	}
-	m.savePrefs()
 }
+
+func (m *tuiModel) setDot(on bool)    { m.change(func(p *core.TUIPrefs) { p.StatusDot = on }) }
+func (m *tuiModel) setNoLang(on bool) { m.change(func(p *core.TUIPrefs) { p.HideLanguage = on }) }
 
 // lookClick handles a click while the menu is open. A click on a card behind it selects that card
 // and keeps the menu open, so cards can be coloured one after another.
@@ -202,7 +211,8 @@ func (m *tuiModel) lookClick(ms tea.Mouse) {
 	bx, by, bw, bh := m.lookBox[0], m.lookBox[1], m.lookBox[2], m.lookBox[3]
 	if ms.X < bx || ms.X >= bx+bw || ms.Y < by || ms.Y >= by+bh {
 		if i, ok := m.cardAt(ms.X, ms.Y); ok {
-			m.sel, m.lookRow = i, 3
+			m.moveTo(i)
+			m.lookRow = 3
 			return
 		}
 		m.lookOpen = false
@@ -225,14 +235,15 @@ func (m *tuiModel) lookClick(ms tea.Mouse) {
 			m.lookRow = 0
 			m.stepTheme(n)
 		case "status":
-			m.lookRow, m.prefs.StatusDot = 1, n == 1
+			m.lookRow = 1
+			m.setDot(n == 1)
 		case "lang":
-			m.lookRow, m.prefs.HideLanguage = 2, n == 1
+			m.lookRow = 2
+			m.setNoLang(n == 1)
 		case "swatch":
 			m.lookRow = 3
 			m.setColor(n)
 		}
-		m.savePrefs()
 		return
 	}
 }
@@ -325,7 +336,7 @@ func (m *tuiModel) lookMenu() (box []string, w int) {
 	cx := 1 + segsWidth(hint)
 	box = append(box, pad(append(hint, seg{"[ close ]", keyst})...))
 	m.lookZones = append(m.lookZones, lookZone{len(box) - 1, cx, cx + 9, "close"})
-	box = append(box, bd.Render("╰"+strings.Repeat("─", inner)+"╯"))
+	box = append(box, bd.Render("╰"+strings.Repeat("─", max(0, inner))+"╯"))
 	return box, w
 }
 
@@ -333,12 +344,18 @@ func (m *tuiModel) lookMenu() (box []string, w int) {
 func (m *tuiModel) overlayLook(body []string, bodyH int) []string {
 	box, w := m.lookMenu()
 	x, y := max(0, (m.width-w)/2), max(0, (bodyH-len(box))/2)
-	m.lookBox = [4]int{x, y + 1, w, len(box)} // +1 for the top bar
-	for i := range m.lookZones {
-		m.lookZones[i].y += y + 1
-		m.lookZones[i].x0 += x
-		m.lookZones[i].x1 += x
+	shown := min(len(box), bodyH-y)        // a short terminal cuts the box off at the footer
+	m.lookBox = [4]int{x, y + 1, w, shown} // +1 for the top bar
+	zs := m.lookZones[:0]
+	for _, z := range m.lookZones {
+		if z.y < shown {
+			z.y += y + 1
+			z.x0 += x
+			z.x1 += x
+			zs = append(zs, z)
+		}
 	}
+	m.lookZones = zs
 	for len(body) < bodyH {
 		body = append(body, "")
 	}

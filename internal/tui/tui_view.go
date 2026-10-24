@@ -980,11 +980,11 @@ func (m *tuiModel) footerLine() string {
 	if m.panelFocus && m.panelVisible() {
 		keys = [][2]string{{"INSPECTOR", ""}, {"j/k", "move"}, {"⏎", "open"}, {"tab", "back to cards"}, {"i", "hide"}, {"?", "help"}}
 	}
-	// Drop hints from the end, keeping "? help" (and "q close" while there is room), until they
-	// fit beside the version and the update offer.
-	right := len(core.Version) + 3
+	// Drop hints from the end, keeping "? help", until they fit beside the version and the
+	// update offer.
+	right := lipgloss.Width(core.Version) + 3
 	if m.newTag != "" {
-		right += len(" ↑ "+m.newTag+" · U update ") + 1
+		right += lipgloss.Width(" ↑ "+m.newTag+" · U update ") + 1
 	}
 	render := func(ks [][2]string) []seg {
 		full := []seg{{" ", desc}}

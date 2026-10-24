@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -36,13 +37,16 @@ func TestBandFor(t *testing.T) {
 func lookFixture(t *testing.T) (*fakeTUI, *[]core.TUIPrefs) {
 	f := newFakeTUI(t, false)
 	var saved []core.TUIPrefs
-	f.m.d.SavePrefs = func(p core.TUIPrefs) {
-		c := p
+	var disk core.TUIPrefs // what a file would hold, changed only through SavePrefs
+	f.m.d.SavePrefs = func(change func(*core.TUIPrefs)) error {
+		change(&disk)
+		c := disk
 		c.Colors = map[string]string{}
-		for k, v := range p.Colors {
+		for k, v := range disk.Colors {
 			c.Colors[k] = v
 		}
 		saved = append(saved, c)
+		return nil
 	}
 	f.send(tea.WindowSizeMsg{Width: 130, Height: 30})
 	return f, &saved
@@ -148,5 +152,30 @@ func TestFooterKeepsVersion(t *testing.T) {
 		if !strings.HasSuffix(last, core.Version) || !strings.Contains(last, "? help") {
 			t.Errorf("width %d footer %q", w, last)
 		}
+	}
+}
+
+func TestLookTinyTerminal(t *testing.T) {
+	f := newFakeTUI(t, false)
+	f.keys("a") // before any size is known
+	for _, size := range [][2]int{{0, 0}, {1, 5}, {2, 3}, {30, 8}, {130, 6}} {
+		f.send(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
+		f.m.View() // must not panic
+		bottom := f.m.lookBox[1] + f.m.lookBox[3]
+		for _, z := range f.m.lookZones {
+			if z.y >= bottom || z.y >= max(1, size[1]-1) && size[1] > 0 {
+				t.Errorf("size %v: zone %+v below the drawn menu (bottom %d)", size, z, bottom)
+			}
+		}
+	}
+}
+
+func TestLookSaveFailureSaid(t *testing.T) {
+	f := newFakeTUI(t, false)
+	f.m.d.SavePrefs = func(func(*core.TUIPrefs)) error { return errors.New("disk full") }
+	f.send(tea.WindowSizeMsg{Width: 130, Height: 30})
+	f.keys("a", "l")
+	if !strings.Contains(f.m.msg, "disk full") || f.m.prefs.Theme != "plain" {
+		t.Errorf("msg %q theme %q", f.m.msg, f.m.prefs.Theme)
 	}
 }

@@ -2,6 +2,9 @@ package core
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
@@ -35,6 +38,24 @@ func ReadTUIPrefs(path string) TUIPrefs {
 		json.Unmarshal(b, &p)
 	}
 	return p
+}
+
+// UpdateTUIPrefs applies change to the choices on disk and writes them back. Reading first means
+// two running TUIs only overwrite what each one changed. A file that is not valid JSON is left
+// alone (it may be mid-edit by hand) and the change is not saved.
+func UpdateTUIPrefs(path string, change func(*TUIPrefs)) error {
+	var p TUIPrefs
+	b, err := os.ReadFile(path)
+	switch {
+	case err == nil:
+		if err := json.Unmarshal(b, &p); err != nil {
+			return fmt.Errorf("%s is not valid JSON, so this was not saved: %v", path, err)
+		}
+	case !errors.Is(err, fs.ErrNotExist):
+		return err
+	}
+	change(&p)
+	return WriteTUIPrefs(path, p)
 }
 
 func WriteTUIPrefs(path string, p TUIPrefs) error {
