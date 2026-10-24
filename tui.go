@@ -16,6 +16,8 @@ type tuiDeps struct {
 	Find          func(dir string) (mux string, exists bool, err error)
 	Open          func(mux, dir string) (action, window string, err error)
 	Commits       func(dir string) []commitLine
+	CommitDetail  func(dir, hash string) (commitInfo, error)
+	OpenURL       func(url string)
 	Notes         func(name string) []string
 	Now           func() time.Time
 	Web           func() (url string, err error) // open the web page, starting the server if needed
@@ -36,6 +38,11 @@ type (
 	}
 	tickMsg string // "scan", "panes" or "issues"
 )
+
+type detailCache struct {
+	ci  commitInfo
+	err error
+}
 
 type commitCache struct {
 	at time.Time
@@ -82,6 +89,12 @@ type tuiModel struct {
 
 	interval time.Duration
 	commits  map[string]commitCache
+
+	panelActs  []string // what each panel line does ("commit:<hash>", "issue:<url>", ""), set by panelLines
+	panelCur   int      // panel cursor: a line index, -1 when none
+	panelRepo  string   // repo the panel state below belongs to
+	openCommit string   // hash of the expanded commit, "" when none
+	details    map[string]detailCache
 }
 
 // tuiSettings returns the live settings, loading defaults when none were loaded yet.
@@ -98,7 +111,7 @@ func newTUIModel(d tuiDeps) *tuiModel {
 	if d.Now == nil {
 		d.Now = time.Now
 	}
-	m := &tuiModel{d: d, cols: 1, pageRows: 6, lastIdx: -1, commits: map[string]commitCache{}}
+	m := &tuiModel{d: d, cols: 1, pageRows: 6, lastIdx: -1, commits: map[string]commitCache{}, details: map[string]detailCache{}, panelCur: -1}
 	m.applySettings(true)
 	if d.Issues != nil {
 		if is := d.Issues(); is != nil {
@@ -195,7 +208,13 @@ func (m *tuiModel) moveTo(i int) {
 	m.clamp()
 	if m.sel != old {
 		m.panelScroll = 0
+		m.resetPanel()
 	}
+}
+
+// resetPanel forgets the expanded commit and the panel cursor (the selection changed).
+func (m *tuiModel) resetPanel() {
+	m.openCommit, m.panelCur = "", -1
 }
 
 func (m *tuiModel) cols1() int {
@@ -402,6 +421,12 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.searching = true
 	case "i", "tab":
 		m.panel = !m.panel
+	case "J":
+		m.movePanelCur(1)
+	case "K":
+		m.movePanelCur(-1)
+	case "o":
+		m.runPanelAct(m.panelCur)
 	case "h", "left":
 		m.moveTo(m.sel - 1)
 	case "l", "right":
@@ -525,6 +550,8 @@ func runTUI(root string, web func() (string, error)) error {
 		Find:          func(dir string) (string, bool, error) { return findTarget(dir, mode()) },
 		Open:          openWith,
 		Commits:       func(dir string) []commitLine { return recentCommits(dir, 5) },
+		CommitDetail:  commitDetail,
+		OpenURL:       openBrowser,
 		Notes:         func(name string) []string { return notesExcerpt(name, 5) },
 		Now:           time.Now,
 		QuitAfterJump: inHerdrPopup(),

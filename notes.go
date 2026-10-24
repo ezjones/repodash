@@ -86,7 +86,7 @@ func infoGet(root string) http.HandlerFunc {
 	}
 }
 
-// commitsGet answers {commits:[{at,subject}]}: the repo's 5 newest commits.
+// commitsGet answers {commits:[{hash,at,subject}], web?}: the repo's 5 newest commits.
 func commitsGet(root string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		dir, ok := validRepo(root, r.PathValue("name"))
@@ -95,16 +95,44 @@ func commitsGet(root string) http.HandlerFunc {
 			return
 		}
 		type c struct {
+			Hash    string `json:"hash"`
 			At      int64  `json:"at"`
 			Subject string `json:"subject"`
 		}
 		out := []c{}
 		for _, l := range recentCommits(dir, 5) {
-			out = append(out, c{l.At, l.Subject})
+			out = append(out, c{l.Hash, l.At, l.Subject})
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store")
-		json.NewEncoder(w).Encode(map[string]any{"commits": out})
+		resp := map[string]any{"commits": out}
+		if slug := githubRepo(git(dir, "config", "--get", "remote.origin.url")); slug != "" {
+			resp["web"] = "https://github.com/" + slug
+		}
+		json.NewEncoder(w).Encode(resp)
+	}
+}
+
+// commitGet answers one commit's details (commitInfo) for the inspector. Read-only.
+func commitGet(root string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		dir, ok := validRepo(root, r.PathValue("name"))
+		if !ok {
+			http.Error(w, "not a repo", http.StatusNotFound)
+			return
+		}
+		if !hashRe.MatchString(r.PathValue("hash")) {
+			http.Error(w, "bad hash", http.StatusBadRequest)
+			return
+		}
+		ci, err := commitDetail(dir, r.PathValue("hash"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		json.NewEncoder(w).Encode(ci)
 	}
 }
 

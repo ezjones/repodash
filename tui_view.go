@@ -391,6 +391,10 @@ func (m *tuiModel) click(ms tea.Mouse) tea.Cmd {
 		m.barClick(ms.X)
 		return nil
 	}
+	if !m.help && m.panelVisible() && (m.full || ms.X >= m.width-m.panelW+1) {
+		m.panelClick(ms.Y - 1)
+		return nil
+	}
 	i, ok := m.cardAt(ms.X, ms.Y)
 	if !ok {
 		return nil
@@ -432,17 +436,146 @@ func (m *tuiModel) wheel(ms tea.Mouse) {
 
 // ---------- panel ----------
 
+// panelVisible reports whether the inspector is on screen.
+func (m *tuiModel) panelVisible() bool {
+	return m.panel && (m.full || m.panelW > 0)
+}
+
+// panelWidth is the width of the panel's lines.
+func (m *tuiModel) panelWidth() int {
+	if m.full {
+		return m.width
+	}
+	return m.panelW - 1
+}
+
+// panelClick runs the action of the panel line at body row (0 = first row under the top bar).
+func (m *tuiModel) panelClick(row int) {
+	panelLines(m, m.panelWidth())
+	i := row + m.panelScroll
+	if row < 0 || i < 0 || i >= len(m.panelActs) || m.panelActs[i] == "" {
+		return
+	}
+	m.panelCur = i
+	m.runPanelAct(i)
+}
+
+// runPanelAct does what panel line i says: toggle a commit open, or open an issue in the browser.
+func (m *tuiModel) runPanelAct(i int) {
+	if !m.panelVisible() {
+		return
+	}
+	panelLines(m, m.panelWidth())
+	if i < 0 || i >= len(m.panelActs) {
+		return
+	}
+	act := m.panelActs[i]
+	switch {
+	case strings.HasPrefix(act, "commit:"):
+		h := strings.TrimPrefix(act, "commit:")
+		if m.openCommit == h {
+			m.openCommit = ""
+		} else {
+			m.openCommit = h
+		}
+	case strings.HasPrefix(act, "issue:"):
+		u := strings.TrimPrefix(act, "issue:")
+		if m.d.OpenURL == nil {
+			return
+		}
+		m.d.OpenURL(u)
+		if n := u[strings.LastIndex(u, "/")+1:]; n != "" {
+			m.msg = "opened #" + n + " in the browser"
+		} else {
+			m.msg = "opened the issue in the browser"
+		}
+	}
+}
+
+// movePanelCur moves the panel cursor to the next (d=1) or previous (d=-1) clickable line.
+func (m *tuiModel) movePanelCur(d int) {
+	if !m.panelVisible() {
+		return
+	}
+	panelLines(m, m.panelWidth())
+	for i := m.panelCur + d; i >= 0 && i < len(m.panelActs); i += d {
+		if m.panelActs[i] != "" {
+			m.panelCur = i
+			h := m.bodyH()
+			if i < m.panelScroll {
+				m.panelScroll = i
+			} else if i >= m.panelScroll+h {
+				m.panelScroll = i - h + 1
+			}
+			return
+		}
+	}
+}
+
+// wrapWords splits s on spaces into lines of at most w cells (long words are cut).
+func wrapWords(s string, w int) []string {
+	if w < 1 {
+		w = 1
+	}
+	var out []string
+	for _, para := range strings.Split(s, "\n") {
+		cur := ""
+		for _, word := range strings.Fields(para) {
+			for lipgloss.Width(word) > w {
+				if cur != "" {
+					out = append(out, cur)
+					cur = ""
+				}
+				cut := trunc(word, w)
+				cut = strings.TrimSuffix(cut, "…")
+				if cut == "" {
+					cut = string([]rune(word)[:1])
+				}
+				out = append(out, cut)
+				word = word[len(cut):]
+			}
+			switch {
+			case cur == "":
+				cur = word
+			case lipgloss.Width(cur)+1+lipgloss.Width(word) <= w:
+				cur += " " + word
+			default:
+				out = append(out, cur)
+				cur = word
+			}
+		}
+		out = append(out, cur)
+	}
+	return out
+}
+
 func panelLines(m *tuiModel, w int) []string {
 	r, ok := m.selected()
 	if !ok {
+		m.panelActs = nil
 		return nil
+	}
+	if r.Name != m.panelRepo {
+		m.panelRepo = r.Name
+		m.resetPanel()
 	}
 	raw := tuiSettings().Raw
 	now := m.d.Now()
-	var out []string
-	add := func(segs ...seg) { out = append(out, line(w, segs...)) }
+	var out, acts []string
+	push := func(act string, segs ...seg) {
+		if len(out) == m.panelCur && act != "" {
+			for i := range segs {
+				segs[i].st = segs[i].st.Reverse(true)
+			}
+		}
+		out = append(out, line(w, segs...))
+		acts = append(acts, act)
+	}
+	defer func() { m.panelActs = acts }()
+	add := func(segs ...seg) { push("", segs...) }
 	head := func(t, extra string) {
 		out = append(out, "")
+		acts = append(acts, "")
 		add(seg{t, fg(cInfo).Bold(true)}, seg{extra, fg(cDim)})
 	}
 	bg, ink := bandColors(r.Name)
@@ -457,6 +590,7 @@ func panelLines(m *tuiModel, w int) []string {
 		add(seg{" " + s, fg(cText2)})
 	}
 	out = append(out, "")
+	acts = append(acts, "")
 	br := r.Branch
 	if r.Base != "" && r.Base != r.Branch {
 		br += "  base " + r.Base
@@ -486,13 +620,26 @@ func panelLines(m *tuiModel, w int) []string {
 	if cs := m.selCommits(); len(cs) > 0 {
 		head("RECENT COMMITS", "")
 		for _, c := range cs {
-			add(seg{fmt.Sprintf("%5s ", shortAgo(now, c.At)), fg(cDim)}, seg{c.Subject, fg(cText)})
+			if c.Hash == "" {
+				add(seg{fmt.Sprintf("%5s ", shortAgo(now, c.At)), fg(cDim)}, seg{c.Subject, fg(cText)})
+				continue
+			}
+			mark := "▸"
+			if m.openCommit == c.Hash {
+				mark = "▾"
+			}
+			push("commit:"+c.Hash, seg{mark, fg(cInfo)}, seg{fmt.Sprintf("%4s ", shortAgo(now, c.At)), fg(cDim)}, seg{c.Subject, fg(cText)})
+			if m.openCommit == c.Hash {
+				for _, l := range m.commitDetailLines(r, c.Hash, w-3) {
+					add(l...)
+				}
+			}
 		}
 	}
 	if iss := m.issueFor(r.Name); iss != nil && cardOn(tuiSettings().Raw, "issues") && (iss.Open > 0 || iss.Done != nil) {
 		head("ISSUES  ", fmt.Sprintf("%d open", iss.Open))
 		if iss.Done != nil {
-			add(seg{" ✓ ", fg(cGreen)}, seg{fmt.Sprintf("#%d %s", iss.Done.Number, iss.Done.Title), fg(cText2)}, seg{"  " + closedAgo(now, iss.Done.At), fg(cDim)})
+			push(issueAct(iss.Done.URL), seg{" ✓ ", fg(cGreen)}, seg{fmt.Sprintf("#%d %s", iss.Done.Number, iss.Done.Title), fg(cText2)}, seg{"  " + closedAgo(now, iss.Done.At), fg(cDim)})
 		}
 		list := iss.OpenList
 		if len(list) == 0 && iss.Next != nil {
@@ -503,7 +650,7 @@ func panelLines(m *tuiModel, w int) []string {
 			if i == 0 {
 				mark, c = " → ", cInfo
 			}
-			add(seg{mark, fg(c)}, seg{fmt.Sprintf("#%d %s", is.Number, is.Title), fg(cText2)})
+			push(issueAct(is.URL), seg{mark, fg(c)}, seg{fmt.Sprintf("#%d %s", is.Number, is.Title), fg(cText2)})
 		}
 	}
 	if len(r.Worktrees) > 0 {
@@ -528,6 +675,41 @@ func panelLines(m *tuiModel, w int) []string {
 		}
 	}
 	return out
+}
+
+func issueAct(url string) string {
+	if url == "" {
+		return ""
+	}
+	return "issue:" + url
+}
+
+// commitDetailLines is the expanded part under a commit line: author and date, the message
+// body wrapped to w, then the changed files dimmed. The detail is cached, a commit never changes.
+func (m *tuiModel) commitDetailLines(r Repo, hash string, w int) [][]seg {
+	if m.d.CommitDetail == nil {
+		return nil
+	}
+	dc, ok := m.details[hash]
+	if !ok {
+		dc.ci, dc.err = m.d.CommitDetail(r.Path, hash)
+		m.details[hash] = dc
+	}
+	ind := seg{"   ", lipgloss.NewStyle()}
+	if dc.err != nil {
+		return [][]seg{{ind, {dc.err.Error(), fg(cDim)}}}
+	}
+	ci := dc.ci
+	ls := [][]seg{{ind, {ci.Author + "  " + time.Unix(ci.At, 0).Format("2006-01-02 15:04"), fg(cText2)}}}
+	if ci.Body != "" {
+		for _, l := range wrapWords(ci.Body, w) {
+			ls = append(ls, []seg{ind, {l, fg(cText)}})
+		}
+	}
+	for _, f := range ci.Files {
+		ls = append(ls, []seg{ind, {f, fg(cDim)}})
+	}
+	return ls
 }
 
 func renderPanel(m *tuiModel, w, h int) string {
@@ -735,6 +917,8 @@ var helpText = [][2]string{
 	{"f / F", "next / previous status filter"},
 	{"r", "rescan now"},
 	{"w", "open the web page (starts the server if needed)"},
+	{"J / K", "inspector: next / previous commit or issue"},
+	{"o", "inspector: expand the commit or open the issue under the cursor"},
 	{"i / Tab", "show / hide the inspector (beside the cards, or full screen when narrow)"},
 	{"?", "this help"},
 	{"q / Esc", "close"},
