@@ -69,6 +69,8 @@ type tuiModel struct {
 	help        bool
 	prompt      string // repo name awaiting y/n, "" when none
 	promptMux   string
+	promptDir   string // folder the prompt will open on y
+	promptLabel string // what the prompt calls it
 	msg         string
 	width       int
 	height      int
@@ -357,14 +359,12 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	m.msg = ""
 
 	if m.prompt != "" {
-		name, mux := m.prompt, m.promptMux
+		name, mux, dir := m.prompt, m.promptMux, m.promptDir
 		switch s {
 		case "y":
 			m.prompt = ""
-			for _, r := range m.repos {
-				if r.Name == name {
-					return m, m.openCmd(name, mux, r.Path)
-				}
+			if dir != "" {
+				return m, m.openCmd(name, mux, dir)
 			}
 		case "n", "esc", "q":
 			m.prompt = ""
@@ -426,7 +426,7 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "K":
 		m.movePanelCur(-1)
 	case "o":
-		m.runPanelAct(m.panelCur)
+		return m, m.runPanelAct(m.panelCur)
 	case "h", "left":
 		m.moveTo(m.sel - 1)
 	case "l", "right":
@@ -483,30 +483,37 @@ func (m *tuiModel) half() int {
 // jump handles Enter (ask if there is no tab yet) and n (create without asking).
 func (m *tuiModel) jump(force bool) tea.Cmd {
 	r, ok := m.selected()
-	if !ok || m.d.Find == nil || m.d.Open == nil {
+	if !ok {
 		return nil
 	}
-	mux, exists, err := m.d.Find(r.Path)
+	return m.jumpTo(r.Name, m.title(r), r.Path, force)
+}
+
+// jumpTo focuses the terminal tab in dir, or asks (unless force) before opening one.
+// name is what the success message calls it, label what the prompt calls it.
+func (m *tuiModel) jumpTo(name, label, dir string, force bool) tea.Cmd {
+	if m.d.Find == nil || m.d.Open == nil {
+		return nil
+	}
+	mux, exists, err := m.d.Find(dir)
 	if err != nil {
 		m.msg = err.Error()
 		return nil
 	}
 	if !exists && !force {
-		m.prompt, m.promptMux = r.Name, mux
+		m.prompt, m.promptMux, m.promptDir, m.promptLabel = name, mux, dir, label
 		return nil
 	}
-	return m.openCmd(r.Name, mux, r.Path)
+	return m.openCmd(name, mux, dir)
 }
 
 // footer is the one-line prompt or message under the grid.
 func (m *tuiModel) footer() string {
 	switch {
 	case m.prompt != "":
-		t := m.prompt
-		for _, r := range m.repos {
-			if r.Name == m.prompt {
-				t = m.title(r)
-			}
+		t := m.promptLabel
+		if t == "" {
+			t = m.prompt
 		}
 		return fmt.Sprintf("Create a workspace for %s? y/n", t)
 	case m.searching:

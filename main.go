@@ -147,6 +147,8 @@ func main() {
 		var req struct {
 			Name string `json:"name"`
 			Mux  string `json:"mux"` // this browser's choice; empty = the settings file
+			// Worktree, when set, is a linked worktree of the repo to open instead of the repo.
+			Worktree string `json:"worktree"`
 		}
 		json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req)
 		// Only a directory that is really a repo under the root can be opened, never an arbitrary path.
@@ -154,6 +156,14 @@ func main() {
 		if !ok {
 			http.Error(w, "not a repo", http.StatusNotFound)
 			return
+		}
+		if req.Worktree != "" {
+			// Never open a path from the request unless git itself lists it as a worktree of this repo.
+			if !worktreeOf(dir, req.Worktree) {
+				http.Error(w, "not a worktree of this repo", http.StatusNotFound)
+				return
+			}
+			dir = req.Worktree
 		}
 		action, win, err := openInTerminal(dir, req.Mux)
 		if err != nil {

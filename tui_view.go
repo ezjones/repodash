@@ -392,8 +392,7 @@ func (m *tuiModel) click(ms tea.Mouse) tea.Cmd {
 		return nil
 	}
 	if !m.help && m.panelVisible() && (m.full || ms.X >= m.width-m.panelW+1) {
-		m.panelClick(ms.Y - 1)
-		return nil
+		return m.panelClick(ms.Y - 1)
 	}
 	i, ok := m.cardAt(ms.X, ms.Y)
 	if !ok {
@@ -450,24 +449,24 @@ func (m *tuiModel) panelWidth() int {
 }
 
 // panelClick runs the action of the panel line at body row (0 = first row under the top bar).
-func (m *tuiModel) panelClick(row int) {
+func (m *tuiModel) panelClick(row int) tea.Cmd {
 	panelLines(m, m.panelWidth())
 	i := row + m.panelScroll
 	if row < 0 || i < 0 || i >= len(m.panelActs) || m.panelActs[i] == "" {
-		return
+		return nil
 	}
 	m.panelCur = i
-	m.runPanelAct(i)
+	return m.runPanelAct(i)
 }
 
 // runPanelAct does what panel line i says: toggle a commit open, or open an issue in the browser.
-func (m *tuiModel) runPanelAct(i int) {
+func (m *tuiModel) runPanelAct(i int) tea.Cmd {
 	if !m.panelVisible() {
-		return
+		return nil
 	}
 	panelLines(m, m.panelWidth())
 	if i < 0 || i >= len(m.panelActs) {
-		return
+		return nil
 	}
 	act := m.panelActs[i]
 	switch {
@@ -481,7 +480,7 @@ func (m *tuiModel) runPanelAct(i int) {
 	case strings.HasPrefix(act, "issue:"):
 		u := strings.TrimPrefix(act, "issue:")
 		if m.d.OpenURL == nil || !strings.HasPrefix(u, "https://") { // never hand xdg-open a file or scheme URL
-			return
+			return nil
 		}
 		m.d.OpenURL(u)
 		if n := u[strings.LastIndex(u, "/")+1:]; n != "" {
@@ -489,7 +488,20 @@ func (m *tuiModel) runPanelAct(i int) {
 		} else {
 			m.msg = "opened the issue in the browser"
 		}
+	case strings.HasPrefix(act, "worktree:"):
+		dir := strings.TrimPrefix(act, "worktree:")
+		if r, ok := m.selected(); ok {
+			branch := dir
+			for _, wt := range r.Worktrees {
+				if wt.Path == dir {
+					branch = wt.Branch
+				}
+			}
+			label := m.title(r) + " (" + branch + ")"
+			return m.jumpTo(label, label, dir, false)
+		}
 	}
+	return nil
 }
 
 // movePanelCur moves the panel cursor to the next (d=1) or previous (d=-1) clickable line.
@@ -663,7 +675,11 @@ func panelLines(m *tuiModel, w int) []string {
 			if wt.Dirty > 0 {
 				s = append(s, seg{fmt.Sprintf(" %d dirty", wt.Dirty), fg(cYellow)})
 			}
-			add(s...)
+			act := ""
+			if wt.Path != "" {
+				act = "worktree:" + wt.Path
+			}
+			push(act, s...)
 		}
 	}
 	if m.d.Notes != nil {

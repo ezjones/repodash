@@ -14,6 +14,7 @@ import (
 
 type Worktree struct {
 	Branch string `json:"branch"`
+	Path   string `json:"path"`
 	Merged bool   `json:"merged"`
 	Dirty  int    `json:"dirty"`
 }
@@ -140,6 +141,7 @@ func worktrees(dir, base string) []Worktree {
 			}
 			res = append(res, Worktree{
 				Branch: branch,
+				Path:   path,
 				Merged: base != "" && isAncestor(dir, branch, base),
 				Dirty:  dirty,
 			})
@@ -159,6 +161,24 @@ func worktrees(dir, base string) []Worktree {
 		}
 	}
 	return res
+}
+
+// worktreeOf reports whether path is exactly one of the linked worktrees git lists for the
+// repo at dir. The main checkout (the first entry) does not count.
+func worktreeOf(dir, path string) bool {
+	if path == "" {
+		return false
+	}
+	first := true
+	for _, l := range strings.Split(git(dir, "worktree", "list", "--porcelain"), "\n") {
+		if p, ok := strings.CutPrefix(l, "worktree "); ok {
+			if !first && p == path {
+				return true
+			}
+			first = false
+		}
+	}
+	return false
 }
 
 func b2i(b bool) int {

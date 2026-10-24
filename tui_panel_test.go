@@ -128,3 +128,59 @@ func TestPanelKeys(t *testing.T) {
 		t.Fatal("keys acted with the panel hidden")
 	}
 }
+
+// worktreeFake is panelFake with two worktrees on my-app; only /r/my-app-wt1 has a tab.
+func worktreeFake(t *testing.T) *fakeTUI {
+	t.Helper()
+	f, _ := panelFake(t)
+	for i := range f.m.repos {
+		if f.m.repos[i].Name == "my-app" {
+			f.m.repos[i].Worktrees = []Worktree{{Branch: "wt-one", Path: "/r/wt-one"}, {Branch: "wt-two", Path: "/r/wt-two"}}
+		}
+	}
+	f.m.rebuild()
+	f.m.d.Find = func(dir string) (string, bool, error) { return "tmux", dir == "/r/wt-two", nil }
+	return f
+}
+
+func TestPanelClickWorktree(t *testing.T) {
+	f := worktreeFake(t)
+	clickPanel(f, rowOf(t, f, "wt-one"))
+	if f.m.prompt == "" || f.m.footer() != "Create a workspace for my-app (wt-one)? y/n" || len(f.opens) != 0 {
+		t.Fatalf("prompt %q footer %q opens %v", f.m.prompt, f.m.footer(), f.opens)
+	}
+	if cmd := f.keys("y"); cmd == nil {
+		t.Fatal("y returned no command")
+	} else {
+		cmd()
+	}
+	if len(f.opens) != 1 || f.opens[0] != [2]string{"tmux", "/r/wt-one"} {
+		t.Fatalf("opens %v", f.opens)
+	}
+}
+
+func TestPanelWorktreeWithTab(t *testing.T) {
+	f := worktreeFake(t)
+	cmd := f.send(tea.MouseClickMsg{X: f.m.width - 5, Y: rowOf(t, f, "wt-two"), Button: tea.MouseLeft})
+	if f.m.prompt != "" || cmd == nil {
+		t.Fatalf("prompt %q cmd %v", f.m.prompt, cmd)
+	}
+	cmd()
+	if len(f.opens) != 1 || f.opens[0][1] != "/r/wt-two" {
+		t.Fatalf("opens %v", f.opens)
+	}
+}
+
+func TestPanelKeyOpensWorktree(t *testing.T) {
+	f := worktreeFake(t)
+	for i := 0; i < 10 && (f.m.panelCur < 0 || f.m.panelActs[f.m.panelCur] != "worktree:/r/wt-one"); i++ {
+		f.keys("J")
+	}
+	if a := f.m.panelActs[f.m.panelCur]; a != "worktree:/r/wt-one" {
+		t.Fatalf("cursor on %q", a)
+	}
+	f.keys("o")
+	if f.m.prompt == "" || f.m.promptDir != "/r/wt-one" {
+		t.Fatalf("prompt %q dir %q", f.m.prompt, f.m.promptDir)
+	}
+}

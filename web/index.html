@@ -1230,13 +1230,14 @@ async function onAct(e){
   openTerminal(name, b);
 }
 // Jump to the repo's tmux/herdr tab (or open one). `b` is the card's button, disabled while waiting.
-async function openTerminal(name, b){
+// `worktree` (a path from the repo's worktree list) opens that worktree's folder instead.
+async function openTerminal(name, b, worktree){
   if (b) b.disabled = true;
   try {
-    const res = await fetch('/api/open', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name, mux: ls('mux') || ''})});
+    const res = await fetch('/api/open', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(worktree ? {name, mux: ls('mux') || '', worktree} : {name, mux: ls('mux') || ''})});
     if (!res.ok) throw new Error((await res.text()).trim() || res.status);
     const j = await res.json();
-    toast((j.action === 'jumped' ? 'Jumped to tab ' : 'Opened new tab ') + j.window + ' · ' + name);
+    toast((j.action === 'jumped' ? 'Jumped to tab ' : 'Opened new tab ') + j.window + ' · ' + name + (worktree ? ' (' + worktree.split('/').pop() + ')' : ''));
   } catch (err) { toast('Terminal: ' + err.message); }
   finally { if (b) b.disabled = false; }
 }
@@ -1512,7 +1513,7 @@ function inspHTML(r){
       + (i.done ? `<li class="done row irow" tabindex="0" role="link" data-k="i:${esc(i.done.url)}" data-url="${esc(i.done.url)}"><span class="k">✓ Done</span>${link(i.done)}</li>` : '')
       + list.slice(0, 5).map((x, n) => `<li class="row irow" tabindex="0" role="link" data-k="i:${esc(x.url)}" data-url="${esc(x.url)}"><span class="k">${n ? '·' : '→'}</span>${link(x)}</li>`).join('') + '</ul>';
   }
-  if (r.worktrees && r.worktrees.length) h += `<h3>Worktrees<small>${r.worktrees.length}</small></h3><ul class="il">${r.worktrees.map(w => `<li class="wt"><span>${esc(w.branch)}${w.merged ? '<b>merged</b>' : ''}${w.dirty ? `<i>${w.dirty} dirty</i>` : ''}</span></li>`).join('')}</ul>`;
+  if (r.worktrees && r.worktrees.length) h += `<h3>Worktrees<small>${r.worktrees.length}</small></h3><ul class="il">${r.worktrees.map(w => `<li class="wt${w.path ? ' row wrow' : ''}"${w.path ? ` tabindex="0" role="button" data-k="w:${esc(w.path)}" data-path="${esc(w.path)}" title="${esc(w.path)}"` : ''}><span>${esc(w.branch)}${w.merged ? '<b>merged</b>' : ''}${w.dirty ? `<i>${w.dirty} dirty</i>` : ''}</span></li>`).join('')}</ul>`;
   if (c.notes.length) h += `<h3>Notes</h3><div class="notes">${c.notes.map(n => `<div>${esc(n)}</div>`).join('')}</div>`;
   return h + '<button class="iopen" data-i="open">Open README &amp; notes</button>';
 }
@@ -1551,6 +1552,8 @@ function rowActivate(row){
     const h = row.dataset.hash;
     if (inspOpen.has(h)) inspOpen.delete(h); else { inspOpen.add(h); commitLoad(inspName, h); }
     inspUpdate(false);
+  } else if (row.classList.contains('wrow')){
+    if (inspName && row.dataset.path) openTerminal(inspName, null, row.dataset.path);
   } else if (row.dataset.url && /^https:\/\//.test(row.dataset.url)) window.open(row.dataset.url, '_blank', 'noopener,noreferrer');
 }
 function rowMove(step){
@@ -1584,7 +1587,7 @@ for (const id of ['#recent', '#world', '#kanban']) $(id).addEventListener('click
 const HELP_KEYS = [
   ['h j k l / arrows', 'move between cards'], ['g / G', 'first / last card'], ['ctrl-d / ctrl-u', 'half a screen down / up'],
   ['Enter / n', "jump to the repo's terminal"], ['/', 'search by name (Enter keeps, Esc clears)'], ['s / S', 'next sort / reverse'],
-  ['f / F', 'next / previous status filter'], ['r', 'rescan now'], ['J / K', 'inspector: next / previous commit or issue'], ['o', 'inspector: expand the commit or open the issue'], ['i', 'show / hide the inspector'], ['?', 'this help'],
+  ['f / F', 'next / previous status filter'], ['r', 'rescan now'], ['J / K', 'inspector: next / previous commit or issue'], ['o', 'inspector: expand the commit, open the issue, jump to the worktree'], ['i', 'show / hide the inspector'], ['?', 'this help'],
 ];
 const helpbg = document.createElement('div'); helpbg.className = 'info-bg'; helpbg.hidden = true;
 helpbg.innerHTML = `<div class="infobox helpbox" role="dialog" aria-modal="true" aria-labelledby="helptitle"><header><h3 id="helptitle">Keyboard shortcuts</h3><button class="ib" data-help="close" aria-label="Close">✕</button></header><div class="pane helppane">${HELP_KEYS.map(([k, t]) => `<div class="hk"><kbd>${esc(k)}</kbd><span>${esc(t)}</span></div>`).join('')}</div></div>`;
