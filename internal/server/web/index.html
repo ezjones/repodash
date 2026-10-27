@@ -208,6 +208,7 @@ code{font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace}
 .agent.busy{color:var(--warn);border-color:var(--warn)}.agent.waiting{color:var(--bad);border-color:var(--bad)}.agent.idle{color:var(--ok);border-color:var(--ok)}
 .agent,.gagent,.agentsum{display:inline-flex;align-items:center;gap:5px}
 .adot{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+.agent>.actx{color:var(--mute);font-variant-numeric:tabular-nums}.actx.high{color:var(--warn)}.actx.full{color:var(--bad)}
 .busy>.adot{background:none;border:2px solid color-mix(in srgb,currentColor 30%,transparent);border-top-color:currentColor;animation:aspin .8s linear infinite}
 .waiting>.adot{animation:apulse 1s ease-in-out infinite}
 @keyframes aspin{to{transform:rotate(360deg)}}
@@ -577,7 +578,8 @@ function cardHTML(r){
   if (r.stashes) chips.push(['info', r.stashes+' stash'+(r.stashes>1?'es':'')]);
   if (!chips.length) chips.push(['ok','in sync']);
 
-  const agent = !C('card.agent', true) ? '' : r.claude ? `<span class="agent ${esc(r.claude)}" title="Claude is ${r.claude === 'busy' ? 'working' : esc(r.claude)}" aria-label="Claude is ${r.claude === 'busy' ? 'working' : esc(r.claude)}"><i class="adot"></i></span>`
+  const aword = `Claude is ${r.claude === 'busy' ? 'working' : esc(r.claude)}${r.context ? ', context ' + ctxText(r) : ''}`;
+  const agent = !C('card.agent', true) ? '' : r.claude ? `<span class="agent ${esc(r.claude)}" title="${aword}" aria-label="${aword}"><i class="adot"></i>${r.context ? `<span class="actx${ctxLevel(r)}">${fmtTok(r.context)}</span>` : ''}</span>`
               : (muxTabs(r).length) ? `<span class="agent" title="open in ${muxTabs(r).join(' and ')}">tab open</span>` : '';
   const edited = r.edited && r.edited >= r.last_commit;
   const act = edited
@@ -803,10 +805,16 @@ function applyAgents(m){
   let changed = false;
   for (const r of repos){
     const a = m[r.name]; if (!a) continue;
-    if (r.claude !== a.claude || r.tmux !== a.tmux || r.herdr !== a.herdr){ r.claude = a.claude; r.tmux = a.tmux; r.herdr = a.herdr; changed = true; }
+    if (r.claude !== a.claude || r.tmux !== a.tmux || r.herdr !== a.herdr || r.context !== a.context || r.context_size !== a.context_size){
+      r.claude = a.claude; r.tmux = a.tmux; r.herdr = a.herdr; r.context = a.context; r.context_size = a.context_size; changed = true;
+    }
   }
   if (changed) applyRepos(repos);
 }
+/* an agent's context size, as Claude Code's own status line reports it (see the README) */
+const fmtTok = n => n >= 999500 ? (+(n / 1e6).toFixed(1)) + 'M' : n >= 1000 ? Math.round(n / 1000) + 'k' : String(n);
+const ctxText = r => r.context_size > 0 ? `${fmtTok(r.context)} of ${fmtTok(r.context_size)} (${Math.floor(r.context * 100 / r.context_size)}%)` : fmtTok(r.context);
+const ctxLevel = r => !(r.context_size > 0) ? '' : r.context * 10 >= r.context_size * 9 ? ' full' : r.context * 10 >= r.context_size * 7 ? ' high' : '';
 
 /* ---------- filters ---------- */
 const shownFilters = counts => C('topbar.filters', []).filter(k => S(k).show !== false && (counts[k] || filter === k));
@@ -1509,7 +1517,7 @@ function inspHTML(r){
   let h = `<div class="ihead"><h2>${esc(rc.title || r.name)}</h2><button class="ib iclose" data-i="close" aria-label="Close inspector">✕</button></div>`
     + `<div class="ipills">${pillHTML(r, 'inline')}${lang}</div>`
     + (r.reasons && r.reasons.length ? `<ul class="reasons">${r.reasons.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '')
-    + `<dl><dt>branch</dt><dd><code>${esc(r.branch)}</code>${r.base && r.base !== r.branch ? ' &nbsp;base ' + esc(r.base) : ''}</dd><dt>agent</dt><dd>${agent}</dd><dt>tab</dt><dd>${tabs}</dd></dl>`;
+    + `<dl><dt>branch</dt><dd><code>${esc(r.branch)}</code>${r.base && r.base !== r.branch ? ' &nbsp;base ' + esc(r.base) : ''}</dd><dt>agent</dt><dd>${agent}</dd>${r.claude && r.context ? `<dt>context</dt><dd class="actx${ctxLevel(r)}">${ctxText(r)}</dd>` : ''}<dt>tab</dt><dd>${tabs}</dd></dl>`;
   if (c.commits.length) h += `<h3>Recent commits</h3><ul class="il">${c.commits.map(x => {
     const open = inspOpen.has(x.hash);
     return `<li class="row crow" tabindex="0" role="button" aria-expanded="${open}" data-k="c:${esc(x.hash)}" data-hash="${esc(x.hash)}"><span class="k" data-ago="${x.at}">${ago(x.at)}</span><span class="mk" aria-hidden="true">${open ? '▾' : '▸'}</span><span class="cs">${esc(x.subject)}</span>${open ? commitDetailHTML(r.name, x, c.web) : ''}</li>`;

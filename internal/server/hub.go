@@ -107,7 +107,7 @@ func (h *hub) refresh() {
 
 // pollAgents is the cheap, fast half of the scan: one look at the terminal multiplexers,
 // no git. It runs every second while a browser is open and broadcasts only when an agent
-// state (or a tab) changed, so the badge follows the agent within about a second.
+// state, a tab or its context size changed, so the badge follows the agent within about a second.
 func (h *hub) pollAgents() {
 	h.mu.Lock()
 	dirs := h.dirs
@@ -116,15 +116,21 @@ func (h *hub) pollAgents() {
 		return
 	}
 	type st struct {
-		Claude string `json:"claude"`
-		Tmux   bool   `json:"tmux"`
-		Herdr  bool   `json:"herdr"`
+		Claude      string `json:"claude"`
+		Tmux        bool   `json:"tmux"`
+		Herdr       bool   `json:"herdr"`
+		Context     int    `json:"context"`
+		ContextSize int    `json:"context_size"`
 	}
 	panes := core.TerminalPanes()
+	ctxs := core.ClaudeContexts()
 	out := make(map[string]st, len(dirs))
 	for n, d := range dirs {
 		var s st
 		s.Tmux, s.Herdr, s.Claude = core.AgentState(panes, d)
+		if s.Claude != "" {
+			s.Context, s.ContextSize = core.ContextFor(ctxs, d)
+		}
 		out[n] = s
 	}
 	b, _ := json.Marshal(out)

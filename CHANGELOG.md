@@ -4,6 +4,8 @@ What each release added. The release workflow copies the section for the tag it 
 
 ## Unreleased
 
+- See how full each Claude Code agent's context is, live: the card shows `82k` next to the agent icon (yellow from 70% of the window, red from 90%), and the inspector shows `82k of 1M (8%)`. Both the web page and the terminal UI. It reads what Claude Code gives its status line, so it needs a few lines added there (see the README).
+
 ## v0.7.8
 
 - Terminal UI: an Appearance menu (`a`, or click ◐ in the top bar). Pick a card theme (colourful, plain, soft, ink, or coloured by status), show the status as words or just a coloured dot, turn the language badge on or off, and give any repo a colour of its own that stays under every theme. Works with keys and the mouse, and RepoDash remembers it all.

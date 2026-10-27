@@ -360,6 +360,36 @@ You can set it by hand to try it: `tmux set -p @claude waiting` in a pane inside
 changes within a scan interval. Any other tool works the same way, since it is only a pane option.
 Pane options vanish with the pane, so a closed tab never leaves a stale badge behind.
 
+### How full the agent's context is
+
+Next to the agent icon a card can show how much of its context window a Claude Code session is
+using, live: `⠋ 82k`, and in the inspector `82k of 1M (8%)`. It turns yellow at 70% and red at 90%.
+The number is the one Claude Code hands its own [status line](https://docs.claude.com/en/docs/claude-code/statusline),
+so it needs one addition there. If you already have a status line script that reads its input into
+`input` (most do: `input=$(cat)`), add after that line:
+
+```sh
+# RepoDash: share this session's context size with the dashboard (one small file per session)
+{
+    rd_dir="${XDG_CACHE_HOME:-$HOME/.cache}/repodash/claude"
+    rd_id=$(printf '%s' "$input" | jq -r '.session_id // empty')
+    case "$rd_id" in ''|*[!A-Za-z0-9-]*) rd_id= ;; esac
+    if [ -n "$rd_id" ] && mkdir -p "$rd_dir"; then
+        if printf '%s' "$input" | jq -c '{session_id, cwd, workspace, context_window}' > "$rd_dir/.$rd_id.tmp"; then
+            mv -f "$rd_dir/.$rd_id.tmp" "$rd_dir/$rd_id.json"
+        else
+            rm -f "$rd_dir/.$rd_id.tmp"
+        fi
+    fi
+} 2>/dev/null
+```
+
+With no status line yet, save that block in a script that starts with `input=$(cat)` and ends by
+printing whatever you want on the line, then point `statusLine` in `~/.claude/settings.json` at it
+(`{"statusLine": {"type": "command", "command": "~/.claude/statusline.sh"}}`). It needs `jq`.
+Claude Code redraws the status line after each reply from the model, which is when the context
+changes. RepoDash reads the files once a second and removes ones a week old; it never writes them.
+
 ### Turning it off or trimming it
 
 - Remove the terminal button: `"card": { "actions": ["image", "copy"] }`.

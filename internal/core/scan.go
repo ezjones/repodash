@@ -48,8 +48,10 @@ type Repo struct {
 	HasNotes    bool       `json:"has_notes"`
 	Tmux        bool       `json:"tmux"`
 	Herdr       bool       `json:"herdr"`
-	Claude      string     `json:"claude"` // waiting | busy | idle | ""
-	Level       string     `json:"level"`  // bad | warn | ok | stale
+	Claude      string     `json:"claude"`       // waiting | busy | idle | ""
+	Context     int        `json:"context"`      // tokens in that agent's context window, 0 when unknown
+	ContextSize int        `json:"context_size"` // the window's size, 0 when unknown
+	Level       string     `json:"level"`        // bad | warn | ok | stale
 	Reasons     []string   `json:"reasons"`
 }
 
@@ -343,6 +345,7 @@ func ScanAll(root string) []Repo {
 		}
 	}
 	panes := TerminalPanes()
+	ctxs := ClaudeContexts()
 	repos := make([]Repo, len(names))
 	sem := make(chan struct{}, 8)
 	var wg sync.WaitGroup
@@ -353,6 +356,9 @@ func ScanAll(root string) []Repo {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			repos[i] = inspect(root, n, panes)
+			if repos[i].Claude != "" {
+				repos[i].Context, repos[i].ContextSize = ContextFor(ctxs, repos[i].Path)
+			}
 			repos[i].HasReadme = hasReadme(filepath.Join(root, n))
 			repos[i].HasNotes = hasNotes(n)
 		}()

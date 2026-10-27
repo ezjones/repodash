@@ -19,6 +19,7 @@ import (
 type tuiDeps struct {
 	Scan          func() []core.Repo
 	Panes         func() []core.Pane                // agent refresh, every 1 s
+	Contexts      func() []core.ClaudeContext       // agents' context sizes, read with the panes; may be nil
 	Issues        func() map[string]core.RepoIssues // current issues; may return nil
 	Find          func(dir string) (mux string, exists bool, err error)
 	Open          func(mux, dir string) (action, window string, err error)
@@ -43,8 +44,11 @@ type tuiDeps struct {
 }
 
 type (
-	scanMsg   []core.Repo
-	panesMsg  []core.Pane
+	scanMsg  []core.Repo
+	panesMsg struct {
+		panes []core.Pane
+		ctxs  []core.ClaudeContext
+	}
 	issuesMsg map[string]core.RepoIssues
 	jumpMsg   struct {
 		name, action, window string
@@ -94,6 +98,7 @@ type tuiModel struct {
 	view   []core.Repo // sorted and filtered
 	issues map[string]core.RepoIssues
 	panes  []core.Pane
+	ctxs   []core.ClaudeContext // agents' context sizes, from the last pane refresh
 	titles map[string]string
 
 	sel          int
@@ -310,7 +315,12 @@ func (m *tuiModel) selCommits() []core.CommitLine {
 
 func (m *tuiModel) applyPanes() {
 	for i := range m.repos {
-		m.repos[i].Tmux, m.repos[i].Herdr, m.repos[i].Claude = core.AgentState(m.panes, m.repos[i].Path)
+		r := &m.repos[i]
+		r.Tmux, r.Herdr, r.Claude = core.AgentState(m.panes, r.Path)
+		r.Context, r.ContextSize = 0, 0
+		if r.Claude != "" {
+			r.Context, r.ContextSize = core.ContextFor(m.ctxs, r.Path)
+		}
 	}
 }
 
@@ -382,7 +392,14 @@ func (m *tuiModel) panesCmd() tea.Cmd {
 	if panes == nil {
 		return nil
 	}
-	return func() tea.Msg { return panesMsg(panes()) }
+	ctxs := m.d.Contexts
+	return func() tea.Msg {
+		msg := panesMsg{panes: panes()}
+		if ctxs != nil {
+			msg.ctxs = ctxs()
+		}
+		return msg
+	}
 }
 
 // anyBusy reports whether a visible repo has an agent working.
@@ -520,7 +537,7 @@ func (m *tuiModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.applyPanes()
 		m.rebuild()
 	case panesMsg:
-		m.panes = []core.Pane(msg)
+		m.panes, m.ctxs = msg.panes, msg.ctxs
 		m.applyPanes()
 		m.rebuild()
 	case issuesMsg:
@@ -890,7 +907,8 @@ func Run(root string, web func() (string, error)) error {
 			mu.Unlock()
 			return rs
 		},
-		Panes: core.TerminalPanes,
+		Panes:    core.TerminalPanes,
+		Contexts: core.ClaudeContexts,
 		Issues: func() map[string]core.RepoIssues {
 			mu.Lock()
 			defer mu.Unlock()

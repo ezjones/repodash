@@ -189,6 +189,28 @@ func agentIcon(claude string, spin int) (string, string) {
 	return "", ""
 }
 
+// contextColor colours an agent's context size like Claude Code's status line warns: plain until
+// the window is 70% full, then yellow, red from 90%. Unknown window size stays plain.
+func contextColor(used, size int) string {
+	switch {
+	case size <= 0:
+		return cText2
+	case used*10 >= size*9:
+		return cRed
+	case used*10 >= size*7:
+		return cYellow
+	}
+	return cText2
+}
+
+// contextText is "82k of 1M (8%)", for the inspector; "82k" when the window size is unknown.
+func contextText(used, size int) string {
+	if size <= 0 {
+		return core.FormatTokens(used)
+	}
+	return fmt.Sprintf("%s of %s (%d%%)", core.FormatTokens(used), core.FormatTokens(size), used*100/size)
+}
+
 // cardBody is the card's lines without the border, each exactly inner cells wide.
 func cardBody(r core.Repo, title string, iss *core.RepoIssues, inner int, now time.Time, spin int, lk look) []string {
 	raw := tuiSettings().Raw
@@ -198,10 +220,16 @@ func cardBody(r core.Repo, title string, iss *core.RepoIssues, inner int, now ti
 	// band
 	bg, ink := bandFor(r, lk)
 	lbl, col := statusInfo(raw, r.Level)
-	var icon seg
+	// the agent chip: its icon, then how full its context is (kept over the status words, dropped
+	// only before the name would be cut)
+	var icon, iconCtx []seg
 	if cardOn(raw, "agent") {
 		if g, c := agentIcon(r.Claude, spin); g != "" {
-			icon = seg{" " + g + " ", sty(c, cChip, true)}
+			icon = []seg{{" " + g + " ", sty(c, cChip, true)}}
+			iconCtx = icon
+			if r.Context > 0 {
+				iconCtx = []seg{{" " + g + " ", sty(c, cChip, true)}, {core.FormatTokens(r.Context) + " ", sty(contextColor(r.Context, r.ContextSize), cChip, false)}}
+			}
 		}
 	}
 	pillFull := seg{" ● " + lbl + " ", sty(cInk, col, true)}
@@ -211,11 +239,12 @@ func cardBody(r core.Repo, title string, iss *core.RepoIssues, inner int, now ti
 		badge = seg{" " + r.Language + " ", sty("#ffffff", langBadgeColor(r.Language), true)}
 	}
 	var right []seg
-	// the name gets its room first; then drop the badge, then the label, and cut the name last
+	// the name gets its room first; then drop the badge, the label, the context size, and cut the name last
 	need := 1 + lipgloss.Width(cleanText(title))
-	tries := [][]seg{{icon, pillFull, badge}, {icon, pillFull}, {icon, pillDot}}
+	with := func(ic []seg, s ...seg) []seg { return append(append([]seg{}, ic...), s...) }
+	tries := [][]seg{with(iconCtx, pillFull, badge), with(iconCtx, pillFull), with(iconCtx, pillDot), with(icon, pillDot)}
 	if lk.dot {
-		tries = [][]seg{{icon, pillDot, badge}, {icon, pillDot}}
+		tries = [][]seg{with(iconCtx, pillDot, badge), with(iconCtx, pillDot), with(icon, pillDot)}
 	}
 	for _, try := range tries {
 		right = try
@@ -647,6 +676,9 @@ func panelLines(m *tuiModel, w int) []string {
 		agent, agentCol = "idle", cGreen
 	}
 	add(seg{"agent   ", fg(cDim)}, seg{agent, fg(agentCol)})
+	if r.Context > 0 {
+		add(seg{"context ", fg(cDim)}, seg{contextText(r.Context, r.ContextSize), fg(contextColor(r.Context, r.ContextSize))})
+	}
 	tabs := "no workspace open"
 	switch {
 	case r.Herdr && r.Tmux:
