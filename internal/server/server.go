@@ -92,6 +92,7 @@ func Serve(o Options) error {
 	mux.HandleFunc("GET /api/commits/{name}", commitsGet(o.Root))
 	mux.HandleFunc("GET /api/commit/{name}/{hash}", commitGet(o.Root))
 	mux.HandleFunc("PUT /api/notes/{name}", notesPut(o.Root))
+	mux.HandleFunc("PUT /api/pins/{name}", pinPut(o.Root, hub))
 	mux.HandleFunc("GET /api/update", upd.get)
 	mux.HandleFunc("POST /api/update", upd.post)
 	mux.HandleFunc("GET /events", hub.serveSSE)

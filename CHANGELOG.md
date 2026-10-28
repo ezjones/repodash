@@ -4,6 +4,8 @@ What each release added. The release workflow copies the section for the tag it 
 
 ## Unreleased
 
+- Pin a repo with `p` and it stays at the top, whatever the sort or its direction. Works in the terminal UI and on the web page (click the pin on a card to unpin), and both share the same pins.
+
 ## v0.7.9
 
 - See how full each Claude Code agent's context is, live: the card shows `82k` next to the agent icon (yellow from 70% of the window, red from 90%), and the inspector shows `82k of 1M (8%)`. Both the web page and the terminal UI. It reads what Claude Code gives its status line, so it needs a few lines added there (see the README).

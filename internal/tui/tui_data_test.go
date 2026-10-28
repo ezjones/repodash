@@ -93,3 +93,27 @@ func TestRepoChipsAndAgo(t *testing.T) {
 		}
 	}
 }
+
+func TestSortReposPinnedFirst(t *testing.T) {
+	rs := []core.Repo{{Name: "b", Commits7d: 1}, {Name: "A", Commits7d: 5, Pinned: true}, {Name: "c", Commits7d: 5}, {Name: "d", Pinned: true}}
+	iss := map[string]core.RepoIssues{"b": {Open: 9}, "d": {Open: 2}}
+	names := func(l []core.Repo) string {
+		s := ""
+		for _, r := range l {
+			s += r.Name
+		}
+		return s
+	}
+	for _, c := range []struct {
+		by   string
+		rev  bool
+		want string
+	}{
+		{"recent", false, "Adbc"}, {"recent", true, "dAcb"}, {"alpha", false, "Adbc"}, {"alpha", true, "dAcb"},
+		{"activity", false, "Adcb"}, {"issues", false, "dAbc"}, {"issues", true, "Adcb"},
+	} {
+		if got := names(sortRepos(rs, c.by, c.rev, iss)); got != c.want {
+			t.Errorf("%s rev=%v: %s want %s", c.by, c.rev, got, c.want)
+		}
+	}
+}

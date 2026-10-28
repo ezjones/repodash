@@ -251,6 +251,30 @@ func (m *tuiModel) rebuild() {
 	m.clamp()
 }
 
+// togglePin pins or unpins the selected repo; rebuild keeps the selection on it as it moves.
+func (m *tuiModel) togglePin() {
+	r, ok := m.selected()
+	if !ok {
+		return
+	}
+	on := !r.Pinned
+	if err := core.SetPinned(r.Name, on); err != nil {
+		m.msg = err.Error()
+		return
+	}
+	for i := range m.repos {
+		if m.repos[i].Name == r.Name {
+			m.repos[i].Pinned = on
+		}
+	}
+	if on {
+		m.msg = "pinned " + m.title(r) + " · p unpins"
+	} else {
+		m.msg = "unpinned " + m.title(r)
+	}
+	m.rebuild()
+}
+
 func (m *tuiModel) clamp() {
 	if m.sel >= len(m.view) {
 		m.sel = len(m.view) - 1
@@ -824,6 +848,8 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, m.editNotes()
 	case "n":
 		m.openDialog()
+	case "p":
+		m.togglePin()
 	case "enter", "c":
 		return m, m.jump(s == "c")
 	}

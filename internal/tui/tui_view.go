@@ -240,6 +240,9 @@ func cardBody(r core.Repo, title string, iss *core.RepoIssues, inner int, now ti
 	}
 	var right []seg
 	// the name gets its room first; then drop the badge, the label, the context size, and cut the name last
+	if r.Pinned {
+		title = "📌 " + title
+	}
 	need := 1 + lipgloss.Width(cleanText(title))
 	with := func(ic []seg, s ...seg) []seg { return append(append([]seg{}, ic...), s...) }
 	tries := [][]seg{with(iconCtx, pillFull, badge), with(iconCtx, pillFull), with(iconCtx, pillDot), with(icon, pillDot)}
@@ -1008,7 +1011,7 @@ func (m *tuiModel) footerLine() string {
 	}
 	key, desc := fg(cInfo).Bold(true), fg(cDim)
 	sp := seg{"  ", lipgloss.NewStyle()}
-	keys := [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "notes"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"a", "appearance"}, {"w", "web"}, {"U", "update"}, {"?", "help"}, {"H", "hide"}, {"q", "close"}}
+	keys := [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "notes"}, {"p", "pin"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"a", "appearance"}, {"w", "web"}, {"U", "update"}, {"?", "help"}, {"H", "hide"}, {"q", "close"}}
 	if m.panelFocus && m.panelVisible() {
 		keys = [][2]string{{"INSPECTOR", ""}, {"j/k", "move"}, {"⏎", "open"}, {"tab", "back to cards"}, {"i", "hide"}, {"?", "help"}}
 	}
@@ -1071,6 +1074,7 @@ var helpText = [][2]string{
 	{"Enter", "jump to the repo's workspace"},
 	{"c", "new workspace, no question"},
 	{"n", "notes dialog: view, add or edit (Ctrl+S saves)"},
+	{"p", "pin / unpin: pinned repos (📌) stay first in every sort (remembered)"},
 	{"/", "search by name (Enter keeps, Esc clears)"},
 	{"s / S", "next sort / reverse"},
 	{"f / F", "next / previous status filter"},

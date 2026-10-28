@@ -190,6 +190,7 @@ button:focus-visible,input:focus-visible,[contenteditable]:focus-visible{outline
 .on-canvas summary,.on-canvas .ib{cursor:pointer}
 .on-canvas.dragging{box-shadow:0 10px 32px rgba(0,0,0,.28);cursor:grabbing}
 .card h2{font-size:16.5px;letter-spacing:-.005em;margin:0;overflow-wrap:anywhere;font-weight:650}
+.card h2 .pin{display:inline-flex;vertical-align:-3px;margin:0 4px 0 -4px;color:var(--accent)}
 .branch{margin:0 0 9px;color:var(--mute);font-size:13px;overflow-wrap:anywhere}
 code{font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace}
 .chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
@@ -413,14 +414,16 @@ const SORTS = ['recent', 'activity', 'language', 'alpha'];
 let sortBy = 'recent', rev = false, kanbanMode = 'board';
 // Server order is newest activity first, and sort() is stable, so every mode below falls back to it
 // for ties. alpha: by name. activity: most commits in the last 7 days first. language: grouped by
-// main language A-Z, repos with no recognised language last. Reverse flips any of them.
+// main language A-Z, repos with no recognised language last. Reverse flips any of them. Pinned repos
+// (the p key) come first whatever the sort and its direction.
 const byName = (a, b) => a.name.localeCompare(b.name, undefined, {sensitivity: 'base', numeric: true});
 function sorted(){
   const l = [...repos];
   if (sortBy === 'alpha') l.sort(byName);
   else if (sortBy === 'activity') l.sort((a, b) => b.commits_7d - a.commits_7d);
   else if (sortBy === 'language') l.sort((a, b) => !a.language - !b.language || (a.language || '').localeCompare(b.language || ''));
-  return rev ? l.reverse() : l;
+  if (rev) l.reverse();
+  return [...l.filter(r => r.pinned), ...l.filter(r => !r.pinned)];
 }
 
 function ls(k, v){ try { if (v === undefined) return localStorage.getItem('repodash.'+k); localStorage.setItem('repodash.'+k, v); } catch { return null; } }
@@ -559,6 +562,7 @@ const svg = d => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" st
 const ICON_TERM = svg('<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7.5 9.5 3 2.5-3 2.5"/><path d="M13 15h3.5"/>');
 const ICON_IMG = svg('<rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="9" cy="9" r="1.7"/><path d="m21 15-4.6-4.6L6 21"/>');
 const ICON_INFO = svg('<circle cx="12" cy="12" r="9.5"/><path d="M12 11v5.5"/><circle cx="12" cy="7.6" r=".6"/>');
+const ICON_PIN = svg('<path d="M12 17v5"/><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3z"/>');
 const ICON_COPY = svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>');
 const issueLine = (cls, label, i, ago) => `<li class="${cls}"><span class="k">${label}</span><a href="${esc(i.url)}" target="_blank" rel="noopener noreferrer" draggable="false" title="#${i.number} ${esc(i.title)}"><span class="n">#${i.number}</span> ${esc(i.title)}</a>${ago ? `<span class="ago" data-ago="${ago}"></span>` : ''}</li>`;
 function issuesHTML(r){
@@ -596,7 +600,7 @@ function cardHTML(r){
   };
   btn.info = `<button class="ib${r.has_notes ? ' has' : ''}" data-act="info" title="${r.has_readme ? 'README' : 'No README'}${r.has_notes ? ' · has notes' : ''}" aria-label="Info and notes for ${esc(r.name)}">${ICON_INFO}</button>`;
   const acts = C('card.actions', []).map(a => btn[a] || '').join('');
-  return `${coverHTML(r)}<div class="body"><header><h2>${esc(rc.title || r.name)}</h2><span class="hr">${agent}${acts}${C('card.cover', true) ? '' : pillHTML(r, 'inline')}</span></header>
+  return `${coverHTML(r)}<div class="body"><header><h2>${r.pinned ? `<button class="ib pin" data-act="pin" title="Pinned: stays first. Click (or p) to unpin" aria-label="Unpin ${esc(r.name)}">${ICON_PIN}</button>` : ''}${esc(rc.title || r.name)}</h2><span class="hr">${agent}${acts}${C('card.cover', true) ? '' : pillHTML(r, 'inline')}</span></header>
     ${C('card.branch', true) ? `<p class="branch"><code>${esc(r.branch)}</code>${r.base && r.base !== r.branch ? ' &nbsp;base '+esc(r.base) : ''}</p>` : ''}
     ${rc.note && C('card.note', true) ? `<p class="note">${esc(rc.note)}</p>` : ''}
     ${C('card.chips', true) ? `<div class="chips">${chips.map(([c,t]) => `<span class="chip ${c}">${esc(t)}</span>`).join('')}</div>` : ''}
@@ -1239,12 +1243,21 @@ async function onAct(e){
     return;
   }
   if (b.dataset.act === 'info'){ openInfo(name); return; }
+  if (b.dataset.act === 'pin'){ setPin(name, false); return; }
   if (b.dataset.act === 'image'){ pickTarget = name; $('#pick').value = ''; $('#pick').click(); return; }
   if (b.dataset.act === 'rmimg'){
     const res = await fetch('/api/image/' + encodeURIComponent(name), {method:'DELETE', headers:{'Content-Type':'image/png'}}).catch(() => null);
     toast(res && res.ok ? 'Cover image removed' : 'Could not remove the image'); refreshNow(); return;
   }
   openTerminal(name, b);
+}
+// Pin or unpin a repo: pinned repos sort first, here, in other tabs and in the terminal UI (pins.json).
+async function setPin(name, on){
+  const r = repos.find(x => x.name === name); if (!r) return;
+  const res = await fetch('/api/pins/' + encodeURIComponent(name), {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({pinned: on})}).catch(() => null);
+  if (!res || !res.ok){ toast('Could not ' + (on ? 'pin' : 'unpin') + ' ' + name + (res ? ': ' + (await res.text()).trim() : '')); return; }
+  r.pinned = on; applyRepos(repos);
+  toast((on ? 'Pinned ' : 'Unpinned ') + (((CFG.repos || {})[name] || {}).title || name));
 }
 // Jump to the repo's tmux/herdr tab (or open one). `b` is the card's button, disabled while waiting.
 // `worktree` (a path from the repo's worktree list) opens that worktree's folder instead.
@@ -1644,7 +1657,7 @@ async function doUpdate(){
 $('#top').addEventListener('click', e => { if (e.target.closest('[data-top=update]')) doUpdate(); });
 const HELP_KEYS = [
   ['h j k l / arrows', 'move between cards'], ['g / G', 'first / last card'], ['ctrl-d / ctrl-u', 'half a screen down / up'],
-  ['Enter / c', "jump to the repo's terminal"], ['n', 'README and notes of the selected repo'], ['/', 'search by name (Enter keeps, Esc clears)'], ['s / S', 'next sort / reverse'],
+  ['Enter / c', "jump to the repo's terminal"], ['n', 'README and notes of the selected repo'], ['p', 'pin / unpin the selected repo: pinned repos stay first'], ['/', 'search by name (Enter keeps, Esc clears)'], ['s / S', 'next sort / reverse'],
   ['f / F', 'next / previous status filter'], ['r', 'rescan now'], ['J / K', 'inspector: next / previous commit or issue'], ['o', 'inspector: expand the commit, open the issue, jump to the worktree'], ['i', 'show / hide the inspector'], ['U', 'update RepoDash when a newer release is offered'], ['?', 'this help'],
 ];
 const helpbg = document.createElement('div'); helpbg.className = 'info-bg'; helpbg.hidden = true;
@@ -1723,6 +1736,7 @@ addEventListener('keydown', e => {
   else if (k === 'o'){ const rw = inspOn && document.activeElement.closest && document.activeElement.closest('#insp .row'); if (rw) rowActivate(rw); else used = false; }
   else if (k === 'Enter' || k === 'c'){ if (inspName && repos.some(r => r.name === inspName)) openTerminal(inspName, null); else used = false; }
   else if (k === 'n'){ if (inspName && repos.some(r => r.name === inspName)) openInfo(inspName); else used = false; }
+  else if (k === 'p'){ const r = inspName && repos.find(x => x.name === inspName); if (r) setPin(r.name, !r.pinned); else used = false; }
   else if (k === 's'){ sortBy = kbCycle(SORTS, sortBy, 1); ls('sort', sortBy); syncChrome(); place(); }
   else if (k === 'S'){ rev = !rev; ls('rev', rev ? '1' : '0'); syncChrome(); place(); }
   else if (k === 'f' || k === 'F'){

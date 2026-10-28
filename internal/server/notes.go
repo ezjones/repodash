@@ -106,3 +106,31 @@ func notesPut(root string) http.HandlerFunc {
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
+
+// pinPut pins or unpins a repo ({"pinned": true|false}) and rescans, so every open tab re-sorts.
+func pinPut(root string, h *hub) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+			http.Error(w, "content type must be application/json", http.StatusUnsupportedMediaType)
+			return
+		}
+		name := r.PathValue("name")
+		if _, ok := core.ValidRepo(root, name); !ok {
+			http.Error(w, "not a repo", http.StatusNotFound)
+			return
+		}
+		var req struct {
+			Pinned *bool `json:"pinned"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil || req.Pinned == nil {
+			http.Error(w, `body must be {"pinned": true|false}`, http.StatusBadRequest)
+			return
+		}
+		if err := core.SetPinned(name, *req.Pinned); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		go h.refresh()
+		w.WriteHeader(http.StatusNoContent)
+	}
+}

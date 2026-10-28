@@ -80,6 +80,7 @@ A few keys get you going:
 | `i` | Show or hide the inspector: commits, issues, worktrees and notes |
 | Tab | Move into the inspector and back (`j`/`k` and Enter work inside it) |
 | `n` | Read or write notes for the repo |
+| `p` | Pin the repo: pinned repos stay at the top |
 | `a` | Appearance: themes, your own card colours, status dot, language badge |
 | `/` | Search by name |
 | `s` / `f` | Change the sort / filter by status |
@@ -153,6 +154,7 @@ It scans the repos in the folder you run it from, or `~/gitrepos` (see
 | Enter | Jump to the repo's herdr workspace or tmux window; asks before creating one |
 | `c` | Create a workspace without asking |
 | `n` | Notes dialog for the repo: read, add or edit (`e` or Enter edits, Ctrl+S saves, `o` opens `$EDITOR`) |
+| `p` | Pin or unpin the repo: pinned repos come first in every sort, here and on the web page (marked `📌`; remembered between runs) |
 | `/` | Search by name (Enter keeps it, Esc clears) |
 | `s` / `S` | Next sort (recent, activity, language, alpha, issues) / reverse |
 | `f` / `F` | Next / previous status filter |

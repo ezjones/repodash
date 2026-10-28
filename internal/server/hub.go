@@ -27,6 +27,7 @@ type hub struct {
 	lastAt   time.Time
 	clients  map[chan event]struct{}
 	scanning bool
+	again    bool              // refresh was asked for during a scan: scan once more after it
 	dirs     map[string]string // repo name -> path, from the last scan
 	agents   []byte            // last agent-state event
 	issues   issueFeed         // GitHub issues feed (issues.go)
@@ -77,31 +78,40 @@ func (h *hub) broadcast(name string, b []byte) {
 	}
 }
 
-// refresh rescans and broadcasts if anything changed. Overlapping calls collapse into one.
+// refresh rescans and broadcasts if anything changed. Calls during a scan collapse into one more
+// scan after it, so a change made while a scan was running (a pin) is never lost to it.
 func (h *hub) refresh() {
 	h.mu.Lock()
 	if h.scanning {
+		h.again = true
 		h.mu.Unlock()
 		return
 	}
 	h.scanning = true
 	h.mu.Unlock()
 
-	list := h.scan()
-	b, _ := json.Marshal(list)
-	dirs := make(map[string]string, len(list))
-	for _, r := range list {
-		dirs[r.Name] = r.Path
-	}
+	for {
+		list := h.scan()
+		b, _ := json.Marshal(list)
+		dirs := make(map[string]string, len(list))
+		for _, r := range list {
+			dirs[r.Name] = r.Path
+		}
 
-	h.mu.Lock()
-	h.dirs = dirs
-	h.scanning = false
-	changed := string(b) != string(h.last)
-	h.last, h.lastAt = b, time.Now()
-	h.mu.Unlock()
-	if changed {
-		h.broadcast("repos", b)
+		h.mu.Lock()
+		h.dirs = dirs
+		changed := string(b) != string(h.last)
+		h.last, h.lastAt = b, time.Now()
+		again := h.again
+		h.again = false
+		h.scanning = again
+		h.mu.Unlock()
+		if changed {
+			h.broadcast("repos", b)
+		}
+		if !again {
+			return
+		}
 	}
 }
 

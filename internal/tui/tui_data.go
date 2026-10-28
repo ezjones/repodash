@@ -13,7 +13,8 @@ import (
 var tuiSorts = []string{"recent", "activity", "language", "alpha", "issues"}
 
 // sortRepos returns a sorted copy. The input is core.ScanAll order (newest activity first) and every
-// sort is stable, so ties keep that order, as on the page.
+// sort is stable, so ties keep that order, as on the page. Pinned repos come first, in the same
+// order among themselves, whatever the sort and its direction.
 func sortRepos(rs []core.Repo, by string, rev bool, iss map[string]core.RepoIssues) []core.Repo {
 	l := append([]core.Repo(nil), rs...)
 	switch by {
@@ -37,6 +38,7 @@ func sortRepos(rs []core.Repo, by string, rev bool, iss map[string]core.RepoIssu
 			l[i], l[j] = l[j], l[i]
 		}
 	}
+	sort.SliceStable(l, func(i, j int) bool { return l[i].Pinned && !l[j].Pinned })
 	return l
 }
 
