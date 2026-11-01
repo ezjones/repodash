@@ -100,3 +100,22 @@ func openInHerdr(dir string) (action, window string, err error) {
 	}
 	return "opened", label, nil
 }
+
+// HerdrPopup opens the plugin's pane entry (a popup in herdr-plugin.toml) with its working
+// folder in dir. It fails when herdr is not running, the plugin is not linked, or a popup is
+// already open (herdr shows one at a time); the error is herdr's own message when it gives one.
+func HerdrPopup(entry, dir string) error {
+	_, err := herdr("plugin", "pane", "open", "--plugin", "repodash", "--entrypoint", entry, "--cwd", dir)
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		var res struct {
+			Error struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if json.Unmarshal(ee.Stderr, &res) == nil && res.Error.Message != "" {
+			return errors.New("herdr: " + res.Error.Message)
+		}
+	}
+	return err
+}

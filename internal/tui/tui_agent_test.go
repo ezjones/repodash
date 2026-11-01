@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -172,5 +173,47 @@ func TestEmptyNotesRemovedAfterEdit(t *testing.T) {
 	}
 	if core.NotesPath("../x") != "" || core.NotesPath("") != "" {
 		t.Error("bad names accepted")
+	}
+}
+
+func TestLazygitKey(t *testing.T) {
+	f := newFakeTUI(t, false)
+	var dirs []string
+	f.m.d.GitCmd = func(dir string) *exec.Cmd {
+		dirs = append(dirs, dir)
+		return exec.Command("true")
+	}
+	f.selectName(t, "api-server")
+	if f.keys("L") == nil {
+		t.Fatal("L outside herdr returned no command")
+	}
+	if len(dirs) == 0 || dirs[len(dirs)-1] != "/r/api-server" {
+		t.Errorf("lazygit dirs %v", dirs)
+	}
+
+	// Inside herdr: the popup, in the selected repo; on failure, the TUI's own screen.
+	var popped []string
+	f.m.d.GitPopup = func(dir string) error {
+		popped = append(popped, dir)
+		return errors.New("a popup is already open")
+	}
+	cmd := f.keys("L")
+	if cmd == nil {
+		t.Fatal("L in herdr returned no command")
+	}
+	msg := cmd()
+	if len(popped) != 1 || popped[0] != "/r/api-server" {
+		t.Errorf("popup dirs %v", popped)
+	}
+	if f.send(msg) == nil {
+		t.Error("failed popup did not fall back to running lazygit")
+	}
+	if f.send(gitPopupMsg{dir: "/r/api-server"}) != nil {
+		t.Error("opened popup still ran lazygit in the TUI")
+	}
+
+	f.m.d.GitCmd = func(string) *exec.Cmd { return nil }
+	if f.keys("L") != nil || !strings.Contains(f.m.msg, "lazygit not found") {
+		t.Errorf("missing lazygit: msg %q", f.m.msg)
 	}
 }

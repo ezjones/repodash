@@ -1011,7 +1011,7 @@ func (m *tuiModel) footerLine() string {
 	}
 	key, desc := fg(cInfo).Bold(true), fg(cDim)
 	sp := seg{"  ", lipgloss.NewStyle()}
-	keys := [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "notes"}, {"p", "pin"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"a", "appearance"}, {"w", "web"}, {"U", "update"}, {"?", "help"}, {"H", "hide"}, {"q", "close"}}
+	keys := [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "notes"}, {"p", "pin"}, {"L", "lazygit"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"a", "appearance"}, {"w", "web"}, {"U", "update"}, {"?", "help"}, {"H", "hide"}, {"q", "close"}}
 	if m.panelFocus && m.panelVisible() {
 		keys = [][2]string{{"INSPECTOR", ""}, {"j/k", "move"}, {"⏎", "open"}, {"tab", "back to cards"}, {"i", "hide"}, {"?", "help"}}
 	}
@@ -1079,6 +1079,7 @@ var helpText = [][2]string{
 	{"s / S", "next sort / reverse"},
 	{"f / F", "next / previous status filter"},
 	{"e", "edit the repo's notes in $VISUAL / $EDITOR"},
+	{"L", "lazygit in the repo (a popup inside herdr); quit it to come back"},
 	{"r", "rescan now"},
 	{"U", "check for a new release now, and update to it"},
 	{"w", "open the web page (starts the server if needed)"},

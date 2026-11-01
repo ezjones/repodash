@@ -4,6 +4,8 @@ What each release added. The release workflow copies the section for the tag it 
 
 ## Unreleased
 
+- Press `L` in the terminal UI to open lazygit in the selected repo. Inside herdr it opens as a popup; quit lazygit and you are back on the cards.
+
 ## v0.7.10
 
 - Pin a repo with `p` and it stays at the top, whatever the sort or its direction. Works in the terminal UI and on the web page (click the pin on a card to unpin), and both share the same pins.

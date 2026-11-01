@@ -24,3 +24,13 @@ title = "RepoDash"
 description = "Repo status cards; Enter jumps to the repo's workspace"
 placement = "tab"
 command = ["./repodash", "-tui"]
+
+# The TUI's L key: lazygit in the selected repo, as a popup over the workspace. Quitting
+# lazygit closes it and leaves you back in the RepoDash tab.
+[[panes]]
+id = "lazygit"
+title = "Git"
+placement = "popup"
+width = "90%"
+height = "90%"
+command = ["lazygit"]

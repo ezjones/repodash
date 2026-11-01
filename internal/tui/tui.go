@@ -30,6 +30,8 @@ type tuiDeps struct {
 	ReadNotes     func(name string) (string, bool) // for the notes dialog; core.ReadNotes when nil
 	SaveNotes     func(name, text string) error    // for the notes dialog; core.SaveNotes when nil
 	EditCmd       func(path string) *exec.Cmd      // the editor on path; nil when there is none
+	GitCmd        func(dir string) *exec.Cmd       // lazygit in dir (L); nil when it is not installed
+	GitPopup      func(dir string) error           // lazygit as a herdr popup over the TUI; nil outside herdr
 	Now           func() time.Time
 	Web           func() (url string, err error) // open the web page, starting the server if needed
 	QuitAfterJump bool                           // in a herdr popup, which blocks herdr until it closes
@@ -62,7 +64,12 @@ type (
 		name string
 		err  error
 	}
-	updateMsg struct {
+	gitPopupMsg struct { // the herdr popup was asked for; on err, run lazygit in the TUI's own screen
+		dir string
+		err error
+	}
+	gitDoneMsg struct{ err error } // lazygit run in the TUI's screen has quit
+	updateMsg  struct {
 		tag string
 		err error
 		ask bool // the user pressed U, so say the answer
@@ -498,6 +505,44 @@ func (m *tuiModel) editNotes(names ...string) tea.Cmd {
 	return tea.ExecProcess(cmd, func(err error) tea.Msg { return editedMsg{name, err} })
 }
 
+// lazygit opens lazygit in the selected repo: a herdr popup inside herdr, else in the TUI's
+// own screen. Either way, quitting lazygit comes back to the cards.
+func (m *tuiModel) lazygit() tea.Cmd {
+	r, ok := m.selected()
+	if !ok || m.d.GitCmd == nil {
+		return nil
+	}
+	if m.d.GitCmd(r.Path) == nil {
+		m.msg = "lazygit not found: install it to use L"
+		return nil
+	}
+	if pop := m.d.GitPopup; pop != nil {
+		dir := r.Path
+		return func() tea.Msg { return gitPopupMsg{dir, pop(dir)} }
+	}
+	return m.execGit(r.Path)
+}
+
+// execGit runs lazygit in dir with the screen handed over until it quits.
+func (m *tuiModel) execGit(dir string) tea.Cmd {
+	cmd := m.d.GitCmd(dir)
+	if cmd == nil {
+		return nil
+	}
+	return tea.ExecProcess(cmd, func(err error) tea.Msg { return gitDoneMsg{err} })
+}
+
+// lazygitCmd is lazygit started in dir, or nil when it is not on PATH.
+func lazygitCmd(dir string) *exec.Cmd {
+	p, err := exec.LookPath("lazygit")
+	if err != nil {
+		return nil
+	}
+	c := exec.Command(p)
+	c.Dir = dir
+	return c
+}
+
 // editorCmd picks $VISUAL, else $EDITOR, else nano or vi; nil when none is found.
 func editorCmd(path string) *exec.Cmd {
 	var argv []string
@@ -616,6 +661,16 @@ func (m *tuiModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.restart = true
 		return m, tea.Quit
+	case gitPopupMsg:
+		if msg.err != nil { // no plugin, an older one, or a popup already open
+			return m, m.execGit(msg.dir)
+		}
+		return m, nil
+	case gitDoneMsg:
+		if msg.err != nil {
+			m.msg = "lazygit: " + msg.err.Error()
+		}
+		return m, m.scanCmd() // commits made in lazygit show at once
 	case editedMsg:
 		m.notes = nil
 		if msg.err != nil {
@@ -846,6 +901,8 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	case "e":
 		return m, m.editNotes()
+	case "L":
+		return m, m.lazygit()
 	case "n":
 		m.openDialog()
 	case "p":
@@ -950,9 +1007,13 @@ func Run(root string, web func() (string, error)) error {
 			return t
 		},
 		EditCmd:       editorCmd,
+		GitCmd:        lazygitCmd,
 		Now:           time.Now,
 		QuitAfterJump: core.InHerdrPopup(),
 		Web:           web,
+	}
+	if core.InHerdr() {
+		d.GitPopup = func(dir string) error { return core.HerdrPopup("lazygit", dir) }
 	}
 	exe, exeErr := core.Executable()
 	d.CheckUpdate = func() (string, error) { return core.CheckUpdate(time.Now()) }

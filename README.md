@@ -81,6 +81,7 @@ A few keys get you going:
 | Tab | Move into the inspector and back (`j`/`k` and Enter work inside it) |
 | `n` | Read or write notes for the repo |
 | `p` | Pin the repo: pinned repos stay at the top |
+| `L` | Open [lazygit](https://github.com/jesseduffield/lazygit) in the repo (a popup inside herdr); quit it to come back |
 | `a` | Appearance: themes, your own card colours, status dot, language badge |
 | `/` | Search by name |
 | `s` / `f` | Change the sort / filter by status |
@@ -164,6 +165,7 @@ It scans the repos in the folder you run it from, or `~/gitrepos` (see
 | `w` | Open the web page in your browser, starting the web server in the background if it isn't running |
 | `U` | Check GitHub for a new release now and update to it |
 | `e` | Edit the selected repo's notes in `$VISUAL` / `$EDITOR` (else `nano` or `vi`); the inspector shows them all |
+| `L` | [lazygit](https://github.com/jesseduffield/lazygit) in the selected repo, if it is installed. Inside herdr it opens as a popup over the workspace (needs the plugin linked); elsewhere it takes over the screen. Quitting lazygit brings you back to the cards |
 | `r` | Rescan now |
 | `a` | Appearance menu (or click ◐ in the top bar): card theme, status as words or a dot, language badge on or off, and a colour of the selected repo's own. Works with the mouse; click cards behind it to colour several. Remembered between runs |
 | `H` | Hide or show the key hints at the bottom (remembered between runs) |
@@ -173,7 +175,7 @@ It scans the repos in the folder you run it from, or `~/gitrepos` (see
 The mouse works too: click a card to select it, double-click to jump, scroll with the wheel, click
 the sort name, the `↕` arrow or a status count in the top bar, and click inside the inspector.
 
-The web page answers to the same keys (except `w`), so moving between the two is free.
+The web page answers to the same keys (except `w` and `L`), so moving between the two is free.
 
 ## herdr integration
 
