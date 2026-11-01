@@ -46,7 +46,8 @@ func (f *workFeed) get(w http.ResponseWriter, r *http.Request) {
 	e, hit := f.cache[rng]
 	if !hit || now.Sub(e.at) > f.ttl {
 		var repos []core.Repo
-		_ = json.Unmarshal(f.hub.snapshot(), &repos)
+		snap := f.hub.snapshot()
+		_ = json.Unmarshal(snap, &repos)
 		ws := core.Work(repos, from, to)
 		if ws == nil {
 			ws = []core.RepoWork{}
@@ -66,7 +67,9 @@ func (f *workFeed) get(w http.ResponseWriter, r *http.Request) {
 			"markdown": core.WorkMarkdown(workTitles[rng], ws, titles),
 		})
 		e = workEntry{at: now, body: b}
-		f.cache[rng] = e
+		if snap != nil { // no scan yet: answer, but do not keep the empty list
+			f.cache[rng] = e
+		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")

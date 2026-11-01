@@ -160,9 +160,16 @@ func (h *hub) snapshot() []byte {
 	if !have {
 		h.refresh()
 	}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.last
+	// refresh returns at once when a scan is already running (the one at startup), so wait
+	// for that one instead of answering with nothing.
+	for deadline := time.Now().Add(time.Minute); ; time.Sleep(50 * time.Millisecond) {
+		h.mu.Lock()
+		b := h.last
+		h.mu.Unlock()
+		if b != nil || time.Now().After(deadline) {
+			return b
+		}
+	}
 }
 
 func (h *hub) serveSSE(w http.ResponseWriter, r *http.Request) {

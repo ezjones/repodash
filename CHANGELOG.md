@@ -4,6 +4,8 @@ What each release added. The release workflow copies the section for the tag it 
 
 ## Unreleased
 
+- Fixed: right after the web server starts, the inspector's All tab could show an empty list until the next refresh.
+
 ## v0.7.12
 
 - What's new: after an update, RepoDash shows what changed in this release and the ones before it, in a box in the middle of the screen (Esc or Enter closes it). Click the version number to see it again: bottom right in the terminal UI, top left on the web page.

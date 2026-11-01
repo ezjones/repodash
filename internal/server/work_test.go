@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ezjones/repodash/internal/core"
 )
@@ -74,5 +75,31 @@ func TestWorkGet(t *testing.T) {
 	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/api/work?range=yesterday", nil))
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"repos":[]`) {
 		t.Fatalf("yesterday: %d %s", rec.Code, rec.Body)
+	}
+}
+
+// A request during the first scan (the server just started) must wait for it, not answer and
+// cache an empty list.
+func TestWorkWaitsForFirstScan(t *testing.T) {
+	release := make(chan struct{})
+	h := newHub(func() []core.Repo {
+		<-release
+		return []core.Repo{{Name: "my-app", Path: t.TempDir()}}
+	})
+	go h.refresh() // the startup scan, still running
+	for {
+		h.mu.Lock()
+		s := h.scanning
+		h.mu.Unlock()
+		if s {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	go func() { time.Sleep(100 * time.Millisecond); close(release) }()
+	b := h.snapshot()
+	var repos []core.Repo
+	if err := json.Unmarshal(b, &repos); err != nil || len(repos) != 1 {
+		t.Fatalf("snapshot during the first scan: %q %v", b, err)
 	}
 }
