@@ -4,7 +4,11 @@ What each release added. The release workflow copies the section for the tag it 
 
 ## Unreleased
 
+## v0.7.12
+
 - What's new: after an update, RepoDash shows what changed in this release and the ones before it, in a box in the middle of the screen (Esc or Enter closes it). Click the version number to see it again: bottom right in the terminal UI, top left on the web page.
+- The inspector has two tabs: **This repo** (as before) and **All**, which lists what you did across all repos, with each repo's commits and uncommitted work. Press `t` to open it, or `1` / `2` to switch tabs with the inspector open. In All, `d` / `D` / `w` / `m` show today / yesterday / this week / this month, Enter jumps to a repo, and `y` (or *Copy as markdown* on the web page) copies the list for a standup note.
+- Drag the line on the inspector's left edge to make it wider or narrower, in the terminal UI and on the web page. The width is remembered; on the web page a double-click resets it.
 
 ## v0.7.11
 
