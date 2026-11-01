@@ -27,6 +27,7 @@ const (
 
 	minInner   = 28 // narrowest card interior
 	panelFull  = 45 // panel (44) plus its separator
+	panelMin   = 31 // narrowest the inspector can be dragged to, with its separator
 	doubleTime = 400 * time.Millisecond
 )
 
@@ -118,9 +119,15 @@ func padTo(s string, w int) string {
 
 // gridLayout splits the width between the cards and the right panel. Cards are at least
 // minInner+2 wide and stretch to share the space; the panel needs room for one card column.
-func gridLayout(width int, panelOn bool) (cols, cardW, panelW int) {
+// gridLayout splits the width between the cards and the inspector. want is the inspector width
+// the user dragged to (0: the default); it is kept between panelMin and what leaves one card
+// column. Below the default's room the inspector goes full screen, whatever was dragged.
+func gridLayout(width int, panelOn bool, want int) (cols, cardW, panelW int) {
 	if panelOn && width >= minInner+3+panelFull {
-		panelW = panelFull
+		if want <= 0 {
+			want = panelFull
+		}
+		panelW = min(max(want, panelMin), width-(minInner+3))
 	}
 	avail := width - panelW
 	cols = max(1, avail/(minInner+3))
@@ -391,7 +398,7 @@ func (m *tuiModel) relayout() {
 	if m.width <= 0 || m.height <= 0 {
 		return
 	}
-	cols, cardW, panelW := gridLayout(m.width, m.panel)
+	cols, cardW, panelW := gridLayout(m.width, m.panel, m.prefs.PanelWidth)
 	m.cols, m.cardW, m.panelW = cols, cardW, panelW
 	m.full = m.panel && panelW == 0 // too narrow to sit beside the cards
 	inner := max(1, cardW-2)
@@ -443,6 +450,10 @@ func (m *tuiModel) click(ms tea.Mouse) tea.Cmd {
 	if ms.Button != tea.MouseLeft {
 		return nil
 	}
+	if m.onPanelEdge(ms) {
+		m.dragPanel = true
+		return nil
+	}
 	if ms.Y == m.height-1 && m.updX0 >= 0 && ms.X >= m.updX0 && ms.X < m.updX1 {
 		return m.updateKey()
 	}
@@ -455,7 +466,11 @@ func (m *tuiModel) click(ms tea.Mouse) tea.Cmd {
 	}
 	if !m.help && m.panelVisible() && (m.full || ms.X >= m.width-m.panelW+1) {
 		m.panelFocus = true
-		return m.panelClick(ms.Y - 1)
+		px := ms.X
+		if !m.full {
+			px -= m.width - m.panelW + 1
+		}
+		return m.panelClickAt(px, ms.Y-1)
 	}
 	i, ok := m.cardAt(ms.X, ms.Y)
 	if !ok {
@@ -534,6 +549,8 @@ func (m *tuiModel) runPanelAct(i int) tea.Cmd {
 	}
 	act := m.panelActs[i]
 	switch {
+	case strings.HasPrefix(act, "work:"):
+		return m.workAct(strings.TrimPrefix(act, "work:"))
 	case strings.HasPrefix(act, "commit:"):
 		h := strings.TrimPrefix(act, "commit:")
 		if m.openCommit == h {
@@ -577,6 +594,9 @@ func (m *tuiModel) movePanelCur(d int) {
 	for i := m.panelCur + d; i >= 0 && i < len(m.panelActs); i += d {
 		if m.panelActs[i] != "" {
 			m.panelCur = i
+			if strings.HasPrefix(m.panelActs[i], "work:") {
+				m.selectRepo(strings.TrimPrefix(m.panelActs[i], "work:"))
+			}
 			h := m.bodyH()
 			if i < m.panelScroll {
 				m.panelScroll = i
@@ -626,6 +646,9 @@ func wrapWords(s string, w int) []string {
 }
 
 func panelLines(m *tuiModel, w int) []string {
+	if m.panelMode == "today" {
+		return workLines(m, w)
+	}
 	r, ok := m.selected()
 	if !ok {
 		m.panelActs = nil
@@ -654,6 +677,11 @@ func panelLines(m *tuiModel, w int) []string {
 		acts = append(acts, "")
 		add(seg{t, fg(cInfo).Bold(true)}, seg{extra, fg(cDim)})
 	}
+	tabSegs, zones := tabsRow(m.panelMode)
+	m.tabZones = zones
+	add(tabSegs...)
+	out = append(out, "")
+	acts = append(acts, "")
 	bg, ink := bandFor(r, m.lookFor(r))
 	add(seg{" " + m.title(r) + " ", sty(ink, bg, true)})
 	lbl, col := statusInfo(raw, r.Level)
@@ -1015,9 +1043,12 @@ func (m *tuiModel) footerLine() string {
 	}
 	key, desc := fg(cInfo).Bold(true), fg(cDim)
 	sp := seg{"  ", lipgloss.NewStyle()}
-	keys := [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "notes"}, {"p", "pin"}, {"L", "lazygit"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"a", "appearance"}, {"w", "web"}, {"U", "update"}, {"?", "help"}, {"H", "hide"}, {"q", "close"}}
+	keys := [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "notes"}, {"p", "pin"}, {"L", "lazygit"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"t", "all repos"}, {"a", "appearance"}, {"w", "web"}, {"U", "update"}, {"?", "help"}, {"H", "hide"}, {"q", "close"}}
 	if m.panelFocus && m.panelVisible() {
-		keys = [][2]string{{"INSPECTOR", ""}, {"j/k", "move"}, {"⏎", "open"}, {"tab", "back to cards"}, {"i", "hide"}, {"?", "help"}}
+		keys = [][2]string{{"INSPECTOR", ""}, {"j/k", "move"}, {"⏎", "open"}, {"1/2", "this repo/all"}, {"tab", "back to cards"}, {"i", "hide"}, {"?", "help"}}
+		if m.panelMode == "today" {
+			keys = [][2]string{{"INSPECTOR", ""}, {"j/k", "move"}, {"⏎", "jump"}, {"d/D/w/m", "today/yesterday/week/month"}, {"1/2", "tabs"}, {"y", "copy"}, {"t", "this repo"}, {"tab", "back to cards"}, {"i", "hide"}, {"?", "help"}}
+		}
 	}
 	// Drop hints from the end, keeping "? help", until they fit beside the version and the
 	// update offer.
@@ -1090,6 +1121,11 @@ var helpText = [][2]string{
 	{"U", "check for a new release now, and update to it"},
 	{"w", "open the web page (starts the server if needed)"},
 	{"i", "show / hide the inspector (beside the cards, or full screen when narrow)"},
+	{"t", "inspector: switch between This repo and All (work done in all repos); shows it if hidden"},
+	{"1 / 2", "inspector shown: This repo / All tab"},
+	{"d / D / w / m", "All tab, inspector focused: today / yesterday / this week / this month ([ ] step through them)"},
+	{"[ / ]", "Today: previous / next range (today, yesterday, week)"},
+	{"y", "Today: copy the work as markdown (OSC 52 clipboard)"},
 	{"Tab", "move into the inspector (opens it); j/k move, Enter opens, Tab or Esc back"},
 	{"J / K, o", "inspector lines from the cards: next / previous, open"},
 	{"a", "appearance: theme, status dot or words, language, this card's colour (mouse: ◐)"},
@@ -1155,7 +1191,7 @@ func (m *tuiModel) View() tea.View {
 	case m.help:
 		body = m.helpBody(h)
 	case m.full:
-		if strings.TrimSpace(strings.Join(panelLines(m, m.width), "")) == "" {
+		if m.panelMode == "" && len(m.view) == 0 {
 			body = []string{line(m.width, seg{" No repos match", fg(cMuted)})}
 		} else {
 			body = strings.Split(renderPanel(m, m.width, h), "\n")
@@ -1168,7 +1204,11 @@ func (m *tuiModel) View() tea.View {
 			if len(panelLines(m, m.panelW-1)) > 0 {
 				pl = strings.Split(renderPanel(m, m.panelW-1, h), "\n")
 			}
-			sep := fg(cBorder).Render("│")
+			sc := cBorder
+			if m.dragPanel {
+				sc = cInfo
+			}
+			sep := fg(sc).Render("│")
 			for i := 0; i < h; i++ {
 				l := strings.Repeat(" ", gridW)
 				if i < len(body) {
@@ -1213,4 +1253,24 @@ func (m *tuiModel) View() tea.View {
 	v.WindowTitle = core.TUITitle
 	v.MouseMode = tea.MouseModeCellMotion
 	return v
+}
+
+// onPanelEdge says whether a mouse position is on the line between the cards and the inspector.
+func (m *tuiModel) onPanelEdge(ms tea.Mouse) bool {
+	return !m.help && !m.full && m.panelW > 0 && ms.X == m.width-m.panelW && ms.Y >= 1 && ms.Y <= m.bodyH()
+}
+
+// dragPanelTo follows a drag of that line: the inspector takes everything right of the mouse.
+// The width is saved when the button is let go.
+func (m *tuiModel) dragPanelTo(x int, done bool) {
+	w := m.width - x
+	_, _, pw := gridLayout(m.width, true, w)
+	if pw > 0 {
+		m.prefs.PanelWidth = pw
+	}
+	if done {
+		m.dragPanel = false
+		pw := m.prefs.PanelWidth
+		m.change(func(p *core.TUIPrefs) { p.PanelWidth = pw })
+	}
 }

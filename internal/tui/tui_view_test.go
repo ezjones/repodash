@@ -24,7 +24,7 @@ func TestGridLayout(t *testing.T) {
 		{200, true, 5, true}, {200, false, 6, false}, {20, true, 1, false},
 	}
 	for _, c := range cases {
-		cols, cardW, pw := gridLayout(c.w, c.panel)
+		cols, cardW, pw := gridLayout(c.w, c.panel, 0)
 		if cols != c.cols || (pw > 0) != c.panelOn {
 			t.Errorf("gridLayout(%d,%v) = %d cols, panel %d; want %d, %v", c.w, c.panel, cols, pw, c.cols, c.panelOn)
 		}

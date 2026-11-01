@@ -78,6 +78,7 @@ A few keys get you going:
 | `h` `j` `k` `l` / arrows | Move between cards (the mouse works too) |
 | Enter | Jump to that repo in a herdr workspace or tmux window |
 | `i` | Show or hide the inspector: commits, issues, worktrees and notes |
+| `t` | The inspector's All tab: what you did across all repos today, yesterday, this week or this month (`1`/`2` switch tabs, `d`/`D`/`w`/`m` pick today, yesterday, week or month, `y` copies it as markdown) |
 | Tab | Move into the inspector and back (`j`/`k` and Enter work inside it) |
 | `n` | Read or write notes for the repo |
 | `p` | Pin the repo: pinned repos stay at the top |
@@ -163,6 +164,7 @@ It scans the repos in the folder you run it from, or `~/gitrepos` (see
 | `i` | Show or hide the [inspector](#inspector) |
 | Tab | Move into the inspector (it opens if hidden): `j`/`k` move over its commits, issues and worktrees, Enter opens one, Tab or Esc goes back to the cards |
 | `J` / `K`, `o` | The same without leaving the cards: next / previous inspector line, open it |
+| `t` | The inspector's All tab, or back to This repo: commits and uncommitted work across all repos for today, yesterday, the last 7 days or the last 30. It moves the keys into the inspector, where `1` / `2` switch tabs, `d` / `D` / `w` / `m` show today / yesterday / this week / this month and `[` / `]` step through them. Enter jumps to the repo, `y` copies the list as markdown for a standup note |
 | `w` | Open the web page in your browser, starting the web server in the background if it isn't running |
 | `U` | Check GitHub for a new release now and update to it |
 | `e` | Edit the selected repo's notes in `$VISUAL` / `$EDITOR` (else `nano` or `vi`); the inspector shows them all |
@@ -308,6 +310,25 @@ From the keyboard, in the terminal UI: press Tab to move into the inspector, `j`
 lines, Enter to open one, and Tab or Esc to go back to the cards. `J`/`K` and `o` do the same
 without leaving the cards, and they are the keys on the web page. On the web page, *Open README &
 notes* opens the full README and your notes.
+
+### This repo and All
+
+The inspector's second tab, **All**, is everything you did across all your repos: per repo, the
+commits made today (on any local branch, so agents' worktree branches count) and any uncommitted
+files you edited today, the busiest repo first. Switch to *Yesterday*, *This week* or *This month*
+for a standup or a look back.
+
+- `t` opens the inspector on All, or flips back to This repo. With the inspector open, `1` and `2`
+  pick the tab, and in All `d`, `D`, `w` and `m` show today, yesterday, this week and this month. Clicking works too.
+- Moving onto a repo or commit selects its card; Enter (or `o`) jumps to that repo's terminal.
+- Terminal UI: `[` and `]` step through the ranges, `y` copies the list as
+  markdown. `t` moves the keys into the inspector; Tab or Esc goes back to the cards. Web page: the range
+  buttons, and *Copy as markdown*.
+
+It reads the repos only: one `git log` per repo while the tab is open, never a fetch.
+
+To make the inspector wider or narrower, drag the line on its left edge with the mouse (in the
+terminal UI too). The width is remembered; on the web page a double-click on the line resets it.
 
 ## tmux integration
 

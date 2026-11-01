@@ -66,7 +66,7 @@ func (m *tuiModel) newsLines(w int) []string {
 		}
 		out = append(out, tag.Render(h))
 		for _, it := range r.Items {
-			for j, l := range wrapWords(strings.ReplaceAll(it, "`", ""), max(1, w-2)) {
+			for j, l := range wrapWords(plainMarkdown(it), max(1, w-2)) {
 				p := "• "
 				if j > 0 {
 					p = "  "
@@ -173,3 +173,7 @@ func (m *tuiModel) overlayNews(body []string, bodyH int) []string {
 	}
 	return body
 }
+
+// plainMarkdown drops the inline marks a changelog item uses (code, bold, italic): the terminal
+// shows the words.
+var plainMarkdown = strings.NewReplacer("`", "", "**", "", "*", "").Replace

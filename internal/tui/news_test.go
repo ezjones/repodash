@@ -17,7 +17,7 @@ func TestWhatsNew(t *testing.T) {
 	f.m.d.Changelog = func() []core.Release {
 		return []core.Release{
 			{Tag: "v0.3.0", Items: []string{"Not out yet."}},
-			{Tag: "v0.2.0", Items: []string{"Press `L` for lazygit."}},
+			{Tag: "v0.2.0", Items: []string{"Press `L` for lazygit.", "Two tabs: **This repo** and *All*."}},
 			{Tag: "v0.1.0", Items: []string{"First release."}},
 		}
 	}
@@ -38,7 +38,7 @@ func TestWhatsNew(t *testing.T) {
 		t.Fatal("click on the version did not open What's new")
 	}
 	v := f.m.View().Content
-	for _, want := range []string{"What's new in v0.2.0", "Press L for lazygit.", "Earlier", "v0.1.0", "First release."} {
+	for _, want := range []string{"What's new in v0.2.0", "Press L for lazygit.", "Two tabs: This repo and All.", "Earlier", "v0.1.0", "First release."} {
 		if !strings.Contains(v, want) {
 			t.Errorf("box lacks %q", want)
 		}

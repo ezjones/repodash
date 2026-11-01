@@ -337,7 +337,13 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
 /* inspector: docked right panel (full-screen overlay on a phone) */
 #main{flex:1;display:flex;min-height:0;min-width:0}
 #stage{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
-#insp{width:360px;flex:none;overflow:auto;border-left:1px solid var(--line);background:var(--panel);padding:14px 16px 20px;font-size:14px}
+#inspgrip{flex:none;width:0;position:relative;z-index:5}
+#inspgrip::before{content:'';position:absolute;top:0;bottom:0;left:-4px;width:8px;cursor:col-resize}
+#inspgrip::after{content:'';position:absolute;top:0;bottom:0;left:-1px;width:2px;background:var(--info);opacity:0;transition:opacity .12s;pointer-events:none}
+#inspgrip:hover::after,#inspgrip.drag::after{opacity:.7}
+#inspgrip:has(+ #insp[hidden]){display:none}
+body.inspdrag{cursor:col-resize;user-select:none}
+#insp{width:var(--inspw,360px);flex:none;overflow:auto;border-left:1px solid var(--line);background:var(--panel);padding:14px 16px 20px;font-size:14px}
 #insp .ihead{display:flex;align-items:center;gap:8px;margin-bottom:10px}
 #insp .ihead h2{margin:0;font-size:17px;flex:1;min-width:0;overflow-wrap:anywhere}
 #insp .iclose{display:none}
@@ -369,9 +375,32 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
 #insp .iopen{margin-top:16px;width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:transparent;cursor:pointer}
 #insp .iopen:hover{background:color-mix(in srgb,var(--ink) 8%,transparent)}
 #insp .none{color:var(--mute);padding:20px 0}
+#insp .itabs{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+#insp .iseg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+#insp .iseg button{border:0;background:transparent;color:var(--mute);padding:4px 11px;font:inherit;font-size:13px;cursor:pointer}
+#insp .iseg button+button{border-left:1px solid var(--line)}
+#insp .iseg button:hover{color:var(--ink)}
+#insp .iseg button[aria-pressed=true]{background:var(--accent);color:var(--bg)}
+#insp .itabs .iseg{flex:none}#insp .itabs .iclose{margin-left:auto}
+#insp .wsum{color:var(--mute);margin:12px 0 8px}
+#insp .wcopy{width:100%;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:transparent;cursor:pointer;margin-bottom:6px}
+#insp .wcopy:hover{background:color-mix(in srgb,var(--ink) 8%,transparent)}
+#insp ul.wl{list-style:none;margin:10px 0 0;padding:0}
+#insp ul.wl li.row{display:flex;gap:8px;align-items:baseline;cursor:pointer;border-radius:6px;margin:0 -6px;padding:2px 6px}
+#insp ul.wl li.row:hover{background:color-mix(in srgb,var(--ink) 8%,transparent)}
+#insp ul.wl li.row:focus{outline:none;background:color-mix(in srgb,var(--ink) 13%,transparent)}
+#insp ul.wl li.row:focus-visible{outline:2px solid var(--accent,var(--info));outline-offset:-1px}
+#insp ul.wl li.wh{margin-top:10px;font-weight:600}
+#insp ul.wl li.wh:first-child{margin-top:0}
+#insp ul.wl .wn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#insp ul.wl .wm{flex:none;color:var(--mute);font-size:12.5px;font-weight:400}
+#insp ul.wl .k{flex:none;min-width:44px;color:var(--mute);font-size:12.5px}
+#insp ul.wl .wc .cs{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#insp ul.wl .wu,#insp ul.wl .wu .k{color:var(--warn)}
 .card.picked{outline:2px solid var(--info);outline-offset:2px}
 @media (max-width:700px){
   #insp:not([hidden]){position:fixed;inset:0;z-index:300;width:auto;border-left:0}
+  #inspgrip{display:none}
   #insp .iclose{display:inline-grid}
 }
 [hidden]{display:none!important}
@@ -392,7 +421,7 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
 </div>
 <p class="empty" id="empty" hidden>No repos match.</p>
 </div>
-<aside id="insp" aria-label="Inspector" hidden></aside></div>
+<div id="inspgrip" title="Drag to resize the inspector · double-click for the default width"></div><aside id="insp" aria-label="Inspector" hidden></aside></div>
 <div class="info-bg" id="infobg" hidden><div class="infobox" role="dialog" aria-modal="true" aria-labelledby="infotitle"><header><h3 id="infotitle"></h3><button class="ib" id="infoclose" aria-label="Close">✕</button></header><div class="pane" id="infopane"></div></div></div>
 <input type="file" id="pick" accept="image/*" hidden>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -1485,6 +1514,27 @@ async function loadLayout(){
 }
 
 /* ---------- inspector: the selected repo's details, docked on the right ---------- */
+// Its width: drag the grip on its left edge (remembered per browser), double-click for the default.
+{
+  const grip = $('#inspgrip'), el = $('#insp');
+  const clampW = w => Math.round(Math.min(Math.max(w, 260), Math.max(260, innerWidth * .7)));
+  const setW = w => { if (w) document.documentElement.style.setProperty('--inspw', clampW(w) + 'px'); else document.documentElement.style.removeProperty('--inspw'); };
+  setW(+ls('inspW') || 0);
+  grip.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault(); grip.setPointerCapture(e.pointerId);
+    const right = el.getBoundingClientRect().right;
+    grip.classList.add('drag'); document.body.classList.add('inspdrag');
+    const move = ev => setW(right - ev.clientX);
+    const up = () => {
+      grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up);
+      grip.classList.remove('drag'); document.body.classList.remove('inspdrag');
+      ls('inspW', String(Math.round(el.getBoundingClientRect().width)));
+    };
+    grip.addEventListener('pointermove', move); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
+  });
+  grip.addEventListener('dblclick', () => { setW(0); try { localStorage.removeItem('repodash.inspW'); } catch {} });
+}
 inspOn = ls('inspector') === '1';
 const inspCache = new Map();
 const inspOpen = new Set();            // hashes of expanded commits in the selected repo
@@ -1529,13 +1579,69 @@ function commitDetailHTML(name, x, web){
   if (web) h += `<div><a href="${esc(web + '/commit/' + x.hash)}" target="_blank" rel="noopener noreferrer">View on GitHub</a></div>`;
   return `<div class="cd">${h}</div>`;
 }
+let inspMode = ls('inspMode') === 'today' ? 'today' : 'repo';
+const WORK_LABEL = {today: 'Today', yesterday: 'Yesterday', week: 'This week', month: 'This month'};
+let workRange = Object.keys(WORK_LABEL).includes(ls('workRange')) ? ls('workRange') : 'today';
+const WORK = {};                       // range -> {t, data, loading, err}
+function inspTabs(){
+  return `<div class="itabs"><div class="iseg" role="group" aria-label="Inspector mode">`
+    + `<button data-i="mode" data-m="repo" aria-pressed="${inspMode === 'repo'}">This repo</button><button data-i="mode" data-m="today" aria-pressed="${inspMode === 'today'}">All</button></div>`
+    + `<button class="ib iclose" data-i="close" aria-label="Close inspector">✕</button></div>`;
+}
+async function workFetch(range, force){
+  const w = WORK[range] || (WORK[range] = {t: 0, data: null, loading: false, err: ''});
+  if (w.loading || (!force && Date.now() - w.t < 15000)) return;
+  w.loading = true; w.t = Date.now();
+  try {
+    const res = await fetch('/api/work?range=' + range, {cache: 'no-store'});
+    if (!res.ok) throw new Error((await res.text()).trim() || res.status);
+    w.data = await res.json(); w.err = '';
+  } catch (err) { w.err = String(err.message || err); w.t = 0; }
+  w.loading = false;
+  if (inspOn && inspMode === 'today') inspUpdate(false);
+}
+const workEnsure = () => { if (inspOn && inspMode === 'today') workFetch(workRange, false); };
+const p2 = n => String(n).padStart(2, '0');
+function workTime(ts, day){
+  const d = new Date(ts * 1000), t = p2(d.getHours()) + ':' + p2(d.getMinutes());
+  return day ? d.toLocaleDateString(undefined, workRange === 'month' ? {month: 'short', day: 'numeric'} : {weekday: 'short'}) + ' ' + t : t;
+}
+const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+function workHTML(){
+  const w = WORK[workRange], d = w && w.data, day = workRange === 'week' || workRange === 'month';
+  let h = inspTabs() + `<div class="iseg" role="group" aria-label="Range">` + Object.keys(WORK_LABEL).map(r =>
+    `<button data-i="range" data-r="${r}" aria-pressed="${r === workRange}">${WORK_LABEL[r]}</button>`).join('') + '</div>';
+  if (!d) return h + `<p class="none">${w && w.err ? esc('Could not load: ' + w.err) : 'Loading…'}</p>`;
+  const list = d.repos || [];
+  if (!list.length) return h + `<p class="none">Nothing committed or edited ${workRange === 'week' ? 'this week' : workRange}.</p>`;
+  const nc = list.reduce((a, x) => a + x.commits.length, 0), rc = list.filter(x => x.commits.length).length, nu = list.filter(x => x.uncommitted > 0).length;
+  const sum = [];
+  if (nc) sum.push(plural(nc, 'commit') + ' in ' + plural(rc, 'repo'));
+  if (nu) sum.push(nc ? nu + ' with uncommitted work' : plural(nu, 'repo') + ' with uncommitted work');
+  h += `<div class="wsum">${sum.join(' · ')}</div><button class="wcopy" data-i="copy">Copy as markdown</button><ul class="wl">`;
+  for (const x of list){
+    const t = ((CFG.repos || {})[x.name] || {}).title || x.name, n = esc(x.name);
+    h += `<li class="row wkrow wh" tabindex="0" role="button" data-k="h:${n}" data-name="${n}"><span class="wn">${esc(t)}</span><span class="wm">${x.commits.length ? plural(x.commits.length, 'commit') + ' · ' : ''}${workTime(x.last, day)}</span></li>`;
+    for (const c of x.commits)
+      h += `<li class="row wkrow wc" tabindex="0" role="button" data-k="c:${n}:${esc(c.hash)}" data-name="${n}" title="${esc(c.subject)}"><span class="k">${workTime(c.at, day)}</span><span class="cs">${esc(c.subject)}</span></li>`;
+    if (x.uncommitted > 0)
+      h += `<li class="row wkrow wc wu" tabindex="0" role="button" data-k="u:${n}" data-name="${n}"><span class="k">●</span><span class="cs">${plural(x.uncommitted, 'file')} uncommitted, edited ${workTime(x.edited, day)}</span></li>`;
+  }
+  return h + '</ul>';
+}
+function setInspMode(m){
+  inspMode = m; ls('inspMode', m); workEnsure(); inspUpdate(true);
+}
+function setWorkRange(r){
+  workRange = r; ls('workRange', r); workEnsure(); inspUpdate(true);
+}
 function inspHTML(r){
   const rc = (CFG.repos || {})[r.name] || {};
   const lang = r.language ? `<span class="langbadge" style="background:${mixHex(LANG_COLOR[r.language] || '#667788', '#000000', .38)}">${esc(r.language)}</span>` : '';
   const agent = {busy: 'working', waiting: 'waiting for you', idle: 'idle'}[r.claude] || 'no agent';
   const tabs = r.herdr && r.tmux ? 'open in herdr and tmux' : r.herdr ? 'open in herdr' : r.tmux ? 'open in tmux' : 'no workspace open';
   const c = inspCache.get(r.name) || {commits: [], notes: [], web: ''};
-  let h = `<div class="ihead"><h2>${esc(rc.title || r.name)}</h2><button class="ib iclose" data-i="close" aria-label="Close inspector">✕</button></div>`
+  let h = inspTabs() + `<div class="ihead"><h2>${esc(rc.title || r.name)}</h2></div>`
     + `<div class="ipills">${pillHTML(r, 'inline')}${lang}</div>`
     + (r.reasons && r.reasons.length ? `<ul class="reasons">${r.reasons.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '')
     + `<dl><dt>branch</dt><dd><code>${esc(r.branch)}</code>${r.base && r.base !== r.branch ? ' &nbsp;base ' + esc(r.base) : ''}</dd><dt>agent</dt><dd>${agent}</dd>${r.claude && r.context ? `<dt>context</dt><dd class="actx${ctxLevel(r)}">${ctxText(r)}</dd>` : ''}<dt>tab</dt><dd>${tabs}</dd></dl>`;
@@ -1563,7 +1669,8 @@ function inspUpdate(force){
   if (!inspOn) return;
   const r = repos.find(x => x.name === inspName);
   let h;
-  if (!inspName) h = '<button class="ib iclose" data-i="close" aria-label="Close inspector">✕</button><p class="none">Click a card to inspect it</p>';
+  if (inspMode === 'today') h = workHTML();
+  else if (!inspName) h = inspTabs() + '<p class="none">Click a card to inspect it</p>';
   else if (r) h = inspHTML(r);
   else return;                      // the repo vanished (hidden or filtered): keep showing it
   if (h !== inspSig || force){
@@ -1575,14 +1682,16 @@ function inspUpdate(force){
 }
 function toggleInsp(){
   inspOn = !inspOn; ls('inspector', inspOn ? '1' : '0');
-  if (inspOn && inspName) inspFetch(inspName, false);
+  if (inspOn && inspName && inspMode === 'repo') inspFetch(inspName, false);
+  workEnsure();
   inspUpdate(false);
   if (view === 'canvas') requestAnimationFrame(() => typeof applyVP === 'function' && applyVP());
 }
 function paintPicked(){ for (const [n, e] of els) e.el.classList.toggle('picked', n === inspName); }
 function inspSelect(name){
   if (name === inspName) return;
-  inspName = name; inspOpen.clear(); paintPicked(); inspFetch(name, false); inspUpdate(false);
+  inspName = name; inspOpen.clear(); paintPicked();
+  if (inspMode === 'repo'){ inspFetch(name, false); inspUpdate(false); }
 }
 const inspRows = () => [...$('#insp').querySelectorAll('.row')];
 function rowActivate(row){
@@ -1590,6 +1699,8 @@ function rowActivate(row){
     const h = row.dataset.hash;
     if (inspOpen.has(h)) inspOpen.delete(h); else { inspOpen.add(h); commitLoad(inspName, h); }
     inspUpdate(false);
+  } else if (row.classList.contains('wkrow')){
+    if (row.dataset.name) openTerminal(row.dataset.name, null);
   } else if (row.classList.contains('wrow')){
     if (inspName && row.dataset.path) openTerminal(inspName, null, row.dataset.path);
   } else if (row.dataset.url && /^https:\/\//.test(row.dataset.url)) window.open(row.dataset.url, '_blank', 'noopener,noreferrer');
@@ -1600,15 +1711,27 @@ function rowMove(step){
   const n = i < 0 ? (step > 0 ? 0 : rows.length - 1) : Math.min(rows.length - 1, Math.max(0, i + step));
   rows[n].focus(); return true;
 }
+$('#insp').addEventListener('focusin', e => {
+  const row = e.target.classList && e.target.classList.contains('wkrow') ? e.target : null;
+  const el = row && els.get(row.dataset.name);
+  if (el && !el.el.hidden) kbShow(el.el);
+});
 $('#insp').addEventListener('keydown', e => {
   const row = e.target.classList && e.target.classList.contains('row') ? e.target : null;
   if (row && (e.key === 'Enter' || e.key === ' ') && !e.metaKey && !e.ctrlKey && !e.altKey){ e.preventDefault(); e.stopPropagation(); rowActivate(row); }
 });
 $('#insp').addEventListener('click', e => {
   const row = e.target.closest('.row');
+  if (row && row.classList.contains('wkrow')){ row.focus(); return; }   // selects the card (focusin below); o / Enter jump
   if (row && !e.target.closest('a, .cd')){ rowActivate(row); return; }
   const b = e.target.closest('[data-i]'); if (!b) return;
   if (b.dataset.i === 'close') toggleInsp();
+  else if (b.dataset.i === 'mode') setInspMode(b.dataset.m);
+  else if (b.dataset.i === 'range') setWorkRange(b.dataset.r);
+  else if (b.dataset.i === 'copy'){
+    const d = (WORK[workRange] || {}).data;
+    if (d) navigator.clipboard.writeText(d.markdown).then(() => toast('Copied'), () => toast('Could not copy'));
+  }
   else if (b.dataset.i === 'open' && inspName) openInfo(inspName);
 });
 // A plain click on a card (not on a button or link, and not the end of a drag) selects it.
@@ -1668,7 +1791,7 @@ $('#top').addEventListener('click', e => { if (e.target.closest('[data-top=updat
 const HELP_KEYS = [
   ['h j k l / arrows', 'move between cards'], ['g / G', 'first / last card'], ['ctrl-d / ctrl-u', 'half a screen down / up'],
   ['Enter / c', "jump to the repo's terminal"], ['n', 'README and notes of the selected repo'], ['p', 'pin / unpin the selected repo: pinned repos stay first'], ['/', 'search by name (Enter keeps, Esc clears)'], ['s / S', 'next sort / reverse'],
-  ['f / F', 'next / previous status filter'], ['r', 'rescan now'], ['J / K', 'inspector: next / previous commit or issue'], ['o', 'inspector: expand the commit, open the issue, jump to the worktree'], ['i', 'show / hide the inspector'], ['U', 'update RepoDash when a newer release is offered'], ['?', 'this help'], ['click the version', "what's new in this release and earlier ones"],
+  ['f / F', 'next / previous status filter'], ['r', 'rescan now'], ['J / K', 'inspector: next / previous commit or issue'], ['o', 'inspector: expand the commit, open the issue, jump to the worktree'], ['i', 'show / hide the inspector'], ['t', 'inspector: switch between This repo and All (work done in all repos)'], ['1 / 2', 'inspector open: This repo / All'], ['d / D / w / m', 'All: today / yesterday / this week / this month'], ['U', 'update RepoDash when a newer release is offered'], ['?', 'this help'], ['click the version', "what's new in this release and earlier ones"],
 ];
 const helpbg = document.createElement('div'); helpbg.className = 'info-bg'; helpbg.hidden = true;
 helpbg.innerHTML = `<div class="infobox helpbox" role="dialog" aria-modal="true" aria-labelledby="helptitle"><header><h3 id="helptitle">Keyboard shortcuts</h3><button class="ib" data-help="close" aria-label="Close">✕</button></header><div class="pane helppane">${HELP_KEYS.map(([k, t]) => `<div class="hk"><kbd>${esc(k)}</kbd><span>${esc(t)}</span></div>`).join('')}</div></div>`;
@@ -1774,6 +1897,12 @@ addEventListener('keydown', e => {
   else if (k === '?') toggleHelp(true);
   else if (e.repeat) used = false;
   else if (k === 'i') toggleInsp();
+  else if (inspOn && (k === '1' || k === '2')) setInspMode(k === '1' ? 'repo' : 'today');
+  else if (inspOn && inspMode === 'today' && ({d: 1, D: 1, w: 1, m: 1})[k]) setWorkRange({d: 'today', D: 'yesterday', w: 'week', m: 'month'}[k]);
+  else if (k === 't'){
+    if (!inspOn){ inspMode = 'today'; ls('inspMode', 'today'); toggleInsp(); }
+    else setInspMode(inspMode === 'today' ? 'repo' : 'today');
+  }
   else if (k === 'J' || k === 'K'){ if (!(inspOn && rowMove(k === 'J' ? 1 : -1))) used = false; }
   else if (k === 'o'){ const rw = inspOn && document.activeElement.closest && document.activeElement.closest('#insp .row'); if (rw) rowActivate(rw); else used = false; }
   else if (k === 'Enter' || k === 'c'){ if (inspName && repos.some(r => r.name === inspName)) openTerminal(inspName, null); else used = false; }
@@ -1802,7 +1931,7 @@ function setLive(cls, txt){ liveState = {cls, txt}; const l = $('#live'); if (l)
 function connect(){
   const es = new EventSource('/events');
   es.addEventListener('config', e => applyConfig(JSON.parse(e.data), false));
-  es.addEventListener('repos', e => { setLive('on', 'live'); applyRepos(JSON.parse(e.data)); });
+  es.addEventListener('repos', e => { setLive('on', 'live'); applyRepos(JSON.parse(e.data)); workEnsure(); });
   es.addEventListener('agents', e => applyAgents(JSON.parse(e.data)));
   es.addEventListener('issues', e => applyIssues(JSON.parse(e.data)));
   es.addEventListener('update', e => applyUpdate(JSON.parse(e.data)));

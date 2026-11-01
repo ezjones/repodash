@@ -26,14 +26,15 @@ type tuiDeps struct {
 	Commits       func(dir string) []core.CommitLine
 	CommitDetail  func(dir, hash string) (core.CommitInfo, error)
 	OpenURL       func(url string)
-	Notes         func(name string) string         // the repo's whole notes text, "" when none
-	ReadNotes     func(name string) (string, bool) // for the notes dialog; core.ReadNotes when nil
-	SaveNotes     func(name, text string) error    // for the notes dialog; core.SaveNotes when nil
-	EditCmd       func(path string) *exec.Cmd      // the editor on path; nil when there is none
-	GitCmd        func(dir string) *exec.Cmd       // lazygit in dir (L); nil when it is not installed
-	GitPopup      func(dir string) error           // lazygit as a herdr popup over the TUI; nil outside herdr
-	Changelog     func() []core.Release            // release notes for "What's new"; core.Changelog when nil
-	ShowNews      bool                             // open "What's new" at start (first run after an update)
+	Notes         func(name string) string                            // the repo's whole notes text, "" when none
+	ReadNotes     func(name string) (string, bool)                    // for the notes dialog; core.ReadNotes when nil
+	SaveNotes     func(name, text string) error                       // for the notes dialog; core.SaveNotes when nil
+	EditCmd       func(path string) *exec.Cmd                         // the editor on path; nil when there is none
+	GitCmd        func(dir string) *exec.Cmd                          // lazygit in dir (L); nil when it is not installed
+	GitPopup      func(dir string) error                              // lazygit as a herdr popup over the TUI; nil outside herdr
+	Changelog     func() []core.Release                               // release notes for "What's new"; core.Changelog when nil
+	ShowNews      bool                                                // open "What's new" at start (first run after an update)
+	Work          func(repos []core.Repo, rng string) []core.RepoWork // work done in a range (today, yesterday, week); slow, run off the UI goroutine
 	Now           func() time.Time
 	Web           func() (url string, err error) // open the web page, starting the server if needed
 	QuitAfterJump bool                           // in a herdr popup, which blocks herdr until it closes
@@ -167,6 +168,16 @@ type tuiModel struct {
 	panelRepo  string   // repo the panel state below belongs to
 	openCommit string   // hash of the expanded commit, "" when none
 	details    map[string]detailCache
+
+	panelMode  string // "" the repo, "today" the work across repos (t)
+	workRange  string // today | yesterday | week
+	work       []core.RepoWork
+	workFor    string    // range the work above is for, "" when none yet
+	workAt     time.Time // when the last computation was started
+	workBusy   string    // range being computed, "" when none
+	dragPanel  bool      // the line left of the inspector is being dragged
+	tabZones   [][2]int  // x ranges of the Repo and Today tabs, set when the panel is drawn
+	rangeZones [][2]int  // x ranges of the range words, set when Today is drawn
 }
 
 // tuiSettings returns the live settings, loading defaults when none were loaded yet.
@@ -184,6 +195,7 @@ func newTUIModel(d tuiDeps) *tuiModel {
 		d.Now = time.Now
 	}
 	m := &tuiModel{d: d, cols: 1, pageRows: 6, lastIdx: -1, commits: map[string]commitCache{}, details: map[string]detailCache{}, panelCur: -1, prefs: d.Prefs}
+	m.initWork()
 	m.applySettings(true)
 	if d.ShowNews {
 		m.openNews()
@@ -305,7 +317,7 @@ func (m *tuiModel) moveTo(i int) {
 	old := m.sel
 	m.sel = i
 	m.clamp()
-	if m.sel != old {
+	if m.sel != old && m.panelMode == "" {
 		m.panelScroll = 0
 		m.resetPanel()
 	}
@@ -465,6 +477,10 @@ func (m *tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if sc := m.spinCmd(); sc != nil {
 		cmd = tea.Batch(cmd, sc)
 	}
+	_, scanned := msg.(scanMsg)
+	if wc := m.workCmd(scanned); wc != nil {
+		cmd = tea.Batch(cmd, wc)
+	}
 	return mod, cmd
 }
 
@@ -583,6 +599,16 @@ func (m *tuiModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	switch msg := msg.(type) {
+	case tea.MouseMotionMsg:
+		if m.dragPanel {
+			m.dragPanelTo(tea.Mouse(msg).X, false)
+		}
+		return m, nil
+	case tea.MouseReleaseMsg:
+		if m.dragPanel {
+			m.dragPanelTo(tea.Mouse(msg).X, true)
+		}
+		return m, nil
 	case tea.MouseClickMsg:
 		if m.dlg != nil {
 			m.dialogClick(tea.Mouse(msg))
@@ -623,6 +649,8 @@ func (m *tuiModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.panes, m.ctxs = msg.panes, msg.ctxs
 		m.applyPanes()
 		m.rebuild()
+	case workMsg:
+		m.workDone(msg)
 	case issuesMsg:
 		m.issues = map[string]core.RepoIssues(msg)
 		m.rebuild()
@@ -808,6 +836,20 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.panelFocus && !m.panelVisible() {
 		m.panelFocus = false
 	}
+	if m.panelVisible() {
+		switch s {
+		case "1":
+			m.setPanelMode("")
+			return m, nil
+		case "2":
+			m.setPanelMode("today")
+			return m, nil
+		}
+		if r, ok := workRangeKey[s]; ok && m.panelFocus && m.panelMode == "today" {
+			m.setWorkRange(r)
+			return m, nil
+		}
+	}
 	if m.panelFocus {
 		switch s {
 		case "j", "down", "J":
@@ -869,6 +911,18 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.panelFocus = false
 	case "tab":
 		m.focusPanel()
+	case "t":
+		m.toggleToday()
+	case "[", "]":
+		if m.panelMode == "today" && m.panelVisible() {
+			d := 1
+			if s == "[" {
+				d = -1
+			}
+			m.setWorkRange(cycle(core.WorkRanges, m.workRange, d))
+		}
+	case "y":
+		return m, m.copyWork()
 	case "J":
 		m.movePanelCur(1)
 	case "K":
@@ -1023,6 +1077,13 @@ func Run(root string, web func() (string, error)) error {
 		Notes: func(name string) string {
 			t, _ := core.ReadNotes(name)
 			return t
+		},
+		Work: func(repos []core.Repo, rng string) []core.RepoWork {
+			from, to, ok := core.WorkBounds(rng, time.Now())
+			if !ok {
+				return nil
+			}
+			return core.Work(repos, from, to)
 		},
 		EditCmd:       editorCmd,
 		GitCmd:        lazygitCmd,

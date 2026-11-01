@@ -12,12 +12,15 @@ import (
 // TUIPrefs are choices made in the terminal UI that it remembers between runs. They live in the
 // data folder, not in repodash.json, which people edit by hand.
 type TUIPrefs struct {
-	HideHints    bool              `json:"hideHints,omitempty"`    // the footer's key hints are off (H)
-	Theme        string            `json:"theme,omitempty"`        // card theme; "" is the default (colourful)
-	StatusDot    bool              `json:"statusDot,omitempty"`    // status as a coloured dot, no words
-	HideLanguage bool              `json:"hideLanguage,omitempty"` // no language badge on the cards
-	Colors       map[string]string `json:"colors,omitempty"`       // repo name -> its own band colour, #rrggbb
-	SeenVersion  string            `json:"seenVersion,omitempty"`  // the version whose "What's new" was shown
+	HideHints     bool              `json:"hideHints,omitempty"`     // the footer's key hints are off (H)
+	Theme         string            `json:"theme,omitempty"`         // card theme; "" is the default (colourful)
+	StatusDot     bool              `json:"statusDot,omitempty"`     // status as a coloured dot, no words
+	HideLanguage  bool              `json:"hideLanguage,omitempty"`  // no language badge on the cards
+	Colors        map[string]string `json:"colors,omitempty"`        // repo name -> its own band colour, #rrggbb
+	SeenVersion   string            `json:"seenVersion,omitempty"`   // the version whose "What's new" was shown
+	InspectorMode string            `json:"inspectorMode,omitempty"` // "" the repo, "today" the work done across repos
+	WorkRange     string            `json:"workRange,omitempty"`     // Today mode's range: "" today, yesterday, week
+	PanelWidth    int               `json:"panelWidth,omitempty"`    // inspector width with its separator, dragged with the mouse; 0 the default
 }
 
 func TUIPrefsPath() string {
