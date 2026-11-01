@@ -4,6 +4,8 @@ What each release added. The release workflow copies the section for the tag it 
 
 ## Unreleased
 
+## v0.7.11
+
 - Press `L` in the terminal UI to open lazygit in the selected repo. Inside herdr it opens as a popup; quit lazygit and you are back on the cards.
 
 ## v0.7.10
