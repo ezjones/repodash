@@ -88,6 +88,7 @@ A few keys get you going:
 | `w` | Open the web page (canvas, kanban) in your browser |
 | `U` | Check for a new release now and update to it (once a day it also checks by itself and offers it at the bottom right) |
 | `?` | Every key |
+| Click the version | What's new in this release and the ones before it (it also opens by itself after an update) |
 | `q` | Quit |
 
 The full list is in [Terminal UI and herdr](#terminal-ui-and-herdr).

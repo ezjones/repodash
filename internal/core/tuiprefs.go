@@ -17,6 +17,7 @@ type TUIPrefs struct {
 	StatusDot    bool              `json:"statusDot,omitempty"`    // status as a coloured dot, no words
 	HideLanguage bool              `json:"hideLanguage,omitempty"` // no language badge on the cards
 	Colors       map[string]string `json:"colors,omitempty"`       // repo name -> its own band colour, #rrggbb
+	SeenVersion  string            `json:"seenVersion,omitempty"`  // the version whose "What's new" was shown
 }
 
 func TUIPrefsPath() string {

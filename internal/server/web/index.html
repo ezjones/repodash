@@ -48,6 +48,7 @@ button,input{font:inherit;color:inherit}
 .live.off i{background:var(--bad)}
 .updnote{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--warn);margin-right:6px;white-space:nowrap}
 .updnote[hidden]{display:none}
+.vers{font:inherit;font-size:12px;color:var(--mute);background:none;border:0;padding:2px 4px;margin-right:6px;cursor:pointer;border-radius:6px}.vers:hover{color:var(--ink);background:var(--panel)}.vers[hidden]{display:none}
 .updnote .tool{padding:3px 10px;font-size:12px;font-weight:700;background:var(--warn);color:var(--on-warn,#fff);border-color:var(--warn)}
 .updnote .tool:hover{filter:brightness(1.08)}
 .updnote.err{color:var(--bad)}
@@ -278,6 +279,11 @@ li b{color:var(--warn);font-weight:600;font-size:12px}li i{color:var(--mute)}
 .md hr{border:0;border-top:1px solid var(--line)}
 .mdbar{display:flex;gap:4px;margin:-4px 0 8px}.mdbar button{border:1px solid var(--line);background:transparent;color:inherit;border-radius:6px;min-width:30px;height:28px;font-size:13px;cursor:pointer}
 .md li.task{list-style:none;margin-left:-1.2em}.md li.task input{margin-right:6px;vertical-align:-1px}
+.newsbox{width:min(600px,100%);height:auto;max-height:84vh}.newspane{padding:4px 22px 18px;overflow:auto}
+.newspane h4{margin:16px 0 6px;font-size:14px;font-weight:700;color:var(--info)}.newspane h4 small{font-weight:500;color:var(--mute);margin-left:6px}
+.newspane .earlier{margin:22px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--mute)}
+.newspane ul{margin:0;padding-left:18px}.newspane li{margin:5px 0;font-size:14px;line-height:1.45}
+.newspane code{font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--panel);border:1px solid var(--line);padding:0 4px;border-radius:4px}
 .helpbox{width:min(480px,100%);height:auto;max-height:84vh}.helppane{padding:10px 20px 16px;overflow:auto}
 .hk{display:flex;gap:14px;align-items:baseline;padding:5px 0;font-size:14px}.hk kbd{flex:none;width:150px;font:600 12.5px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--info)}.hk span{color:var(--ink)}
 .infobox .none{color:var(--mute);text-align:center;margin-top:30px}
@@ -427,6 +433,8 @@ function sorted(){
 }
 
 function ls(k, v){ try { if (v === undefined) return localStorage.getItem('repodash.'+k); localStorage.setItem('repodash.'+k, v); } catch { return null; } }
+// Whether this browser had RepoDash settings before this page load (read before anything saves): What's new skips fresh installs.
+const lsKnown = (() => { try { return Object.keys(localStorage).some(k => k.startsWith('repodash.')); } catch { return false; } })();
 
 /* ---------- settings: applying repodash.json ---------- */
 const defaultView = () => { const v = C('defaults.view', 'auto'); return v === 'auto' ? (matchMedia('(max-width:700px)').matches ? 'grid' : 'canvas') : v; };
@@ -625,7 +633,7 @@ const seg = (items, key) => items.map(([v, label, icon]) => `<button data-top="$
 // data-only="grid|canvas|kanban" shows a control in that view only.
 const BAR = {
   title:      () => `<h1>${esc(C('title', 'RepoDash'))}</h1>`,
-  live:       () => `<span class="live ${liveState.cls}" id="live"><i></i><span id="livetxt">${esc(liveState.txt)}</span></span><span class="updnote" id="upd" hidden></span>`,
+  live:       () => `<span class="live ${liveState.cls}" id="live"><i></i><span id="livetxt">${esc(liveState.txt)}</span></span><span class="updnote" id="upd" hidden></span><button class="vers" id="vers" data-news="open" hidden title="What's new"></button>`,
   view:       () => `<div class="seg icons" role="group" aria-label="View">${seg([['grid', L('viewGrid'), ICON_GRID], ['canvas', L('viewCanvas'), ICON_CANVAS], ['kanban', L('viewKanban'), ICON_KANBAN]], 'view')}</div>`,
   sort:       () => { const o = [['recent', L('sortRecent')], ['activity', L('sortActivity')], ['language', L('sortLanguage')], ['alpha', L('sortAlpha')]];
     return `<div class="seg" data-only="grid" role="group" aria-label="Sort by">${seg(o, 'sort')}</div><select class="tool sortsel" data-only="grid" aria-label="Sort by" title="Sort by">${o.map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join('')}</select>`; },
@@ -1617,6 +1625,7 @@ for (const id of ['#recent', '#world', '#kanban']) $(id).addEventListener('click
 /* ---------- self-update: notice in the top bar, U key ---------- */
 let upd = {version: '', latest: '', blocker: ''}, updBusy = '', updMsg = '';
 function paintUpdate(){
+  const ve = $('#vers'); if (ve){ ve.hidden = !upd.version; ve.textContent = upd.version; }
   const el = $('#upd'); if (!el) return;
   el.hidden = !upd.latest; el.classList.toggle('err', !!updMsg);
   if (!upd.latest) return;
@@ -1629,6 +1638,7 @@ function paintUpdate(){
 }
 function applyUpdate(u){
   upd = u;
+  newsOnStart(u.version);
   if (u.restart === 'failed' && updBusy){ updBusy = ''; updMsg = 'Restart failed; the old version keeps running'; }
   paintUpdate();
 }
@@ -1658,7 +1668,7 @@ $('#top').addEventListener('click', e => { if (e.target.closest('[data-top=updat
 const HELP_KEYS = [
   ['h j k l / arrows', 'move between cards'], ['g / G', 'first / last card'], ['ctrl-d / ctrl-u', 'half a screen down / up'],
   ['Enter / c', "jump to the repo's terminal"], ['n', 'README and notes of the selected repo'], ['p', 'pin / unpin the selected repo: pinned repos stay first'], ['/', 'search by name (Enter keeps, Esc clears)'], ['s / S', 'next sort / reverse'],
-  ['f / F', 'next / previous status filter'], ['r', 'rescan now'], ['J / K', 'inspector: next / previous commit or issue'], ['o', 'inspector: expand the commit, open the issue, jump to the worktree'], ['i', 'show / hide the inspector'], ['U', 'update RepoDash when a newer release is offered'], ['?', 'this help'],
+  ['f / F', 'next / previous status filter'], ['r', 'rescan now'], ['J / K', 'inspector: next / previous commit or issue'], ['o', 'inspector: expand the commit, open the issue, jump to the worktree'], ['i', 'show / hide the inspector'], ['U', 'update RepoDash when a newer release is offered'], ['?', 'this help'], ['click the version', "what's new in this release and earlier ones"],
 ];
 const helpbg = document.createElement('div'); helpbg.className = 'info-bg'; helpbg.hidden = true;
 helpbg.innerHTML = `<div class="infobox helpbox" role="dialog" aria-modal="true" aria-labelledby="helptitle"><header><h3 id="helptitle">Keyboard shortcuts</h3><button class="ib" data-help="close" aria-label="Close">✕</button></header><div class="pane helppane">${HELP_KEYS.map(([k, t]) => `<div class="hk"><kbd>${esc(k)}</kbd><span>${esc(t)}</span></div>`).join('')}</div></div>`;
@@ -1666,11 +1676,42 @@ document.body.appendChild(helpbg);
 const toggleHelp = on => { helpbg.hidden = on === undefined ? !helpbg.hidden : !on; };
 helpbg.addEventListener('mousedown', e => { if (e.target === helpbg || e.target.closest('[data-help=close]')) toggleHelp(false); });
 
+/* ---------- What's new: CHANGELOG.md, once after each update and on a click on the version ---------- */
+const newsbg = document.createElement('div'); newsbg.className = 'info-bg'; newsbg.hidden = true;
+document.body.appendChild(newsbg);
+async function openNews(){
+  let d;
+  try { d = await (await fetch('/api/changelog', {cache: 'no-store'})).json(); } catch { toast("What's new: could not load the release notes"); return; }
+  let rs = d.releases || [];
+  if (!rs.length){ toast('No release notes in this build'); return; }
+  const i = rs.findIndex(r => r.tag === d.version), cur = i >= 0;
+  if (cur) rs = rs.slice(i);   // a dev build may list releases newer than the one running
+  const sec = (r, n) => (n === 1 && cur ? '<div class="earlier">Earlier</div>' : '') +
+    `<h4>${esc(r.tag)}${n === 0 && cur ? '<small>this version</small>' : ''}</h4><ul>${r.items.map(t => `<li>${mdInline(t)}</li>`).join('')}</ul>`;
+  newsbg.innerHTML = `<div class="infobox newsbox" role="dialog" aria-modal="true" aria-labelledby="newstitle"><header><h3 id="newstitle">${esc(cur ? "What's new in " + d.version : "What's new")}</h3><button class="ib" data-news="close" aria-label="Close">✕</button></header><div class="pane newspane">${rs.map(sec).join('')}</div></div>`;
+  newsbg.hidden = false;
+}
+const closeNews = () => { newsbg.hidden = true; };
+newsbg.addEventListener('mousedown', e => { if (e.target === newsbg || e.target.closest('[data-news=close]')) closeNews(); });
+$('#top').addEventListener('click', e => { if (e.target.closest('[data-news=open]')) openNews(); });
+// Shown once per browser after the version changes. A browser with no RepoDash settings at all
+// is a fresh install and starts quiet; one with settings from an older version gets it.
+let newsChecked = false;
+function newsOnStart(v){
+  if (newsChecked || !v) return;
+  newsChecked = true;
+  if (!/^v\d+\.\d+\.\d+$/.test(v)) return;
+  const seen = ls('seenVersion');
+  if (seen === v) return;
+  ls('seenVersion', v);
+  if (seen || lsKnown) openNews();
+}
+
 // One check for every single-key shortcut: typing somewhere, or a dialog or popover open, means the key is not ours.
 function keysBlocked(e){
   const t = e.target;
   if (t && t.closest && t.closest('input, textarea, select, [contenteditable]')) return true;
-  return !$('#infobg').hidden || !ctx.hidden || !panel.hidden || !pop.hidden || !helpbg.hidden;
+  return !$('#infobg').hidden || !ctx.hidden || !panel.hidden || !pop.hidden || !helpbg.hidden || !newsbg.hidden;
 }
 const visibleCards = () => [...els.values()].map(x => x.el).filter(el => !el.hidden && el.getClientRects().length);
 const centre = r => ({x: r.left + r.width / 2, y: r.top + r.height / 2});
@@ -1716,6 +1757,7 @@ function kbCycle(list, cur, step){ return list[(Math.max(0, list.indexOf(cur)) +
 addEventListener('keydown', e => {
   if (e.metaKey || e.altKey) return;
   const k = e.key;
+  if (!newsbg.hidden){ if (k === 'Escape' || k === 'Enter'){ e.preventDefault(); closeNews(); } return; }
   if (!helpbg.hidden){ if (k === 'Escape' || k === '?'){ e.preventDefault(); toggleHelp(false); } return; }
   const half = e.ctrlKey && !e.shiftKey && (k === 'd' || k === 'u');
   if (e.ctrlKey && !half) return;

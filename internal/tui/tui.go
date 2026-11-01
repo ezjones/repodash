@@ -32,6 +32,8 @@ type tuiDeps struct {
 	EditCmd       func(path string) *exec.Cmd      // the editor on path; nil when there is none
 	GitCmd        func(dir string) *exec.Cmd       // lazygit in dir (L); nil when it is not installed
 	GitPopup      func(dir string) error           // lazygit as a herdr popup over the TUI; nil outside herdr
+	Changelog     func() []core.Release            // release notes for "What's new"; core.Changelog when nil
+	ShowNews      bool                             // open "What's new" at start (first run after an update)
 	Now           func() time.Time
 	Web           func() (url string, err error) // open the web page, starting the server if needed
 	QuitAfterJump bool                           // in a herdr popup, which blocks herdr until it closes
@@ -123,9 +125,11 @@ type tuiModel struct {
 	promptDir    string // folder the prompt will open on y
 	promptLabel  string // what the prompt calls it
 	msg          string
-	newTag       string // newest release tag when newer than this one, "" when none is known
-	restart      bool   // an update was installed: restart the new binary after quitting
-	updX0, updX1 int    // footer cells of the update offer, -1 when not drawn; set by withVersion
+	newTag       string   // newest release tag when newer than this one, "" when none is known
+	restart      bool     // an update was installed: restart the new binary after quitting
+	updX0, updX1 int      // footer cells of the update offer, -1 when not drawn; set by withVersion
+	verX0, verX1 int      // footer cells of the version (click: What's new), -1 when not drawn
+	news         *newsBox // "What's new", nil when closed
 	width        int
 	height       int
 	scroll       int // first visible card row
@@ -181,6 +185,9 @@ func newTUIModel(d tuiDeps) *tuiModel {
 	}
 	m := &tuiModel{d: d, cols: 1, pageRows: 6, lastIdx: -1, commits: map[string]commitCache{}, details: map[string]detailCache{}, panelCur: -1, prefs: d.Prefs}
 	m.applySettings(true)
+	if d.ShowNews {
+		m.openNews()
+	}
 	if d.Issues != nil {
 		if is := d.Issues(); is != nil {
 			m.issues = is
@@ -569,6 +576,13 @@ func editorCmd(path string) *exec.Cmd {
 func (m *tuiModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	defer m.relayout()
 	switch msg := msg.(type) {
+	case tea.MouseClickMsg, tea.MouseWheelMsg:
+		if m.news != nil {
+			m.newsMouse(msg)
+			return m, nil
+		}
+	}
+	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
 		if m.dlg != nil {
 			m.dialogClick(tea.Mouse(msg))
@@ -736,6 +750,10 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	s := k.String()
 	m.msg = ""
 
+	if m.news != nil {
+		m.newsKey(s)
+		return m, nil
+	}
 	if m.dlg != nil {
 		return m.dialogKey(k)
 	}
@@ -1028,6 +1046,11 @@ func Run(root string, web func() (string, error)) error {
 	if prefsPath := core.TUIPrefsPath(); prefsPath != "" {
 		d.Prefs = core.ReadTUIPrefs(prefsPath)
 		d.SavePrefs = func(change func(*core.TUIPrefs)) error { return core.UpdateTUIPrefs(prefsPath, change) }
+		_, err := os.Stat(prefsPath)
+		d.ShowNews = core.NewsDue(d.Prefs.SeenVersion, core.Version, err == nil)
+		if core.NewsDue(d.Prefs.SeenVersion, core.Version, true) {
+			d.SavePrefs(func(p *core.TUIPrefs) { p.SeenVersion = core.Version })
+		}
 	}
 	p := tea.NewProgram(newTUIModel(d))
 

@@ -42,6 +42,10 @@ func Serve(o Options) error {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(hub.snapshot())
 	})
+	mux.HandleFunc("GET /api/changelog", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"version": core.Version, "releases": core.Changelog()})
+	})
 	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(core.Config().Payload())

@@ -24,7 +24,7 @@ its settings**, and how to **change the code**.
 | Settings file | `repodash.json` **in this repo**, next to the binary (created on first run as a near-empty file: only put what you change, because a list you set replaces the default list and would hide items added in later releases; tracked in git; an installed binary uses `~/.config/repodash/repodash.json` instead). Override with `-config FILE` or `$REPODASH_CONFIG` |
 | Card positions, groups, kanban boards and columns | `~/.local/share/repodash/layout.json` (`$XDG_DATA_HOME` respected) |
 | Images added in the UI | `~/.local/share/repodash/images/<repo>.<ext>` |
-| TUI choices (`H` key hints, the `a` Appearance menu: theme, status dot, language, each repo's own colour) | `~/.local/share/repodash/tui.json` |
+| TUI choices (`H` key hints, the `a` Appearance menu: theme, status dot, language, each repo's own colour; `seenVersion`, the last release whose What's new was shown) | `~/.local/share/repodash/tui.json` |
 | Pinned repos (`p`; shared by the TUI and the page) | `~/.local/share/repodash/pins.json` |
 | Notes written in the info panel | `~/.local/share/repodash/notes/<repo>.md` (markdown; never inside the repo) |
 | GitHub issues cache (TUI) | `~/.cache/repodash/issues.json` (`$XDG_CACHE_HOME` respected) |
@@ -173,6 +173,7 @@ comes from the modification times of uncommitted files.
 - **Web keys** (same as the TUI, in Grid, Canvas and Kanban; ignored while typing or with a dialog open): `h j k l`/arrows move the selection to the nearest card on screen (it is the inspector's selection), `g`/`G` first/last, `ctrl-d`/`ctrl-u` half a screen, Enter or `c` jump to the repo's terminal, `n` opens the README and notes panel, `p` pins or unpins the selected repo (pinned repos come first in Grid, Kanban columns and Canvas *Arrange*, whatever the sort; a pin icon before the name, click it to unpin), `/` search (Enter keeps, Esc clears), `s`/`S` sort and reverse, `f`/`F` status filter, `r` rescan, `i` inspector, `U` update (when the top bar offers `↑ vX.Y.Z`), `?` help. With the inspector open, click a commit to expand it (author, date, body, files, GitHub link) or an issue to open it; `J`/`K` move over those rows, `o` or Enter acts.
 - **Inspector** (top-bar panel icon, or the `i` key): a 360px panel docked on the right (full screen below 700px) with the clicked card's details: status, branch, agent, workspace, recent commits, issues, worktrees and the first lines of its notes. Commits expand, issues open on GitHub, and a worktree line jumps to a terminal in that worktree's folder (an existing tab there, else a new one; the TUI asks first, as Enter does); `J`/`K` move between these lines and `o` activates one. A plain click on a card selects it (in Canvas a drag still moves it); it starts hidden and each browser remembers open or closed.
 - **Info panel** (ⓘ icon): one panel, no tabs. The repo's `README.md` is on top (read-only, rendered as markdown, 256 KB cap, collapsible, and the divider between the two can be dragged; the split is remembered per browser). Your own **Notes** are underneath, ready to type in. Notes are markdown, Obsidian-style: every block shows rendered, click one to edit its raw markdown, click away to render it. A small toolbar inserts bold, italic, code, heading, list, task and link, Enter continues a list, and `- [ ] ` tasks tick with a click. Notes autosave to the notes folder.
+- **What's new** (`internal/core/changelog.go` parses `CHANGELOG.md`, which `changelog.go` at the root embeds): a centred box listing the running release's changelog section, then every earlier one. It opens by itself on the first start of a new release (TUI: `seenVersion` in `tui.json`; page: `repodash.seenVersion` in each browser's localStorage; `core.NewsDue`): a fresh install with no saved choices stays quiet, dev builds never open it. Clicking the version reopens it (TUI footer, bottom right; page top bar, after the live dot). Esc or Enter closes it; j/k scroll in the TUI. The page reads `GET /api/changelog`. Write `CHANGELOG.md` for users: this is where they read it.
 - **Card icons**: picture icon sets a cover (or drop an image file on the card); terminal icon
   jumps to that repo's tmux tab or herdr workspace, or opens one; copy icon copies `cd <path>`.
 - **Gear button**: shows the settings file path and any problems with it, and a per-browser choice of tmux or herdr for the terminal button.
@@ -190,6 +191,7 @@ Handy for scripts and tests. All local; see the security notes before exposing t
 | `GET /api/layout`, `PUT /api/layout` | Canvas/kanban state. PUT needs `Content-Type: application/json` |
 | `POST /api/open` | `{"name": "<repo>", "worktree": "<path>"}`: select or open that repo's tmux window. With `worktree` (the `path` of one of the repo's `worktrees` in `/api/repos`) it opens that folder instead; any other path is refused with 404 |
 | `GET /api/info/<repo>` | `{readme, readme_name, notes}` for the info panel |
+| `GET /api/changelog` | `{version, releases: [{tag, items}]}`: `CHANGELOG.md` as embedded in the running binary, newest first, empty sections left out (What's new) |
 | `GET /api/update` | `{version, latest, blocker, restart?}`: running version, newer release tag if known (else empty), why it cannot self-update (else empty); `restart: "failed"` after a failed restart. Also pushed as SSE event `update` |
 | `POST /api/update` | Update the binary the server runs to `latest` and restart in place. JSON content type; **loopback only**: the client address and the `Host` name must both be this machine, so a local reverse proxy (`tailscale serve`) cannot pass it on (403 otherwise); 409 when blocked, up to date or already running; 502 on a failed download; 200 `{updated: tag}` then restarts after ~300 ms |
 | `GET /api/commits/<repo>` | `{commits: [{hash, at, subject}], web?}`: the 5 newest commits, for the inspector |
@@ -215,6 +217,8 @@ Three packages under `internal/`, plus `main.go` at the root. `tui` and `server`
 | `internal/core/default-config.json` | Every setting and its default; embedded with `go:embed` |
 | `internal/core/scan.go` | Runs git per repo (`git status --porcelain=v2`, `log`, `worktree`...), reads tmux panes, classifies status |
 | `internal/core/context.go` | Agents' context sizes from the status line feed (`ClaudeContexts`, `ContextFor`) |
+| `internal/core/changelog.go` | `CHANGELOG.md` parsed into releases (`Changelog`), `NewsDue` (whether What's new opens on start) |
+| `internal/tui/news.go` | The TUI's What's new box |
 | `internal/core/language.go` | Main language of a repo |
 | `internal/core/commits.go` | Recent commits and one commit's detail |
 | `internal/core/pins.go` | Pinned repos (`pins.json`): `ReadPins`, `SetPinned` |

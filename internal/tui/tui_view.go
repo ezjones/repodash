@@ -446,6 +446,10 @@ func (m *tuiModel) click(ms tea.Mouse) tea.Cmd {
 	if ms.Y == m.height-1 && m.updX0 >= 0 && ms.X >= m.updX0 && ms.X < m.updX1 {
 		return m.updateKey()
 	}
+	if ms.Y == m.height-1 && m.verX0 >= 0 && ms.X >= m.verX0 && ms.X < m.verX1 {
+		m.openNews()
+		return nil
+	}
 	if ms.Y == 0 && !m.help {
 		return m.barClick(ms.X)
 	}
@@ -1047,6 +1051,7 @@ func (m *tuiModel) footerLine() string {
 // update offer (a yellow chip, clickable) just left of it, as far as they fit.
 func (m *tuiModel) withVersion(segs ...seg) string {
 	m.updX0, m.updX1 = -1, -1
+	m.verX0, m.verX1 = -1, -1
 	v := seg{core.Version + " ", fg(cMuted)}
 	right := []seg{v}
 	if m.newTag != "" {
@@ -1059,6 +1064,7 @@ func (m *tuiModel) withVersion(segs ...seg) string {
 	if gap < 2 {
 		return line(m.width, segs...)
 	}
+	m.verX0, m.verX1 = m.width-segsWidth([]seg{v}), m.width-1
 	if len(right) == 3 {
 		m.updX0 = m.width - segsWidth(right)
 		m.updX1 = m.updX0 + segsWidth(right[:1])
@@ -1089,6 +1095,7 @@ var helpText = [][2]string{
 	{"a", "appearance: theme, status dot or words, language, this card's colour (mouse: ◐)"},
 	{"H", "hide / show these key hints at the bottom (remembered)"},
 	{"?", "this help"},
+	{"click the version", "what's new in this release and earlier ones"},
 	{"q / Esc", "close"},
 	{"mouse", "click selects, double-click jumps, wheel scrolls"},
 }
@@ -1191,11 +1198,15 @@ func (m *tuiModel) View() tea.View {
 	if m.lookOpen {
 		body = m.overlayLook(body, h)
 	}
+	if m.news != nil {
+		body = m.overlayNews(body, h)
+	}
 	all := append([]string{m.topBar()}, body...)
 	if m.footerShown() {
 		all = append(all, m.footerLine())
 	} else {
 		m.updX0, m.updX1 = -1, -1
+		m.verX0, m.verX1 = -1, -1
 	}
 	v := tea.NewView(strings.Join(all, "\n"))
 	v.AltScreen = true

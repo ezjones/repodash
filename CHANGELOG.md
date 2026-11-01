@@ -4,6 +4,8 @@ What each release added. The release workflow copies the section for the tag it 
 
 ## Unreleased
 
+- What's new: after an update, RepoDash shows what changed in this release and the ones before it, in a box in the middle of the screen (Esc or Enter closes it). Click the version number to see it again: bottom right in the terminal UI, top left on the web page.
+
 ## v0.7.11
 
 - Press `L` in the terminal UI to open lazygit in the selected repo. Inside herdr it opens as a popup; quit lazygit and you are back on the cards.
