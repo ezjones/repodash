@@ -4,6 +4,9 @@ What each release added. The release workflow copies the section for the tag it 
 
 ## Unreleased
 
+## v0.7.13
+
+- Hide the repos you do not want to see: press `x` on a card (terminal and web page) and it leaves the grid, canvas, kanban and the counts. Nothing on disk changes, and its canvas spot, kanban column, notes and pin are kept. `X`, or the quiet *N hidden* button in the top bar, switches to a view of only the hidden repos under a coloured strip; `x` there brings a repo back for good, and `X` or Esc returns to the normal view.
 - Fixed: right after the web server starts, the inspector's All tab could show an empty list until the next refresh.
 
 ## v0.7.12
