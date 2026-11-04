@@ -155,6 +155,9 @@ button:focus-visible,input:focus-visible,[contenteditable]:focus-visible{outline
 /* cards (shared by both views) */
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:6px 6px 10px}
 .card.stale{opacity:.72}
+.ihidden{display:flex;align-items:center;gap:10px;margin:4px 0;font-size:12px;opacity:.8}#insp .ihidden .iopen{margin:0;width:auto;padding:2px 10px}
+#hiddenf:not(:empty){margin-left:8px}#hiddenf button{background:none;border-color:transparent;color:var(--mute);font-size:13px}#hiddenf button:hover{color:var(--ink);border-color:var(--line)}
+.hidstrip{display:flex;align-items:center;gap:12px;padding:7px 16px;background:var(--warn);color:var(--on-warn,#fff);font-weight:600;font-size:14px}.hidstrip span{flex:1}.hidstrip button{background:none;border:0;color:inherit;font-size:18px;line-height:1;cursor:pointer;padding:0 4px}
 .card .body{padding:0 8px}
 .cover{position:relative;height:var(--cover-h,98px);border-radius:9px;overflow:hidden;background:color-mix(in srgb,var(--ink) 6%,transparent)}
 .cover>.artbg,.cover>img{display:block;width:100%;height:100%}
@@ -409,6 +412,7 @@ body.inspdrag{cursor:col-resize;user-select:none}
 </head>
 <body>
 <div class="top" id="top"></div>
+<div class="hidstrip" id="hidstrip" role="status" hidden><span id="hidstriptxt"></span><button id="hidstripx" aria-label="Back to the normal view" title="Back (X or Esc)">×</button></div>
 
 <div id="main"><div id="stage">
 <div id="recent"></div>
@@ -445,6 +449,8 @@ const els = new Map();                // repo name -> {el, sig}
 let layout = {cards:{}, groups:[], vp:{x:30,y:30,k:1}, boards:[], activeBoard:''};
 let view = 'grid';
 let filter = 'all', remoteF = 'any', query = '', z = 10;
+let hiddenView = false, hvPrevSel = '', hvPrevView = '';   // X: show only the repos hidden with x (hidden.json); never remembered
+const listed = () => repos.filter(r => !!r.hidden === hiddenView);
 const SORTS = ['recent', 'activity', 'language', 'alpha'];
 let sortBy = 'recent', rev = false, kanbanMode = 'board';
 // Server order is newest activity first, and sort() is stable, so every mode below falls back to it
@@ -670,6 +676,7 @@ const BAR = {
   kanbanMode: () => `<div class="seg" data-only="kanban" role="group" aria-label="Kanban columns">${seg([['status', L('kanbanStatus')], ['board', L('kanbanBoard')]], 'kmode')}</div>`,
   filters:    () => `<span id="filters" role="group" aria-label="Filter"></span>`,
   remote:     () => `<span id="remotef" role="group" aria-label="Filter by remote"></span>`,
+  hidden:     () => `<span id="hiddenf"></span>`,
   search:     () => `<input id="q" type="search" placeholder="${esc(L('search'))}" aria-label="Filter by name" value="${esc(query)}">`,
   agents:     () => `<span class="agentsum" id="agentsum"></span>`,
   spacer:     () => `<span class="spacer"></span>`,
@@ -697,6 +704,7 @@ function syncChrome(){
 $('#top').addEventListener('click', e => {
   const f = e.target.closest('[data-f]');
   if (f){ filter = f.dataset.f; renderFilters(); applyFilter(); return; }
+  if (e.target.closest('[data-hf]')){ toggleShowHidden(); return; }
   const rf = e.target.closest('[data-rf]');
   if (rf){ remoteF = remoteF === 'no' ? 'any' : 'no'; renderFilters(); applyFilter(); return; }
   const b = e.target.closest('[data-top]'); if (!b) return;
@@ -809,6 +817,8 @@ function applyRepos(list){
     e.el.className = 'card ' + r.level + (view === 'canvas' ? ' on-canvas' : '') + (sel.has(r.name) ? ' sel' : '') + (r.name === inspName ? ' picked' : '');
   }
   for (const [n,e] of els) if (!seen.has(n)){ e.el.remove(); els.delete(n); }
+  if (hiddenView && !repos.some(r => r.hidden)){ leaveHidden(false); toast('Nothing hidden now'); }
+  paintHiddenView();
   renderFilters();
   place();
   tickAgo();
@@ -829,11 +839,11 @@ function paintAgents(){
     `<span class="${k}" title="${by[k]} repo${by[k] > 1 ? 's' : ''} with an agent ${k === 'busy' ? 'working' : k}"><i class="adot"></i>${by[k]} ${k === 'busy' ? 'working' : k}</span>`).join('') : '';
   const t = C('title', 'RepoDash');
   document.title = on && (by.waiting || by.busy) ? `${by.waiting ? '● ' + by.waiting + ' waiting' : '⠿ ' + by.busy + ' working'} · ${t}` : t;
-  const st = new Map(repos.map(r => [r.name, r.claude]));
+  const st = new Map(repos.map(r => [r.name, r.claude])), hid = new Set(repos.filter(r => r.hidden).map(r => r.name));
   for (const g of layout.groups || []){
     const el = world.querySelector(`.group[data-id="${g.id}"] .gagent`);
     if (!el) continue;
-    const w = on ? worst(members(g).map(n => st.get(n))) : '';
+    const w = on ? worst(members(g).filter(n => !hid.has(n)).map(n => st.get(n))) : '';
     el.hidden = !w; el.className = 'gagent ' + w; el.innerHTML = w ? '<i class="adot"></i>' : ''; el.title = w ? 'Claude is ' + (w === 'busy' ? 'working' : w) : '';
   }
 }
@@ -862,22 +872,28 @@ const shownFilters = counts => C('topbar.filters', []).filter(k => S(k).show !==
 function renderFilters(){
   const rbox = $('#remotef');
   if (rbox){
-    const n = repos.filter(r => !r.has_remote).length;
+    const n = listed().filter(r => !r.has_remote).length;
     const t = `${L('remoteNo')}: ${n} repo${n === 1 ? '' : 's'}. Click to show only ${n === 1 ? 'it' : 'them'}, click again to show all.`;
     rbox.innerHTML = n || remoteF === 'no' ? `<button class="tool icon" data-rf="no" aria-pressed="${remoteF === 'no'}" data-tip="${esc(t)}" aria-label="${esc(t)}">${ICON_NOREMOTE}</button>` : '';
   }
+  const hbox = $('#hiddenf');
+  if (hbox){
+    const n = repos.filter(r => r.hidden).length;
+    const t = hiddenView ? 'Back to the normal view (X or Esc)' : `Show only the ${n} hidden repo${n === 1 ? '' : 's'} (X)`;
+    hbox.innerHTML = n ? `<button class="tool" data-hf="1" title="${esc(t)}" aria-label="${esc(t)}">${n} hidden</button>` : '';
+  }
   const box = $('#filters'); if (!box) return;
-  const counts = {bad:0, warn:0, ok:0, stale:0};
-  repos.forEach(r => counts[r.level]++);
+  const counts = {bad:0, warn:0, ok:0, stale:0}, shownAll = listed();
+  shownAll.forEach(r => counts[r.level]++);
   const btn = (f, t, n) => `<button class="chip-btn ${f}" data-f="${f}" aria-pressed="${filter === f}" title="${esc(t)}">${f === 'all' ? '' : '<i></i>'}<span class="t">${esc(t)}</span><b>${n}</b></button>`;
   const shown = shownFilters(counts);
-  box.innerHTML = `<span class="chips">${btn('all', L('all'), repos.length) + shown.map(k => ' ' + btn(k, S(k).label, counts[k])).join('')}</span>` +
-    `<select class="tool filtersel" aria-label="Filter by status">${[['all', L('all'), repos.length], ...shown.map(k => [k, S(k).label, counts[k]])].map(([f, t, n]) => `<option value="${f}" ${filter === f ? 'selected' : ''}>${esc(t)} (${n})</option>`).join('')}</select>`;
+  box.innerHTML = `<span class="chips">${btn('all', L('all'), shownAll.length) + shown.map(k => ' ' + btn(k, S(k).label, counts[k])).join('')}</span>` +
+    `<select class="tool filtersel" aria-label="Filter by status">${[['all', L('all'), shownAll.length], ...shown.map(k => [k, S(k).label, counts[k]])].map(([f, t, n]) => `<option value="${f}" ${filter === f ? 'selected' : ''}>${esc(t)} (${n})</option>`).join('')}</select>`;
 }
 function applyFilter(){
   let n = 0;
   for (const r of repos){
-    const ok = (filter === 'all' || r.level === filter) && (remoteF !== 'no' || !r.has_remote) && (!query || r.name.toLowerCase().includes(query));
+    const ok = !!r.hidden === hiddenView && (filter === 'all' || r.level === filter) && (remoteF !== 'no' || !r.has_remote) && (!query || r.name.toLowerCase().includes(query));
     els.get(r.name).el.hidden = !ok; n += ok;
   }
   document.querySelectorAll('#kanban .col').forEach(c => { c.querySelector('.colhead b').textContent = c.querySelectorAll('.card:not([hidden])').length; });
@@ -886,7 +902,7 @@ function applyFilter(){
 
 /* ---------- views ---------- */
 function setView(v, persist = true){
-  view = v; if (persist) ls('view', v);
+  view = v; if (persist){ ls('view', v); hvPrevView = ''; }
   $('#recent').hidden = v !== 'grid'; $('#viewport').hidden = v !== 'canvas'; $('#kanban').hidden = v !== 'kanban'; if (v !== 'kanban') $('#ktabs').hidden = true;
   for (const e of els.values()) e.el.classList.toggle('on-canvas', v === 'canvas');
   syncChrome(); place();
@@ -1061,7 +1077,8 @@ function ensurePositions(){
   save();
 }
 function arrangeCards(){
-  const free = sorted().filter(r => !groupAt(r.name)).map(r => r.name);
+  const l = sorted().filter(r => !groupAt(r.name));   // hidden repos go last, so they leave no gaps
+  const free = [...l.filter(r => !r.hidden), ...l.filter(r => r.hidden)].map(r => r.name);
   let top = 0;
   for (const g of layout.groups) top = Math.max(top, g.y + g.h);
   gridPlace(free, layout.groups.length ? top + 40 : 0);
@@ -1296,6 +1313,48 @@ async function setPin(name, on){
   r.pinned = on; applyRepos(repos);
   toast((on ? 'Pinned ' : 'Unpinned ') + (((CFG.repos || {})[name] || {}).title || name));
 }
+// Hide or unhide a repo (x): hidden.json, shared with the terminal UI. Nothing in the repo or its layout changes.
+async function setHidden(name, on){
+  const r = repos.find(x => x.name === name); if (!r) return;
+  const res = await fetch('/api/hidden/' + encodeURIComponent(name), {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({hidden: on})}).catch(() => null);
+  if (!res || !res.ok){ toast('Could not ' + (on ? 'hide' : 'unhide') + ' ' + name + (res ? ': ' + (await res.text()).trim() : '')); return; }
+  if (name === inspName && (on || hiddenView)){          // move on, so x again works through the cards
+    const before = inspName;
+    if (view === 'grid'){
+      const o = sorted().filter(x => !!x.hidden === hiddenView), i = o.findIndex(x => x.name === name), n = o[i + 1] || o[i - 1];
+      if (n) inspSelect(n.name);
+    } else for (const d of ['j', 'l', 'k', 'h']){ kbMove(d); if (inspName !== before) break; }
+  }
+  r.hidden = on;
+  const t = ((CFG.repos || {})[name] || {}).title || name;
+  if (hiddenView && !repos.some(x => x.hidden)){ leaveHidden(false); toast('Nothing hidden now'); return; }
+  applyRepos(repos);
+  toast(on ? 'Hidden ' + t + ' · X shows hidden' : 'Unhidden ' + t);
+}
+// X: a view of only the hidden repos, always as the grid (the saved view and layout come back on leaving).
+function paintHiddenView(){
+  const n = repos.filter(r => r.hidden).length, st = $('#hidstrip');
+  st.hidden = !hiddenView; $('#hidstriptxt').textContent = `Hidden repos (${n}) · x unhides · X or Esc goes back`;
+}
+function enterHidden(){
+  if (!repos.some(r => r.hidden)){ toast('Nothing hidden'); return; }
+  hiddenView = true; hvPrevSel = inspName; hvPrevView = view !== 'grid' ? view : '';
+  if (hvPrevView) setView('grid', false);
+  const first = sorted().find(r => r.hidden); if (first) inspSelect(first.name);
+  renderFilters(); place(); paintAgents(); paintHiddenView(); inspUpdate(false);
+  const rc = $('#recent'); if (rc) rc.scrollTop = 0;
+  if (first) kbShowSoon(first.name);
+}
+const kbShowSoon = n => { const e = els.get(n); if (e && !e.el.hidden) e.el.scrollIntoView({block: 'nearest'}); };
+function leaveHidden(restoreSel = true){
+  hiddenView = false;
+  if (hvPrevView){ const v = hvPrevView; hvPrevView = ''; setView(v, false); }
+  const back = restoreSel && repos.find(r => r.name === hvPrevSel && !r.hidden);
+  if (back) inspSelect(back.name); else if (!restoreSel){ const f = sorted().find(r => !r.hidden); if (f) inspSelect(f.name); }
+  renderFilters(); place(); paintAgents(); paintHiddenView(); inspUpdate(false);
+  const e = back && els.get(back.name); if (e) e.el.scrollIntoView({block: 'nearest'});
+}
+function toggleShowHidden(){ if (hiddenView) leaveHidden(); else enterHidden(); }
 // Jump to the repo's tmux/herdr tab (or open one). `b` is the card's button, disabled while waiting.
 // `worktree` (a path from the repo's worktree list) opens that worktree's folder instead.
 async function openTerminal(name, b, worktree){
@@ -1642,6 +1701,7 @@ function inspHTML(r){
   const tabs = r.herdr && r.tmux ? 'open in herdr and tmux' : r.herdr ? 'open in herdr' : r.tmux ? 'open in tmux' : 'no workspace open';
   const c = inspCache.get(r.name) || {commits: [], notes: [], web: ''};
   let h = inspTabs() + `<div class="ihead"><h2>${esc(rc.title || r.name)}</h2></div>`
+    + (r.hidden ? `<p class="ihidden">Hidden <button class="iopen" data-i="unhide">Unhide</button></p>` : '')
     + `<div class="ipills">${pillHTML(r, 'inline')}${lang}</div>`
     + (r.reasons && r.reasons.length ? `<ul class="reasons">${r.reasons.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '')
     + `<dl><dt>branch</dt><dd><code>${esc(r.branch)}</code>${r.base && r.base !== r.branch ? ' &nbsp;base ' + esc(r.base) : ''}</dd><dt>agent</dt><dd>${agent}</dd>${r.claude && r.context ? `<dt>context</dt><dd class="actx${ctxLevel(r)}">${ctxText(r)}</dd>` : ''}<dt>tab</dt><dd>${tabs}</dd></dl>`;
@@ -1733,6 +1793,7 @@ $('#insp').addEventListener('click', e => {
     if (d) navigator.clipboard.writeText(d.markdown).then(() => toast('Copied'), () => toast('Could not copy'));
   }
   else if (b.dataset.i === 'open' && inspName) openInfo(inspName);
+  else if (b.dataset.i === 'unhide' && inspName) setHidden(inspName, false);
 });
 // A plain click on a card (not on a button or link, and not the end of a drag) selects it.
 let downAt = null;
@@ -1790,7 +1851,7 @@ async function doUpdate(){
 $('#top').addEventListener('click', e => { if (e.target.closest('[data-top=update]')) doUpdate(); });
 const HELP_KEYS = [
   ['h j k l / arrows', 'move between cards'], ['g / G', 'first / last card'], ['ctrl-d / ctrl-u', 'half a screen down / up'],
-  ['Enter / c', "jump to the repo's terminal"], ['n', 'README and notes of the selected repo'], ['p', 'pin / unpin the selected repo: pinned repos stay first'], ['/', 'search by name (Enter keeps, Esc clears)'], ['s / S', 'next sort / reverse'],
+  ['Enter / c', "jump to the repo's terminal"], ['n', 'README and notes of the selected repo'], ['p', 'pin / unpin the selected repo: pinned repos stay first'], ['x / X', 'hide / unhide the selected repo / show only the hidden repos (X or Esc goes back)'], ['/', 'search by name (Enter keeps, Esc clears)'], ['s / S', 'next sort / reverse'],
   ['f / F', 'next / previous status filter'], ['r', 'rescan now'], ['J / K', 'inspector: next / previous commit or issue'], ['o', 'inspector: expand the commit, open the issue, jump to the worktree'], ['i', 'show / hide the inspector'], ['t', 'inspector: switch between This repo and All (work done in all repos)'], ['1 / 2', 'inspector open: This repo / All'], ['d / D / w / m', 'All: today / yesterday / this week / this month'], ['U', 'update RepoDash when a newer release is offered'], ['?', 'this help'], ['click the version', "what's new in this release and earlier ones"],
 ];
 const helpbg = document.createElement('div'); helpbg.className = 'info-bg'; helpbg.hidden = true;
@@ -1877,6 +1938,11 @@ function kbMove(dir, half){
   if (best) kbShow(best);
 }
 function kbCycle(list, cur, step){ return list[(Math.max(0, list.indexOf(cur)) + step + list.length) % list.length]; }
+$('#hidstripx').addEventListener('click', () => leaveHidden());
+// Esc leaves the hidden view unless a dialog, menu, panel or the search box is open (capture phase: they close themselves later).
+addEventListener('keydown', e => {
+  if (e.key === 'Escape' && hiddenView && !e.metaKey && !e.altKey && !e.ctrlKey && !keysBlocked(e)){ e.preventDefault(); leaveHidden(); }
+}, true);
 addEventListener('keydown', e => {
   if (e.metaKey || e.altKey) return;
   const k = e.key;
@@ -1908,6 +1974,8 @@ addEventListener('keydown', e => {
   else if (k === 'Enter' || k === 'c'){ if (inspName && repos.some(r => r.name === inspName)) openTerminal(inspName, null); else used = false; }
   else if (k === 'n'){ if (inspName && repos.some(r => r.name === inspName)) openInfo(inspName); else used = false; }
   else if (k === 'p'){ const r = inspName && repos.find(x => x.name === inspName); if (r) setPin(r.name, !r.pinned); else used = false; }
+  else if (k === 'x'){ const r = inspName && repos.find(x => x.name === inspName); if (r) setHidden(r.name, !r.hidden); else used = false; }
+  else if (k === 'X') toggleShowHidden();
   else if (k === 's'){ sortBy = kbCycle(SORTS, sortBy, 1); ls('sort', sortBy); syncChrome(); place(); }
   else if (k === 'S'){ rev = !rev; ls('rev', rev ? '1' : '0'); syncChrome(); place(); }
   else if (k === 'f' || k === 'F'){

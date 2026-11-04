@@ -2,12 +2,14 @@ package tui
 
 import (
 	"errors"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/ezjones/repodash/internal/core"
 )
@@ -345,5 +347,91 @@ func TestHideHints(t *testing.T) {
 	}
 	if !slices.Equal(saved, []bool{true, false}) {
 		t.Errorf("saved %v", saved)
+	}
+}
+
+func TestHideKeys(t *testing.T) {
+	dir := t.TempDir()
+	core.SetDataDirs(filepath.Join(dir, "img"), filepath.Join(dir, "notes"))
+	defer core.SetDataDirs("", "")
+	names := func(f *fakeTUI) []string {
+		var l []string
+		for _, r := range f.m.view {
+			l = append(l, r.Name)
+		}
+		return l
+	}
+	f := newFakeTUI(t, false)
+	f.selectName(t, "api-server")
+	f.keys("x")
+	if got := names(f); !slices.Equal(got, []string{"my-app", "notes-cli"}) {
+		t.Fatalf("view after x: %v", got)
+	}
+	if r, _ := f.m.selected(); r.Name != "notes-cli" {
+		t.Errorf("selection %s, want the next card", r.Name)
+	}
+	if !core.ReadHidden()["api-server"] || !strings.Contains(f.m.msg, "Hidden api-server") {
+		t.Errorf("not saved: msg %q", f.m.msg)
+	}
+	// hiding the last card selects the previous one
+	f.keys("x")
+	if r, _ := f.m.selected(); r.Name != "my-app" || len(f.m.view) != 1 {
+		t.Errorf("after hiding the last: %v", names(f))
+	}
+	// the footer count and the agent/filter totals still know about them
+	if f.m.hiddenNote() != "2 hidden" {
+		t.Errorf("note %q", f.m.hiddenNote())
+	}
+
+	// X: only the hidden repos, plain cards, a strip above them
+	f.selectName(t, "my-app")
+	f.send(tea.WindowSizeMsg{Width: 100, Height: 30})
+	f.keys("X")
+	if got := names(f); !f.m.hiddenView || len(got) != 2 || f.m.sel != 0 || f.m.hiddenNote() != "" {
+		t.Fatalf("X: %v sel %d", got, f.m.sel)
+	}
+	scr := ansi.Strip(f.m.View().Content)
+	if !strings.Contains(scr, "Hidden repos (2) · x unhides · X or Esc goes back") {
+		t.Errorf("no strip:\n%s", scr)
+	}
+	if strings.Contains(scr, "my-app") || !strings.Contains(scr, "api-server") {
+		t.Errorf("wrong cards:\n%s", scr)
+	}
+	r, _ := f.m.selected()
+	if body := strings.Join(cardBody(r, f.m.title(r), nil, 40, f.m.d.Now(), 0, look{}), "\n"); strings.Contains(body, "\x1b[2m") || strings.Contains(ansi.Strip(body), "hidden") {
+		t.Errorf("hidden card dimmed or marked: %q", body)
+	}
+	// a click on the first card row lands on the first card
+	if i, ok := f.m.cardAt(1, f.m.top()); !ok || i != 0 {
+		t.Errorf("cardAt below the strip: %d %v", i, ok)
+	}
+	if _, ok := f.m.cardAt(1, 1); ok {
+		t.Error("the strip row hit a card")
+	}
+	if cmd := f.keys("esc"); cmd != nil || f.m.hiddenView || len(f.m.view) != 1 {
+		t.Fatalf("esc: hiddenView %v view %v", f.m.hiddenView, names(f))
+	}
+	if r, _ := f.m.selected(); r.Name != "my-app" {
+		t.Errorf("selection after esc: %s", r.Name)
+	}
+	f.keys("X", "x")
+	if !f.m.hiddenView || len(f.m.view) != 1 || core.ReadHidden()["api-server"] || !core.ReadHidden()["notes-cli"] {
+		t.Fatalf("x in hidden view: %v", names(f))
+	}
+	f.keys("x")
+	if f.m.hiddenView || f.m.msg != "Nothing hidden now" || len(f.m.view) != 3 || len(core.ReadHidden()) != 0 {
+		t.Errorf("last unhide: hiddenView %v msg %q view %v", f.m.hiddenView, f.m.msg, names(f))
+	}
+	f.keys("X")
+	if f.m.hiddenView || f.m.msg != "Nothing hidden" {
+		t.Errorf("X with none hidden: %v %q", f.m.hiddenView, f.m.msg)
+	}
+	f.selectName(t, "notes-cli")
+	f.keys("x")
+	f.m.panel = true
+	f.m.panelRepo = ""
+	f.keys("X")
+	if out := ansi.Strip(strings.Join(panelLines(f.m, 60), "\n")); !strings.Contains(out, "Hidden · x unhides") {
+		t.Errorf("inspector lacks the hidden line:\n%s", out)
 	}
 }

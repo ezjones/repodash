@@ -29,7 +29,7 @@ var defaultConfigJSON []byte
 
 var (
 	statusKeys   = []string{"bad", "warn", "ok", "stale"}
-	barItems     = []string{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "remote", "search", "agents", "spacer", "addGroup", "arrange", "cover", "theme", "inspector", "appearance", "settings"}
+	barItems     = []string{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "remote", "hidden", "search", "agents", "spacer", "addGroup", "arrange", "cover", "theme", "inspector", "appearance", "settings"}
 	multiplexers = []string{"prefer-tmux", "prefer-herdr", "tmux", "herdr"}
 	cardActions  = []string{"image", "terminal", "copy", "info"}
 	coverStyles  = []string{"aurora", "deep", "gradient", "name"}
@@ -278,6 +278,7 @@ var retiredLists = map[string][][]string{
 		{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "spacer", "addGroup", "arrange", "appearance", "settings"},
 		{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "search", "agents", "spacer", "addGroup", "arrange", "appearance", "settings"},
 		{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "remote", "search", "agents", "spacer", "addGroup", "arrange", "appearance", "settings"},
+		{"title", "live", "view", "sort", "reverse", "kanbanMode", "filters", "remote", "search", "agents", "spacer", "addGroup", "arrange", "inspector", "appearance", "settings"},
 	},
 	"card.actions": {
 		{"image", "terminal", "copy"},

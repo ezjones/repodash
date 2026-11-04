@@ -47,6 +47,7 @@ type Repo struct {
 	HasReadme   bool       `json:"has_readme"`
 	HasNotes    bool       `json:"has_notes"`
 	Pinned      bool       `json:"pinned"` // listed in pins.json: sorts first everywhere
+	Hidden      bool       `json:"hidden"` // listed in hidden.json: left out unless "show hidden" is on
 	Tmux        bool       `json:"tmux"`
 	Herdr       bool       `json:"herdr"`
 	Claude      string     `json:"claude"`       // waiting | busy | idle | ""
@@ -348,6 +349,7 @@ func ScanAll(root string) []Repo {
 	panes := TerminalPanes()
 	ctxs := ClaudeContexts()
 	pins := ReadPins()
+	hidden := ReadHidden()
 	repos := make([]Repo, len(names))
 	sem := make(chan struct{}, 8)
 	var wg sync.WaitGroup
@@ -364,6 +366,7 @@ func ScanAll(root string) []Repo {
 			repos[i].HasReadme = hasReadme(filepath.Join(root, n))
 			repos[i].HasNotes = hasNotes(n)
 			repos[i].Pinned = pins[n]
+			repos[i].Hidden = hidden[n]
 		}()
 	}
 	wg.Wait()

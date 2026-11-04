@@ -134,3 +134,31 @@ func pinPut(root string, h *hub) http.HandlerFunc {
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
+
+// hiddenPut hides or unhides a repo ({"hidden": true|false}) and rescans, so every open tab updates.
+func hiddenPut(root string, h *hub) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+			http.Error(w, "content type must be application/json", http.StatusUnsupportedMediaType)
+			return
+		}
+		name := r.PathValue("name")
+		if _, ok := core.ValidRepo(root, name); !ok {
+			http.Error(w, "not a repo", http.StatusNotFound)
+			return
+		}
+		var req struct {
+			Hidden *bool `json:"hidden"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil || req.Hidden == nil {
+			http.Error(w, `body must be {"hidden": true|false}`, http.StatusBadRequest)
+			return
+		}
+		if err := core.SetHidden(name, *req.Hidden); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		go h.refresh()
+		w.WriteHeader(http.StatusNoContent)
+	}
+}

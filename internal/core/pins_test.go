@@ -54,3 +54,41 @@ func TestPins(t *testing.T) {
 		t.Error("pins from invalid JSON")
 	}
 }
+
+func TestHidden(t *testing.T) {
+	old := notesDir
+	defer func() { notesDir = old }()
+	notesDir = ""
+	if SetHidden("my-app", true) == nil || len(ReadHidden()) != 0 {
+		t.Error("hidden with no data folder")
+	}
+	base := t.TempDir()
+	notesDir = filepath.Join(base, "notes")
+	for _, step := range []struct {
+		name string
+		on   bool
+	}{{"my-app", true}, {"api-server", true}, {"my-app", true}, {"api-server", false}, {"demo", false}} {
+		if err := SetHidden(step.name, step.on); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if h := ReadHidden(); len(h) != 1 || !h["my-app"] {
+		t.Errorf("hidden %v, want only my-app", h)
+	}
+	if HiddenPath() != filepath.Join(base, "hidden.json") {
+		t.Errorf("path %s", HiddenPath())
+	}
+	if len(ReadPins()) != 0 {
+		t.Error("hiding touched pins")
+	}
+	if SetHidden("../x", true) == nil {
+		t.Error("hid a bad name")
+	}
+	os.WriteFile(HiddenPath(), []byte(`{"hidden": [`), 0o644)
+	if SetHidden("demo", true) == nil {
+		t.Error("saved over invalid JSON")
+	}
+	if b, _ := os.ReadFile(HiddenPath()); string(b) != `{"hidden": [` {
+		t.Errorf("file changed: %s", b)
+	}
+}

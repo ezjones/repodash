@@ -70,6 +70,8 @@ A card appears for every repo in that folder. (Run from anywhere else, it falls 
 - **GitHub issues.** For repos on GitHub, each card shows **Done** (the issue closed most recently)
   and **Next** (the oldest open one), through GitHub's `gh` CLI (install it and run `gh auth login` once). See
   [GitHub issues](#github-issues).
+- **Hide what you no longer need.** Press `x` on a stale repo and it leaves the dashboard; the folder
+  stays where it is. `X` shows only the hidden ones, and `x` there brings one back.
 
 A few keys get you going:
 
@@ -82,6 +84,7 @@ A few keys get you going:
 | Tab | Move into the inspector and back (`j`/`k` and Enter work inside it) |
 | `n` | Read or write notes for the repo |
 | `p` | Pin the repo: pinned repos stay at the top |
+| `x` / `X` | Hide the repo (nothing on disk changes) / show only the hidden repos (`x` unhides one, `X` or Esc goes back) |
 | `L` | Open [lazygit](https://github.com/jesseduffield/lazygit) in the repo (a popup inside herdr); quit it to come back |
 | `a` | Appearance: themes, your own card colours, status dot, language badge |
 | `/` | Search by name |
@@ -157,6 +160,8 @@ It scans the repos in the folder you run it from, or `~/gitrepos` (see
 | Enter | Jump to the repo's herdr workspace or tmux window; asks before creating one |
 | `c` | Create a workspace without asking |
 | `n` | Notes dialog for the repo: read, add or edit (`e` or Enter edits, Ctrl+S saves, `o` opens `$EDITOR`) |
+| `x` | Hide or unhide the repo: it leaves the cards and counts, and nothing on disk changes (remembered between runs, shared with the web page) |
+| `X` | Show only the hidden repos; `x` unhides one, `X` or Esc goes back |
 | `p` | Pin or unpin the repo: pinned repos come first in every sort, here and on the web page (marked `📌`; remembered between runs) |
 | `/` | Search by name (Enter keeps it, Esc clears) |
 | `s` / `S` | Next sort (recent, activity, language, alpha, issues) / reverse |

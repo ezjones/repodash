@@ -381,10 +381,35 @@ func (m *tuiModel) issueFor(name string) *core.RepoIssues {
 }
 
 func (m *tuiModel) bodyH() int {
-	if !m.footerShown() {
-		return max(1, m.height-1)
+	h := m.height - 1 - m.stripRows()
+	if m.footerShown() {
+		h--
 	}
-	return max(1, m.height-2)
+	return max(1, h)
+}
+
+// stripRows is 1 while the hidden view's strip is drawn above the cards, else 0.
+func (m *tuiModel) stripRows() int {
+	if m.hiddenView && !m.help && !m.full {
+		return 1
+	}
+	return 0
+}
+
+// top is the screen row where the body (cards and inspector) starts.
+func (m *tuiModel) top() int { return 1 + m.stripRows() }
+
+// hiddenStrip is the full-width line above the cards in the hidden view.
+func (m *tuiModel) hiddenStrip() string {
+	n := m.hiddenCount()
+	t := fmt.Sprintf(" Hidden repos (%d) · x unhides · X or Esc goes back", n)
+	for _, alt := range []string{fmt.Sprintf(" Hidden (%d) · x unhide · Esc back", n), fmt.Sprintf(" Hidden (%d) · Esc back", n), fmt.Sprintf(" Hidden (%d)", n)} {
+		if lipgloss.Width(t) <= m.width {
+			break
+		}
+		t = alt
+	}
+	return line(m.width, seg{padTo(trunc(t, m.width), m.width), sty(cInk, cYellow, true)})
 }
 
 // footerShown says whether the bottom row is drawn. With the hints hidden (H) it only appears
@@ -428,7 +453,7 @@ func (m *tuiModel) relayout() {
 
 // cardAt maps a screen cell to a view index using the last layout.
 func (m *tuiModel) cardAt(x, y int) (int, bool) {
-	if m.full || m.help || m.cardH == 0 || x < 0 || y < 1 || y >= 1+m.vis*m.cardH {
+	if m.full || m.help || m.cardH == 0 || x < 0 || y < m.top() || y >= m.top()+m.vis*m.cardH {
 		return 0, false
 	}
 	gridW := m.width - m.panelW
@@ -439,7 +464,7 @@ func (m *tuiModel) cardAt(x, y int) (int, bool) {
 	if off >= m.cardW || col >= m.cols {
 		return 0, false
 	}
-	i := (m.scroll+(y-1)/m.cardH)*m.cols + col
+	i := (m.scroll+(y-m.top())/m.cardH)*m.cols + col
 	if i < 0 || i >= len(m.view) {
 		return 0, false
 	}
@@ -470,7 +495,7 @@ func (m *tuiModel) click(ms tea.Mouse) tea.Cmd {
 		if !m.full {
 			px -= m.width - m.panelW + 1
 		}
-		return m.panelClickAt(px, ms.Y-1)
+		return m.panelClickAt(px, ms.Y-m.top())
 	}
 	i, ok := m.cardAt(ms.X, ms.Y)
 	if !ok {
@@ -693,6 +718,9 @@ func panelLines(m *tuiModel, w int) []string {
 	for _, s := range r.Reasons {
 		add(seg{" " + s, fg(cText2)})
 	}
+	if r.Hidden {
+		add(seg{" Hidden · x unhides", fg(cYellow)})
+	}
 	out = append(out, "")
 	acts = append(acts, "")
 	br := r.Branch
@@ -882,7 +910,8 @@ func (m *tuiModel) topBar() string {
 		arrow = "↓"
 	}
 	counts := map[string]int{}
-	for _, r := range m.repos {
+	listed := m.shown()
+	for _, r := range listed {
 		counts[r.Level]++
 	}
 	filt := func(mode int) []bseg { // 0 labels and counts, 1 counts only, 2 active filter only
@@ -891,7 +920,7 @@ func (m *tuiModel) topBar() string {
 			if mode == 2 && f != m.filter {
 				continue
 			}
-			label, col, n := "all", cText, len(m.repos)
+			label, col, n := "all", cText, len(listed)
 			if f != "all" {
 				label, col = statusInfo(raw, f)
 				n = counts[f]
@@ -1043,7 +1072,7 @@ func (m *tuiModel) footerLine() string {
 	}
 	key, desc := fg(cInfo).Bold(true), fg(cDim)
 	sp := seg{"  ", lipgloss.NewStyle()}
-	keys := [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "notes"}, {"p", "pin"}, {"L", "lazygit"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"t", "all repos"}, {"a", "appearance"}, {"w", "web"}, {"U", "update"}, {"?", "help"}, {"H", "hide"}, {"q", "close"}}
+	keys := [][2]string{{"hjkl", "move"}, {"⏎", "jump"}, {"n", "notes"}, {"p", "pin"}, {"x", "hide"}, {"L", "lazygit"}, {"s", "sort"}, {"f", "filter"}, {"/", "search"}, {"i", "inspector"}, {"t", "all repos"}, {"a", "appearance"}, {"w", "web"}, {"U", "update"}, {"?", "help"}, {"H", "hints"}, {"q", "close"}}
 	if m.panelFocus && m.panelVisible() {
 		keys = [][2]string{{"INSPECTOR", ""}, {"j/k", "move"}, {"⏎", "open"}, {"1/2", "this repo/all"}, {"tab", "back to cards"}, {"i", "hide"}, {"?", "help"}}
 		if m.panelMode == "today" {
@@ -1069,13 +1098,25 @@ func (m *tuiModel) footerLine() string {
 			ks = append(ks, [2]string{"?", "help"})
 		}
 		if full := render(ks); segsWidth(full)+right <= m.width {
+			if note := m.hiddenNote(); note != "" && segsWidth(full)+right+lipgloss.Width(note) <= m.width {
+				full = append(full, seg{note, fg(cMuted)})
+			}
 			return m.withVersion(full...)
 		}
 	}
 	if m.panelFocus && m.panelVisible() {
 		return m.withVersion(seg{" tab", key}, seg{" back  ", desc}, seg{"?", key}, seg{" help", desc})
 	}
-	return m.withVersion(seg{" ?", key}, seg{" help  ", desc}, seg{"H", key}, seg{" hide  ", desc}, seg{"q", key}, seg{" close", desc})
+	return m.withVersion(seg{" ?", key}, seg{" help  ", desc}, seg{"H", key}, seg{" hints  ", desc}, seg{"q", key}, seg{" close", desc})
+}
+
+// hiddenNote is the footer's quiet count of hidden repos, "" when there are none (or in the hidden
+// view, whose strip says it).
+func (m *tuiModel) hiddenNote() string {
+	if n := m.hiddenCount(); n > 0 && !m.hiddenView {
+		return fmt.Sprintf("%d hidden", n)
+	}
+	return ""
 }
 
 // withVersion draws the footer segments with the running version at the right edge, and the
@@ -1112,6 +1153,8 @@ var helpText = [][2]string{
 	{"c", "new workspace, no question"},
 	{"n", "notes dialog: view, add or edit (Ctrl+S saves)"},
 	{"p", "pin / unpin: pinned repos (📌) stay first in every sort (remembered)"},
+	{"x", "hide / unhide the repo: hidden repos leave the list (remembered; nothing on disk changes)"},
+	{"X", "show only the hidden repos; x unhides, X or Esc goes back"},
 	{"/", "search by name (Enter keeps, Esc clears)"},
 	{"s / S", "next sort / reverse"},
 	{"f / F", "next / previous status filter"},
@@ -1241,7 +1284,11 @@ func (m *tuiModel) View() tea.View {
 	if m.news != nil {
 		body = m.overlayNews(body, h)
 	}
-	all := append([]string{m.topBar()}, body...)
+	all := []string{m.topBar()}
+	if m.stripRows() > 0 {
+		all = append(all, m.hiddenStrip())
+	}
+	all = append(all, body...)
 	if m.footerShown() {
 		all = append(all, m.footerLine())
 	} else {
@@ -1257,7 +1304,7 @@ func (m *tuiModel) View() tea.View {
 
 // onPanelEdge says whether a mouse position is on the line between the cards and the inspector.
 func (m *tuiModel) onPanelEdge(ms tea.Mouse) bool {
-	return !m.help && !m.full && m.panelW > 0 && ms.X == m.width-m.panelW && ms.Y >= 1 && ms.Y <= m.bodyH()
+	return !m.help && !m.full && m.panelW > 0 && ms.X == m.width-m.panelW && ms.Y >= m.top() && ms.Y < m.top()+m.bodyH()
 }
 
 // dragPanelTo follows a drag of that line: the inspector takes everything right of the mouse.

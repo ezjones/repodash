@@ -133,7 +133,9 @@ type tuiModel struct {
 	news         *newsBox // "What's new", nil when closed
 	width        int
 	height       int
-	scroll       int // first visible card row
+	scroll       int    // first visible card row
+	hiddenView   bool   // X: the cards show only the hidden repos; not remembered
+	beforeHidden string // the repo selected before X, selected again on the way back
 	panelScroll  int
 	loaded       bool
 
@@ -266,7 +268,7 @@ func (m *tuiModel) rebuild() {
 	if r, ok := m.selected(); ok {
 		name = r.Name
 	}
-	l := sortRepos(m.repos, m.sortBy, m.rev, m.issues)
+	l := sortRepos(m.shown(), m.sortBy, m.rev, m.issues)
 	m.view = filterRepos(l, m.filter, m.query, m.titles)
 	for i, r := range m.view {
 		if name != "" && r.Name == name {
@@ -275,6 +277,85 @@ func (m *tuiModel) rebuild() {
 		}
 	}
 	m.clamp()
+}
+
+// shown is the repos the cards may list: all but the hidden ones, or only those in the hidden view.
+func (m *tuiModel) shown() []core.Repo {
+	l := make([]core.Repo, 0, len(m.repos))
+	for _, r := range m.repos {
+		if r.Hidden == m.hiddenView {
+			l = append(l, r)
+		}
+	}
+	return l
+}
+
+// hiddenCount is how many repos are in the hidden list.
+func (m *tuiModel) hiddenCount() int {
+	n := 0
+	for _, r := range m.repos {
+		if r.Hidden {
+			n++
+		}
+	}
+	return n
+}
+
+// toggleHide hides the selected repo, or (in the hidden view) unhides it. When it leaves the view
+// the selection stays at the same index, which is the next card (or the previous one if it was
+// last). Unhiding the last hidden repo goes back to the normal list.
+func (m *tuiModel) toggleHide() {
+	r, ok := m.selected()
+	if !ok {
+		return
+	}
+	on := !r.Hidden
+	if err := core.SetHidden(r.Name, on); err != nil {
+		m.msg = err.Error()
+		return
+	}
+	for i := range m.repos {
+		if m.repos[i].Name == r.Name {
+			m.repos[i].Hidden = on
+		}
+	}
+	if on {
+		m.msg = "Hidden " + m.title(r) + " · X shows hidden"
+	} else {
+		m.msg = "Unhidden " + m.title(r)
+	}
+	m.rebuild()
+	if m.hiddenView && m.hiddenCount() == 0 {
+		m.leaveHiddenView()
+		m.msg = "Nothing hidden now"
+	}
+}
+
+// toggleHiddenView switches between the normal list and the hidden-only view.
+func (m *tuiModel) toggleHiddenView() {
+	if m.hiddenView {
+		m.leaveHiddenView()
+		return
+	}
+	if m.hiddenCount() == 0 {
+		m.msg = "Nothing hidden"
+		return
+	}
+	if r, ok := m.selected(); ok {
+		m.beforeHidden = r.Name
+	}
+	m.hiddenView = true
+	m.sel, m.scroll = 0, 0
+	m.rebuild()
+}
+
+// leaveHiddenView returns to the normal list with the repo selected that was selected before.
+func (m *tuiModel) leaveHiddenView() {
+	m.hiddenView = false
+	m.sel, m.scroll = 0, 0
+	m.rebuild()
+	m.selectRepo(m.beforeHidden)
+	m.beforeHidden = ""
 }
 
 // togglePin pins or unpins the selected repo; rebuild keeps the selection on it as it moves.
@@ -893,6 +974,10 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.rebuild()
 			return m, nil
 		}
+		if m.hiddenView {
+			m.leaveHiddenView()
+			return m, nil
+		}
 		return m, tea.Quit
 	case "?":
 		m.help = true
@@ -979,6 +1064,10 @@ func (m *tuiModel) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.openDialog()
 	case "p":
 		m.togglePin()
+	case "x":
+		m.toggleHide()
+	case "X":
+		m.toggleHiddenView()
 	case "enter", "c":
 		return m, m.jump(s == "c")
 	}
