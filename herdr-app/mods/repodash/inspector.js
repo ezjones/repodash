@@ -64,7 +64,7 @@ export function renderInspector(v, r, cx, t, sc, ctx) {
   const actions = h_flex().gap(6).flex_wrap()
     .child(button(t, "a-open", space ? "Go to space" : "New space", "⏎", () => v.open(r)))
     .child(button(t, "a-git", "Lazygit", "L", (_e, cx) => v.openGit(r, r.path, cx)))
-    .when(!!det?.web, (el) => el.child(button(t, "a-web", "GitHub ↗", null, () => v.openUrl(det.web))))
+    .when(!!det?.web, (el) => el.child(button(t, "a-web", "GitHub", null, () => v.openUrl(det.web))))
     .child(button(t, "a-copy", v.copied === r.name ? "Copied" : "Copy cd", null, (_e, cx) => { cx.write_to_clipboard(`cd ${r.path}`); v.copied = r.name; cx.notify(); }))
     .child(button(t, "a-notes", "Notes", "n", () => v.openNotes(r)))
     .child(button(t, "a-pin", r.pinned ? "Unpin" : "Pin", "p", (_e, cx) => v.togglePin(r, cx)))
@@ -99,7 +99,7 @@ export function renderInspector(v, r, cx, t, sc, ctx) {
           .when(!!d.body, (el) => el.child(div().text_color(t.foreground).child(d.body)))
           .when(!!(d.files?.length), (el) => el.child(v_flex().font_family("Geist Mono").text_size(11.5).text_color(t.muted).children(d.files.slice(0, 20).map((f) => div().truncate().child(f)))))
           .when(!!det.web, (el) => el.child(div().id(`cw-${c.hash}`).text_color(t.accent).hover((s) => s.text_color(t.foreground))
-            .on_click((_e, cx) => { cx.stop_propagation(); v.openUrl(`${det.web}/commit/${c.hash}`); }).child("View on GitHub ↗"))))));
+            .on_click((_e, cx) => { cx.stop_propagation(); v.openUrl(`${det.web}/commit/${c.hash}`); }).child("View on GitHub"))))));
   }
 
   // Issues

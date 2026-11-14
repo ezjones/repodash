@@ -909,8 +909,7 @@ export default class RepoDash extends View {
 
     const top = h_flex().flex_none().w_full().px(PAD).pt(14).pb(12).gap(10).items_center().flex_wrap()
       .child(h_flex().gap(8).items_baseline().flex_none().mr(6)
-        .child(div().text_size(17).font_weight(700).text_color(t.foreground).child(this.cfg?.title && this.cfg.title !== "RepoDash" ? this.cfg.title : "Repositories"))
-        .child(div().text_size(12.5).text_color(t.muted).child(this.repos ? `${list.length}${list.length !== counts.all ? ` of ${counts.all}` : ""}` : "")))
+        .child(div().text_size(17).font_weight(700).text_color(t.foreground).child(this.cfg?.title && this.cfg.title !== "RepoDash" ? this.cfg.title : "Repositories")))
       .child(filters)
       .when(noRemoteN > 0, (el) => el.child(btn("f-remote", this.noRemote, null, [div().child("No remote"), div().opacity(0.75).child(String(noRemoteN))], () => { this.noRemote = !this.noRemote; })))
       .when(hiddenN > 0, (el) => el.child(quiet("hiddenbtn", `${hiddenN} hidden`, this.hiddenView ? t.accent : null, () => (this.hiddenView ? this.leaveHiddenView() : this.enterHiddenView()))))
@@ -921,7 +920,7 @@ export default class RepoDash extends View {
       .child(iconBtn("refresh", "↻", false, (cx) => this.load(cx)))
       .child(iconBtn("look", "◐", false, () => this.openLook()))
       .child(iconBtn("inspbtn", "◫", this.insp, () => this.toggleInspector()))
-      .child(iconBtn("web", "↗ Web", false, () => openUrl(this.base)))
+      .child(iconBtn("web", "Web", false, () => openUrl(this.base)))
       .when(this.warnings.length > 0, (el) => el.child(quiet("warn", `⚠ ${this.warnings.length}`, t.blocked, () => this.openWarnings())))
       .when(!!this.upd?.latest, (el) => el.child(quiet("upd", `↑ ${this.upd.latest}`, sc("warn"), (cx) => this.applyUpdate(cx))))
       .when(!!this.upd?.version, (el) => el.child(quiet("ver", this.upd.version, t.dim, () => this.openNews())));
