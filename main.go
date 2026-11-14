@@ -6,6 +6,7 @@
 //	repodash -json                 scan once, print JSON, exit (the future CLI starts here)
 //	repodash -check                validate repodash.json, print problems, exit 1 if any
 //	repodash -print-config         print every setting with its default value
+//	repodash -install-desktop      add the RepoDash view to the Herdr desktop app
 //
 // Settings live in repodash.json next to the binary (so they are part of the repo)
 // and apply live. See AGENTS.md.
@@ -44,6 +45,9 @@ func main() {
 	noOpen := flag.Bool("no-open", false, "do not open the page in a browser on start")
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	printCfg := flag.Bool("print-config", false, "print the default settings and exit")
+	instDesktop := flag.Bool("install-desktop", false, "install (or update) the RepoDash view in the Herdr desktop app, then exit")
+	uninstDesktop := flag.Bool("uninstall-desktop", false, "remove the RepoDash view from the Herdr desktop app, then exit")
+	force := flag.Bool("force", false, "with -install-desktop or -uninstall-desktop: replace or remove files that were changed, after copying them aside")
 	flag.Parse()
 	if *showVersion {
 		fmt.Println("repodash", buildVersion)
@@ -53,6 +57,21 @@ func main() {
 	if *printCfg {
 		os.Stdout.Write(core.DefaultConfigJSON())
 		return
+	}
+	if *instDesktop && *uninstDesktop {
+		log.Fatal("give -install-desktop or -uninstall-desktop, not both")
+	}
+	if *force && !*instDesktop && !*uninstDesktop {
+		log.Fatal("-force only goes with -install-desktop or -uninstall-desktop")
+	}
+	if *instDesktop {
+		given := map[string]bool{}
+		visitFlags(func(name string) { given[name] = true })
+		args, url := desktopServerArgs(given, *root, *cfgPath, *addr)
+		os.Exit(installDesktop(*force, args, url))
+	}
+	if *uninstDesktop {
+		os.Exit(uninstallDesktop(*force))
 	}
 	if *herdrOpen {
 		if err := core.HerdrOpenTUI(); err != nil {
@@ -113,6 +132,7 @@ func main() {
 		}
 		return
 	}
+	go refreshDesktop()
 	log.Fatal(server.Serve(server.Options{
 		Root:       *root,
 		Addr:       *addr,
@@ -151,4 +171,9 @@ func settingsPath(flagValue string) string {
 		return filepath.Join(dir, "repodash", "repodash.json")
 	}
 	return beside
+}
+
+// visitFlags calls fn with the name of every flag given on the command line.
+func visitFlags(fn func(name string)) {
+	flag.Visit(func(f *flag.Flag) { fn(f.Name) })
 }

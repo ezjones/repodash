@@ -4,6 +4,8 @@ What each release added. The release workflow copies the section for the tag it 
 
 ## Unreleased
 
+- RepoDash in the Herdr desktop app: the same cards, inspector and keys (`x` hide, `p` pin, `n` notes, `L` lazygit, the All tab...) as a view inside Herdr; double-click a card to land in that repo's Herdr space. `install.sh` adds it when the app is on the computer (on Windows, from WSL), or run `repodash -install-desktop`. It starts the RepoDash server by itself when none is running, and updates with RepoDash. Open it with Herdr's command palette (`mod.open`, `repodash`) or a key of your choice.
+
 ## v0.7.13
 
 - Hide the repos you do not want to see: press `x` on a card (terminal and web page) and it leaves the grid, canvas, kanban and the counts. Nothing on disk changes, and its canvas spot, kanban column, notes and pin are kept. `X`, or the quiet *N hidden* button in the top bar, switches to a view of only the hidden repos under a coloured strip; `x` there brings a repo back for good, and `X` or Esc returns to the normal view.

@@ -33,11 +33,12 @@ its settings**, and how to **change the code**.
 | Agents' context sizes | `~/.cache/repodash/claude/<session_id>.json`, written by a Claude Code status line script (snippet in the README), read once a second, removed after 7 days |
 | Log when started in the background | `~/.local/share/repodash/repodash.log` |
 | Defaults, embedded in the binary | `internal/core/default-config.json` (`repodash -print-config` prints it) |
+| Herdr desktop app view (a mod) | source `herdr-app/mods/repodash/` (embedded by `desktop.go`), installed to `<herdr home>/mods/repodash/` (`~/.config/herdr-app`; from WSL the Windows user's) with its `config.json` (bin, args, url, machine) and a stamp `.repodash-install.json`; where it went: `~/.local/share/repodash/desktop.json`; files replaced with `-force`: `~/.local/share/repodash/desktop-backup-<time>/` |
 
 Flags: `-root DIR` (repos folder; default: the current folder if it holds git repos directly, except the home folder, else `~/gitrepos`; `DefaultRoot` in `internal/core/scan.go`), `-addr HOST:PORT` (default `127.0.0.1:8092`; use `:8092` to
 reach it from other devices, only on a trusted network such as the tailnet), `-allow-host a,b`
 (host names the page may be opened by, see Security notes), `-config FILE`, `-json` (scan once,
-print JSON, exit), `-check` (validate settings, exit 1 on problems), `-print-config`, `-web` (web server; also implied by `-addr`, `-allow-host`, `-no-open` or no terminal), `-tui` (terminal UI, the default from a terminal), `-herdr-open` (the herdr plugin's open action).
+print JSON, exit), `-check` (validate settings, exit 1 on problems), `-print-config`, `-web` (web server; also implied by `-addr`, `-allow-host`, `-no-open` or no terminal), `-tui` (terminal UI, the default from a terminal), `-herdr-open` (the herdr plugin's open action), `-install-desktop` / `-uninstall-desktop` (the Herdr desktop app view; `-force` replaces changed files after copying them aside; `-root`, `-config`, `-addr` given with it are recorded for the server the view starts).
 
 ## Changing settings (the common job)
 
@@ -248,6 +249,8 @@ Three packages under `internal/`, plus `main.go` at the root. `tui` and `server`
 | `internal/server/openweb.go` | The TUI's `w` key: find or start the web server, open the browser |
 | `internal/server/web/index.html` | The entire UI (HTML, CSS, vanilla JS), embedded with `go:embed`. No framework, no build step |
 | `internal/tui/tui*.go` | The terminal UI: model and keys, data, view, colours |
+| `desktop.go`, `internal/core/desktop.go` | The Herdr desktop app view: embeds `herdr-app/mods/repodash`; `DesktopHome` (finds the app's folder, WSL included), `InstallDesktop` / `UninstallDesktop` (stamp of file hashes: never replaces a changed file without `-force`, which backs it up), `RefreshDesktop` (on `-web` start, brings an untouched install up to this release) |
+| `herdr-app/` | The mod itself (`mods/repodash/`: `main.js` cards, top bar, keys, dialogs; `inspector.js`; `art.js` cover art ported from the page; `util.js`), plus `RECIPE.md`, `preview.png` and `keys.json` for herdr.dev. Check it with `herdr-app check <its folder>`; it reads the same HTTP API as the page |
 | `herdr-plugin.toml` | herdr plugin manifest: action `open` running `./repodash -herdr-open`, tab pane `grid` running `./repodash -tui`, popup pane `lazygit` (the TUI's `L`); `scripts/herdr-build.sh` builds the binary into the plugin root |
 
 ## Changing the code

@@ -1,5 +1,11 @@
-repodash
+/repodash
 *.tmp
 CLAUDE.local.md
 .playwright-mcp/
 PROGRESS.local.md
+
+# The Herdr desktop mod: the app writes these into a mod folder it loads; covers are a cache.
+herdr-app/mods/*/.covers/
+herdr-app/mods/*/jsconfig.json
+herdr-app/mods/*/*.d.ts
+herdr-app/mods/*/config.json

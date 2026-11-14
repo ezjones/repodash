@@ -8,6 +8,7 @@
 #   VERSION=v0.1.0   install this release instead of the latest
 #   PREFIX=DIR       install into DIR (default: ~/.local/bin)
 #   BASE_URL=URL     download from URL instead of GitHub (for testing)
+#   REPODASH_DESKTOP=0  do not add the RepoDash view to the Herdr desktop app
 set -eu
 
 REPO="ezjones/repodash"
@@ -73,3 +74,9 @@ case ":$PATH:" in
   *) say "Note: $PREFIX is not on your PATH. Add it, or run $PREFIX/repodash directly." ;;
 esac
 say "Run: repodash   (terminal UI; press w for the web page at http://127.0.0.1:8092)"
+
+# The Herdr desktop app, if this computer has it (on WSL: the Windows side): add RepoDash's
+# view to it. It skips quietly when there is no app, and never replaces files someone changed.
+if [ "${REPODASH_DESKTOP:-1}" != 0 ]; then
+  "$PREFIX/repodash" -install-desktop || say "Note: the Herdr desktop view was not installed (see above)."
+fi

@@ -46,7 +46,9 @@ repodash
 ```
 
 Linux, macOS, or Windows through WSL2. It installs one binary in `~/.local/bin` without sudo; see
-[Install and run](#install-and-run) for building from source and every option.
+[Install and run](#install-and-run) for building from source and every option. If the
+[Herdr desktop app](https://herdr.dev) is on the same computer (on Windows: the Windows side of
+WSL), it also adds RepoDash's view to it; see [Herdr desktop app](#herdr-desktop-app).
 
 ## How to use it
 
@@ -268,6 +270,43 @@ order with `terminal.multiplexer` in `repodash.json`:
 Each browser can override this at the bottom of the gear (Settings) panel. Like tmux, RepoDash
 selects the tab but cannot raise the terminal application itself, and it must run as the same user
 as the herdr server.
+
+## Herdr desktop app
+
+The [Herdr](https://herdr.dev) desktop app (Windows, macOS, Linux) gets the same cards as a view
+of its own: double-click a card to land in that repo's Herdr space, or make one there.
+
+![RepoDash in the Herdr desktop app](herdr-app/preview.png)
+
+`install.sh` adds it when it finds the app's folder (`~/.config/herdr-app`; from WSL, the Windows
+user's). `repodash -install-desktop` adds it later, or updates it; `repodash -uninstall-desktop`
+removes it; `REPODASH_DESKTOP=0` tells `install.sh` to skip it. Open it with Herdr's command
+palette (`mod.open`, then `repodash`), or bind a key in the app's `keys.json`:
+
+```json
+"global": { "ctrl-shift-r": "mod.open:repodash" }
+```
+
+RepoDash never edits your `keys.json` or layouts itself.
+
+**How it fits together.** The view is a Herdr mod (JavaScript in `herdr-app/mods/repodash`,
+embedded in the binary and copied to `~/.config/herdr-app/mods/repodash`). It draws what the
+RepoDash web server sends, the same data as the web page, so you need the binary but not the
+terminal UI. When no server answers, the view starts `repodash -web` itself on the machine your
+repos are on (on Windows: WSL, which Herdr sees as a machine of its own), as a background
+herdr-core terminal. The settings it starts it with are in `mods/repodash/config.json`
+(`bin`, `args`, `url`, and `machine` if you need to name it); `-install-desktop` records
+`-root`, `-config` and `-addr` when you pass them. On Windows, the app must reach WSL's
+`127.0.0.1` (WSL's default localhost forwarding does).
+
+It has the terminal UI's keys (`?` lists them): hide `x`, hidden view `X`, pin `p`, notes `n`,
+lazygit `L`, the inspector's This repo / All tabs, and more, plus an Appearance popup (`a`) with
+cover styles, card sections and a card size slider. No canvas or kanban yet.
+
+Updates: when a newer RepoDash starts its web server, it brings the view up to its release too,
+unless you changed the mod's files (then it leaves them alone and says so in its log; run
+`repodash -install-desktop -force`, which copies your files to
+`~/.local/share/repodash/desktop-backup-<time>/` first).
 
 ## GitHub issues
 
@@ -533,6 +572,9 @@ without a restart.
 | `-no-open` | Do not open the page in a browser on start (it only opens when run from a terminal) |
 | `-version` | Print the version and exit |
 | `-print-config` | Print every setting with its default |
+| `-install-desktop` | Add or update RepoDash's view in the Herdr desktop app, then exit (with `-root`, `-config`, `-addr`: the server it starts uses them) |
+| `-uninstall-desktop` | Remove that view, then exit |
+| `-force` | With the two above: replace or remove mod files you changed, after copying them aside |
 
 ## Settings
 
