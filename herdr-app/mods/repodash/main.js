@@ -157,6 +157,7 @@ export default class RepoDash extends View {
     this.sel = localStorage.getItem("sel");
     this.sort = localStorage.getItem("sort") ?? "recent";
     this.reverse = localStorage.getItem("reverse") === "1";
+    this.hints = localStorage.getItem("hints") !== "0"; // the key hints row at the bottom (H)
     this.noRemote = false;
     this.hiddenView = false; // X: only the hidden repos, for this session
     this.inspMode = localStorage.getItem("inspMode") === "all" ? "all" : "repo";
@@ -609,6 +610,7 @@ export default class RepoDash extends View {
       case "ctrl-d": this.move(list, this.cols * 3); break;
       case "ctrl-u": this.move(list, -this.cols * 3); break;
       case "shift-u": this.applyUpdate(cx); break;
+      case "shift-h": this.hints = !this.hints; localStorage.setItem("hints", this.hints ? "1" : "0"); break;
       case "?": case "shift-/": this.openHelp(); break;
       case "shift-l": if (cur) this.openGit(cur, cur.path, cx); break;
       case "i": this.toggleInspector(); break;
@@ -827,7 +829,7 @@ export default class RepoDash extends View {
       ["Cards", [["h j k l / arrows", "move"], ["g / G", "first / last"], ["ctrl-d / ctrl-u", "half a screen"], ["Enter, c, double-click", "go to the repo's space (makes one if needed)"],
         ["L", "lazygit in the repo"], ["/", "search (Enter keeps, Esc clears)"], ["s / S", "sort / reverse"], ["f / F", "status filter forward / back"],
         ["x", "hide or unhide the repo"], ["X", "only the hidden repos (Esc back)"], ["p", "pin or unpin"], ["n", "README and notes"], ["r", "rescan"],
-        ["- / =", "smaller / bigger cards"], ["a", "Appearance"], ["w", "the web page"], ["U", "update RepoDash"], ["Esc", "back to the terminals"]]],
+        ["- / =", "smaller / bigger cards"], ["H", "hide or show the key hints row"], ["a", "Appearance"], ["w", "the web page"], ["U", "update RepoDash"], ["Esc", "back to the terminals"]]],
       ["Inspector", [["i", "show or hide"], ["t, 1 / 2", "This repo / All"], ["d D w m", "All: today, yesterday, week, month"], ["J / K", "move over commits, issues, worktrees"], ["o, Enter", "open that line"]]],
     ];
     return v_flex().id("help").size_full().p(18).gap(14).overflow_y_scrollbar().bg(t.popover)
@@ -880,7 +882,7 @@ export default class RepoDash extends View {
 
   renderDash(cx) {
     const rf = shared("repodash.refocus");
-    if (rf && rf !== this.lastRefocus) { this.lastRefocus = rf; this.h.focus(); }
+    if (rf && rf !== this.lastRefocus) { this.lastRefocus = rf; cx.timer.after(1, () => this.h.focus()); } // not during render
     const pk = shared("repodash.pick");
     if (pk && pk.at !== this.lastPick) {
       const first = this.lastPick === undefined;
@@ -1039,6 +1041,18 @@ export default class RepoDash extends View {
       .when(!!(this.err && this.repos), (el) => el.child(div().px(PAD).pt(8).text_size(12).text_color(t.blocked).child(this.err)))
       .child(body);
 
+    // The key hints row, as in the terminal UI (H hides it): what the keys do right now.
+    const hint = (k, what) => h_flex().flex_none().gap(5).child(div().font_family(MONO).text_color(t.accent).child(k)).child(div().text_color(t.muted).child(what));
+    const hintSets = this.searching ? [["type", "to filter"], ["⏎", "keep"], ["esc", "clear"]]
+      : this.ifocus >= 0 ? [["J K", "move over the lines"], ["o ⏎", "open"], ["esc", "back to the cards"], ["? ", "all keys"]]
+        : this.hiddenView ? [["x", "unhide"], ["X esc", "back"], ["hjkl", "move"], ["?", "all keys"]]
+          : [["hjkl", "move"], ["⏎", "open space"], ["L", "lazygit"], ["/", "search"], ["s f", "sort, filter"], ["x", "hide"], ["p", "pin"], ["n", "notes"],
+            ["i", "inspector"], ...(this.insp ? [["t", this.inspMode === "all" ? "this repo" : "all repos"], ["J K", "inspector lines"]] : []),
+            ["- =", "card size"], ["a", "appearance"], ["?", "all keys"], ["H", "hide hints"], ["esc", "terminals"]];
+    const footer = this.hints ? h_flex().id("hints").flex_none().w_full().h(30).px(PAD).gap(16).items_center().overflow_hidden().whitespace_nowrap()
+      .border_t(1).border_color(t.border).bg(t.canvas).text_size(12)
+      .children(hintSets.map(([k, what]) => hint(k, what))) : null;
+
     const selRepo = (this.repos ?? []).find((r) => r.name === this.sel) ?? null;
     return v_flex().id("root").relative().size_full().min_h(0).bg(t.canvas).rounded(10).overflow_hidden()
       .on_size_change((size, cx) => { if (Math.abs(size.width - this.rootW) > 1) { this.rootW = size.width; cx.notify(); } })
@@ -1049,7 +1063,8 @@ export default class RepoDash extends View {
       .child(top)
       .child(h_flex().flex_1().min_h(0).w_full().border_t(1).border_color(t.border)
         .child(left)
-        .when(this.insp && !!this.repos, (el) => el.child(renderInspector(this, selRepo, cx, t, sc, ctx))));
+        .when(this.insp && !!this.repos, (el) => el.child(renderInspector(this, selRepo, cx, t, sc, ctx))))
+      .when(!!footer, (el) => el.child(footer));
   }
 
   // One card, drawn at `w` px wide. Everything in it (text, cover, spacing) is sized from the
