@@ -506,6 +506,23 @@ export default class RepoDash extends View {
   openNotes(r) {
     openOverlay({ kind: "dialog", modal: true, width: 0.7, height: 0.85, mod: "repodash", props: { part: "notes", repo: r.name, title: this.titleOf(r), base: this.base } });
   }
+  // A small menu popup (the folded top bar). The pick comes back through shared state, since
+  // the popup is a copy of its own.
+  openMenu(menu, items) {
+    openOverlay({ kind: "popup", mod: "repodash", props: { part: "menu", menu, items }, width: 240, height: 16 + items.length * 32 });
+  }
+  applyPick(pk, cx) {
+    if (pk.menu === "filter") this.setFilter(pk.id);
+    else if (pk.menu === "sort") { if (pk.id === "reverse") { this.reverse = !this.reverse; localStorage.setItem("reverse", this.reverse ? "1" : "0"); } else this.setSort(pk.id); }
+    else if (pk.menu === "tools") {
+      const act = { refresh: () => this.load(cx), look: () => this.openLook(), insp: () => this.toggleInspector(), web: () => openUrl(this.base), help: () => this.openHelp(),
+        noremote: () => { this.noRemote = !this.noRemote; }, hidden: () => (this.hiddenView ? this.leaveHiddenView() : this.enterHiddenView()),
+        warnings: () => this.openWarnings(), update: () => this.applyUpdate(cx), news: () => this.openNews() }[pk.id];
+      if (act) act();
+    }
+    cx.notify();
+  }
+
   openHelp() { openOverlay({ kind: "dialog", width: 620, height: 0.85, mod: "repodash", props: { part: "help" } }); }
   openNews() { openOverlay({ kind: "dialog", width: 640, height: 0.85, mod: "repodash", props: { part: "news", base: this.base } }); }
   openWarnings() { openOverlay({ kind: "dialog", width: 560, height: 360, mod: "repodash", props: { part: "warnings", items: this.warnings } }); }
@@ -631,6 +648,7 @@ export default class RepoDash extends View {
     if (this.part === "help") return this.renderHelp(cx);
     if (this.part === "news") return this.renderNews(cx);
     if (this.part === "warnings") return this.renderWarnings(cx);
+    if (this.part === "menu") return this.renderMenu(cx);
     return this.renderDash(cx);
   }
 
@@ -841,6 +859,16 @@ export default class RepoDash extends View {
         .child(n ? TextView.markdown("news", md || "Nothing listed.") : div().text_color(t.muted).child("Loading…")));
   }
 
+  renderMenu(cx) {
+    const t = theme(), p = props() ?? {};
+    return v_flex().id("menu").size_full().p(8).gap(0).bg(t.popover)
+      .children((p.items ?? []).map((it) => h_flex().id(`m-${it.id}`).h(32).px(10).gap(8).rounded(6).items_center().text_size(13)
+        .hover((s) => s.bg(t.hover))
+        .on_click(() => { setShared("repodash.pick", { menu: p.menu, id: it.id, at: Date.now() }); closeOverlay(p.overlay); })
+        .child(div().w(12).flex_none().text_color(t.accent).child(it.on ? "✓" : ""))
+        .child(div().flex_1().truncate().text_color(it.color ?? t.foreground).child(it.label))));
+  }
+
   renderWarnings(cx) {
     const t = theme(), items = props()?.items ?? [];
     return v_flex().id("warnings").size_full().p(18).gap(8).overflow_y_scrollbar().bg(t.popover)
@@ -853,6 +881,12 @@ export default class RepoDash extends View {
   renderDash(cx) {
     const rf = shared("repodash.refocus");
     if (rf && rf !== this.lastRefocus) { this.lastRefocus = rf; this.h.focus(); }
+    const pk = shared("repodash.pick");
+    if (pk && pk.at !== this.lastPick) {
+      const first = this.lastPick === undefined;
+      this.lastPick = pk.at;
+      if (!first) cx.timer.after(1, (cx) => this.applyPick(pk, cx)); // a pick from before this copy started is old news
+    }
     const t = theme(), dark = !!settings().dark, list = this.visible(), ctx = this.context(), look = lookOf();
     const sc = (lvl) => this.cfg?.statuses?.[lvl]?.[dark ? "darkColor" : "color"] || STATUS[lvl].c[dark ? 1 : 0];
     const cardMin = cardWOf(look);
@@ -877,25 +911,6 @@ export default class RepoDash extends View {
       .on_click((_e, cx) => { onClick(); cx.notify(); })
       .children(label);
 
-    const filters = h_flex().gap(6).items_center()
-      .child(btn("f-all", this.filter === "all", null, [div().child("All"), div().text_color(this.filter === "all" ? t.accent_foreground : t.muted).child(String(counts.all))], () => this.setFilter("all")))
-      .children(LEVELS.map((l) => btn(`f-${l}`, this.filter === l, sc(l),
-        [div().size(7).rounded(4).bg(this.filter === l ? "#ffffff" : sc(l)), div().child(this.statusLabel(l)), div().opacity(0.75).child(String(counts[l] ?? 0))],
-        () => this.setFilter(this.filter === l ? "all" : l))));
-
-    const sorts = h_flex().h(28).p(2).gap(2).rounded(14).border(1).border_color(t.border).items_center().flex_none()
-      .children(SORTS.map(([id, label]) => div().id(`s-${id}`).h(22).px(10).rounded(11).flex().items_center().text_size(12.5)
-        .bg(this.sort === id ? t.selected : CLEAR).text_color(this.sort === id ? t.foreground : t.muted)
-        .hover((s) => s.bg(t.hover)).on_click((_e, cx) => { this.setSort(id); cx.notify(); }).child(label)));
-
-    const search = h_flex().id("search").h(28).w(190).px(10).gap(6).rounded(14).border(1).items_center().flex_none()
-      .border_color(this.searching ? t.accent : t.border).text_size(12.5)
-      .on_click((_e, cx) => { this.searching = true; this.h.focus(); cx.notify(); })
-      .child(div().text_color(t.dim).child("⌕"))
-      .child(this.query || this.searching
-        ? h_flex().flex_1().min_w(0).child(div().truncate().text_color(t.foreground).child(this.query)).when(this.searching, (el) => el.child(div().w(1.5).h(14).bg(t.accent).loop("opacity", { from: 0, to: 1, period: 1000 })))
-        : div().flex_1().text_color(t.dim).child("Search  /"));
-
     const hiddenN = (this.repos ?? []).filter((r) => r.hidden).length;
     const noRemoteN = (this.repos ?? []).filter((r) => !r.hidden && !r.has_remote).length;
     const ags = agents(), nWork = ags.filter((a) => a.status === "working").length, nWait = ags.filter((a) => a.status === "blocked").length;
@@ -906,24 +921,100 @@ export default class RepoDash extends View {
       .border(1).border_color(on ? t.accent : t.border).bg(on ? t.selected : CLEAR).text_color(on ? t.foreground : t.muted)
       .hover((s) => s.bg(t.hover).text_color(t.foreground))
       .on_click((_e, cx) => { onClick(cx); cx.notify(); }).child(label);
+    const menuBtn = (id, label, color, onClick) => h_flex().id(id).h(28).px(11).gap(6).rounded(14).items_center().flex_none().text_size(12.5)
+      .border(1).border_color(color ? color + "88" : t.border).text_color(color ?? t.foreground).hover((s) => s.bg(t.hover))
+      .on_click((_e, cx) => { onClick(cx); cx.notify(); }).child(label).child(div().text_color(t.dim).child("▾"));
 
-    const top = h_flex().flex_none().w_full().px(PAD).pt(14).pb(12).gap(10).items_center().flex_wrap()
-      .child(h_flex().gap(8).items_baseline().flex_none().mr(6)
-        .child(div().text_size(17).font_weight(700).text_color(t.foreground).child(this.cfg?.title && this.cfg.title !== "RepoDash" ? this.cfg.title : "Repositories")))
+    // One row, always: as the window narrows the bar folds, in this order: the sort buttons
+    // become a menu; the tools (refresh, Appearance, inspector, Web, version) become a ⋯ menu;
+    // the status buttons lose their words; they become a menu too. Widths are estimated from
+    // the text, generously, in drawn units.
+    const uiFont = String(settings().ui_font ?? settings().ui_font_family ?? "");
+    const cw = !uiFont || /mono|code|consol|courier|menlo/i.test(uiFont) ? 7.6 : 6.9, txt = (str) => cw * str.length;
+    const pillW = (label, count, dot) => 24 + txt(label) + (count != null ? 6 + txt(String(count)) : 0) + (dot ? 13 : 0);
+    const statusN = (l) => counts[l] ?? 0;
+    const W = {
+      title: 10.5 * "Repositories".length + 6,
+      filtersFull: pillW("All", counts.all) + LEVELS.reduce((n, l) => n + 6 + pillW(this.statusLabel(l), statusN(l), true), 0),
+      filtersDots: pillW("All", counts.all) + LEVELS.reduce((n, l) => n + 6 + pillW("", statusN(l), true), 0),
+      filtersMenu: pillW(this.filter === "all" ? "All" : this.statusLabel(this.filter), 99, this.filter !== "all") + 14,
+      extras: (noRemoteN ? 10 + pillW("No remote", noRemoteN) : 0) + (hiddenN ? 10 + 20 + txt(`${hiddenN} hidden`) : 0) + (agentSum ? 10 + txt(agentSum) : 0),
+      sortsFull: 8 + SORTS.reduce((n, [, label]) => n + 22 + txt(label), 0),
+      sortsMenu: 36 + txt(SORTS.find(([id]) => id === this.sort)?.[1] ?? ""),
+      tools: 3 * 40 + 10 + (24 + txt("Web")) + (this.warnings.length ? 10 + 22 + txt(`⚠ ${this.warnings.length}`) : 0)
+        + (this.upd?.latest ? 10 + 22 + txt(`↑ ${this.upd.latest}`) : 0) + (this.upd?.version ? 10 + 22 + txt(this.upd.version) : 0) + 30,
+      toolsMenu: 40,
+    };
+    // The root's own size comes in drawn units (unlike its children's; see the probe).
+    const avail = this.rootW ? this.rootW - 2 * PAD : 1e9;
+    const LV = [
+      { filt: "full", extras: true, search: 190, sortMenu: false, toolsMenu: false },
+      { filt: "full", extras: true, search: 190, sortMenu: true, toolsMenu: false },
+      { filt: "full", extras: true, search: 190, sortMenu: true, toolsMenu: true },
+      { filt: "dots", extras: true, search: 160, sortMenu: true, toolsMenu: true },
+      { filt: "menu", extras: true, search: 150, sortMenu: true, toolsMenu: true },
+      { filt: "menu", extras: false, search: 110, sortMenu: true, toolsMenu: true },
+    ];
+    const need = (lv) => W.title + 10 + { full: W.filtersFull, dots: W.filtersDots, menu: W.filtersMenu }[lv.filt] + (lv.extras ? W.extras : 0)
+      + 10 + lv.search + 10 + (lv.sortMenu ? W.sortsMenu : W.sortsFull) + 10 + (lv.toolsMenu ? W.toolsMenu : W.tools);
+    const lv = LV.find((x) => need(x) <= avail) ?? LV[LV.length - 1];
+
+    const filterItems = [["all", "All", counts.all, null], ...LEVELS.map((l) => [l, this.statusLabel(l), statusN(l), sc(l)])];
+    let filters;
+    if (lv.filt === "menu") {
+      const [, label, n, col] = filterItems.find(([id]) => id === this.filter) ?? filterItems[0];
+      filters = menuBtn("f-menu", `${label} ${n}`, col, () => this.openMenu("filter", filterItems.map(([id, l, c, color]) => ({ id, label: `${l}  ${c}`, on: this.filter === id, color }))));
+    } else {
+      const words = lv.filt === "full";
+      filters = h_flex().gap(6).items_center().flex_none()
+        .child(btn("f-all", this.filter === "all", null, [div().child("All"), div().text_color(this.filter === "all" ? t.accent_foreground : t.muted).child(String(counts.all))], () => this.setFilter("all")))
+        .children(LEVELS.map((l) => btn(`f-${l}`, this.filter === l, sc(l),
+          [div().size(7).rounded(4).bg(this.filter === l ? "#ffffff" : sc(l)), ...(words ? [div().child(this.statusLabel(l))] : []), div().opacity(0.75).child(String(statusN(l)))],
+          () => this.setFilter(this.filter === l ? "all" : l))));
+    }
+
+    const sorts = lv.sortMenu
+      ? menuBtn("s-menu", `${SORTS.find(([id]) => id === this.sort)?.[1] ?? "Sort"}${this.reverse ? " ↓" : ""}`, null, () => this.openMenu("sort", [
+        ...SORTS.map(([id, label]) => ({ id, label, on: this.sort === id })), { id: "reverse", label: "Reverse order  S", on: this.reverse }]))
+      : h_flex().h(28).p(2).gap(2).rounded(14).border(1).border_color(t.border).items_center().flex_none()
+        .children(SORTS.map(([id, label]) => div().id(`s-${id}`).h(22).px(10).rounded(11).flex().items_center().text_size(12.5)
+          .bg(this.sort === id ? t.selected : CLEAR).text_color(this.sort === id ? t.foreground : t.muted)
+          .hover((s) => s.bg(t.hover)).on_click((_e, cx) => { this.setSort(id); cx.notify(); }).child(label)));
+
+    const search = h_flex().id("search").h(28).w(lv.search).px(10).gap(6).rounded(14).border(1).items_center().flex_none()
+      .border_color(this.searching ? t.accent : t.border).text_size(12.5)
+      .on_click((_e, cx) => { this.searching = true; this.h.focus(); cx.notify(); })
+      .child(div().text_color(t.dim).child("⌕"))
+      .child(this.query || this.searching
+        ? h_flex().flex_1().min_w(0).child(div().truncate().text_color(t.foreground).child(this.query)).when(this.searching, (el) => el.child(div().w(1.5).h(14).bg(t.accent).loop("opacity", { from: 0, to: 1, period: 1000 })))
+        : div().flex_1().min_w(0).truncate().text_color(t.dim).child("Search  /"));
+
+    const toolItems = [
+      { id: "refresh", label: "Rescan  r" }, { id: "look", label: "Appearance  a" }, { id: "insp", label: `${this.insp ? "Hide" : "Show"} inspector  i`, on: this.insp },
+      { id: "web", label: "Open the web page  w" }, { id: "help", label: "Keys  ?" },
+      ...(lv.extras ? [] : [...(noRemoteN ? [{ id: "noremote", label: `No remote only (${noRemoteN})`, on: this.noRemote }] : []), ...(hiddenN ? [{ id: "hidden", label: `Hidden repos (${hiddenN})  X`, on: this.hiddenView }] : [])]),
+      ...(this.warnings.length ? [{ id: "warnings", label: `Settings problems (${this.warnings.length})`, color: t.blocked }] : []),
+      ...(this.upd?.latest ? [{ id: "update", label: `Update to ${this.upd.latest}  U`, color: sc("warn") }] : []),
+      ...(this.upd?.version ? [{ id: "news", label: `What's new in ${this.upd.version}` }] : []),
+    ];
+    const tools = lv.toolsMenu
+      ? [iconBtn("tools", "⋯", false, () => this.openMenu("tools", toolItems))]
+      : [iconBtn("refresh", "↻", false, (cx) => this.load(cx)), iconBtn("look", "◐", false, () => this.openLook()),
+        iconBtn("inspbtn", "◫", this.insp, () => this.toggleInspector()), iconBtn("web", "Web", false, () => openUrl(this.base)),
+        ...(this.warnings.length ? [quiet("warn", `⚠ ${this.warnings.length}`, t.blocked, () => this.openWarnings())] : []),
+        ...(this.upd?.latest ? [quiet("upd", `↑ ${this.upd.latest}`, sc("warn"), (cx) => this.applyUpdate(cx))] : []),
+        ...(this.upd?.version ? [quiet("ver", this.upd.version, t.dim, () => this.openNews())] : [])];
+
+    const top = h_flex().flex_none().w_full().px(PAD).pt(14).pb(12).gap(10).items_center().overflow_hidden()
+      .child(div().flex_none().mr(6).text_size(17).font_weight(700).text_color(t.foreground).whitespace_nowrap().child(this.cfg?.title && this.cfg.title !== "RepoDash" ? this.cfg.title : "Repositories"))
       .child(filters)
-      .when(noRemoteN > 0, (el) => el.child(btn("f-remote", this.noRemote, null, [div().child("No remote"), div().opacity(0.75).child(String(noRemoteN))], () => { this.noRemote = !this.noRemote; })))
-      .when(hiddenN > 0, (el) => el.child(quiet("hiddenbtn", `${hiddenN} hidden`, this.hiddenView ? t.accent : null, () => (this.hiddenView ? this.leaveHiddenView() : this.enterHiddenView()))))
-      .when(!!agentSum, (el) => el.child(div().flex_none().text_size(12.5).text_color(nWait ? t.blocked : t.working).child(agentSum)))
-      .child(div().flex_1())
+      .when(lv.extras && noRemoteN > 0, (el) => el.child(btn("f-remote", this.noRemote, null, [div().child("No remote"), div().opacity(0.75).child(String(noRemoteN))], () => { this.noRemote = !this.noRemote; })))
+      .when(lv.extras && hiddenN > 0, (el) => el.child(quiet("hiddenbtn", `${hiddenN} hidden`, this.hiddenView ? t.accent : null, () => (this.hiddenView ? this.leaveHiddenView() : this.enterHiddenView()))))
+      .when(lv.extras && !!agentSum, (el) => el.child(div().flex_none().whitespace_nowrap().text_size(12.5).text_color(nWait ? t.blocked : t.working).child(agentSum)))
+      .child(div().flex_1().min_w(0))
       .child(search)
       .child(sorts)
-      .child(iconBtn("refresh", "↻", false, (cx) => this.load(cx)))
-      .child(iconBtn("look", "◐", false, () => this.openLook()))
-      .child(iconBtn("inspbtn", "◫", this.insp, () => this.toggleInspector()))
-      .child(iconBtn("web", "Web", false, () => openUrl(this.base)))
-      .when(this.warnings.length > 0, (el) => el.child(quiet("warn", `⚠ ${this.warnings.length}`, t.blocked, () => this.openWarnings())))
-      .when(!!this.upd?.latest, (el) => el.child(quiet("upd", `↑ ${this.upd.latest}`, sc("warn"), (cx) => this.applyUpdate(cx))))
-      .when(!!this.upd?.version, (el) => el.child(quiet("ver", this.upd.version, t.dim, () => this.openNews())));
+      .children(tools);
 
     let body;
     if (this.repos === null && !this.err) body = div().p(PAD).text_color(t.muted).child("Loading…");
