@@ -19,6 +19,20 @@ On Windows run that inside WSL: it installs the program there and the mod into t
 user's `~/.config/herdr-app`. `repodash -install-desktop` adds or updates the mod on its own;
 `repodash -uninstall-desktop` removes it. Neither touches your `keys.json` or layouts.
 
+**In the sidebar.** The dialog's `⋯` menu (top right) adds RepoDash to a layout, always as a new
+copy made with Herdr's own `layout.clone`, so the layouts you have stay as they are:
+
+- **RepoDash layout**: a copy of Herdr's `main` named `repodash`, with a RepoDash tile under the
+  sidebar's top row ("Repositories", the repo count, how many need action) and the cards in
+  place of the terminals. The tile switches between the cards and the terminals; picking a
+  space or tab shows its terminals.
+- **Add to sidebar**: a copy of the layout you're on, named `<layout>-repodash`, with only the
+  tile, which opens the dialog.
+- **Back to `<layout>`** switches back (`ctrl-shift-l` does too). A copy doesn't follow later
+  changes to the layout it came from; delete its file in `layouts/` to remove it.
+
+The same as keys: `repodash:layout` and `repodash:sidebar` (with the dialog open).
+
 By hand (an agent following Herdr's guide): copy `mods/repodash/` into `mods/`, then write
 `mods/repodash/config.json` with `{"bin": "<absolute path of repodash on the repos' machine>"}`.
 
@@ -31,13 +45,15 @@ opener. It reads and writes only RepoDash's own data through the server (hide, p
 ## What you see
 
 - Opened with `mod.open:repodash` (the keys.json here binds `ctrl-shift-r`), a dialog 94% x
-  92% of the window. Or put it in a layout of your own (see Built from).
-- **Top bar**, wrapping: "Repositories" with the count; status filters as pills (All, Needs
-  action red, Loose ends amber, Clean green, Quiet grey, each with its count); "No remote N";
-  "N hidden"; the agents summary ("2 working · 1 waiting"); search (`/`); sort segment
-  (Recent, Activity, Language, A-Z, Issues); refresh ↻; Appearance ◐; inspector ◫; ↗ Web; a
-  ⚠ count when RepoDash's settings have problems; "↑ vX.Y.Z" when an update is offered; the
-  running version (click: What's new).
+  92% of the window; or from the RepoDash tile in the sidebar (see Install).
+- **Top bar**, one line: "Repositories"; status filters as pills (All, Needs action red, Loose
+  ends amber, Clean green, Quiet grey, each with its count); "No remote N"; "N hidden"; the
+  agents summary ("2 working · 1 waiting"); search (`/`); sort segment (Recent, Activity,
+  Language, A-Z, Issues); refresh ↻; Appearance ◐; inspector ◫; Web; a ⚠ count when
+  RepoDash's settings have problems; "↑ vX.Y.Z" when an update is offered; `⋯` (What's new,
+  the layout choices). When narrower it folds instead of wrapping: sorts become a menu, then
+  the tools a `⋯` menu, then the filters lose their words and become a menu.
+- **Key hints** along the bottom (`H` hides them).
 - **Cards**, from the top left, all one width (180-520 px, default 280, the Appearance slider or
   `-`/`=`). Everything in a card scales with that width. A card: a cover band 98 px tall at
   280 (the repo's image filled and cropped, a logo contained, or generated art: aurora, deep,
@@ -82,8 +98,13 @@ opener. It reads and writes only RepoDash's own data through the server (hide, p
 - RepoDash's HTTP API: `/api/repos`, `/api/refresh`, `/api/config`, `/api/commits/<r>`,
   `/api/commit/<r>/<hash>`, `/api/info/<r>`, `/api/work`, `/api/update`, `/api/changelog`,
   `PUT /api/hidden/<r>`, `/api/pins/<r>`, `/api/notes/<r>`, `/img/<r>`.
-- `herdr`: `spaces`, `panes`, `agents`, `machines`, `focused`, `layout`, `theme`, `settings`,
-  `window().platform`, `run` (`space.select`, `space.new`, `layout.select`, `terminal.kill`),
+- The layout choices: `layout.clone` (`main` or the shown layout, as a new name), then
+  `layout.set` with the tile inserted after the sidebar's `brand` block (and, for the RepoDash
+  layout, the `{tab:"active"}` block wrapped in the `view` stack), then `layout.switch` back.
+  Never `layout.set` on a layout it didn't just copy.
+- `herdr`: `spaces`, `panes`, `agents`, `machines`, `focused`, `layout`, `layouts`, `theme`, `settings`,
+  `window().platform`, `run` (`space.select`, `space.new`, `layout.select`, `layout.clone`,
+  `layout.set`, `layout.switch`, `mod.open`, `terminal.kill`),
   `hc run`, `exec`, `openOverlay`/`closeOverlay`, `shared`/`setShared`, `nextCommand`, `notify`.
 - Art: the web page's cover generators ported to SVG files in `.covers/`; `icon.svg`.
 
@@ -107,3 +128,6 @@ opener. It reads and writes only RepoDash's own data through the server (hide, p
 - Double-clicking a card selects that repo's space, or makes one in its folder.
 - `x` hides the selected repo in this view, RepoDash's TUI and its web page alike.
 - `L` opens lazygit in the repo; `q` closes it and `j`/`k` move the cards again.
+- `⋯` > RepoDash layout makes `layouts/repodash.json` and shows the tile and the cards; `⋯` >
+  Add to sidebar on `main` makes `layouts/main-repodash.json` with the tile; Herdr's `main`
+  is unchanged; Back to main returns.

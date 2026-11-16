@@ -289,6 +289,18 @@ palette (`mod.open`, then `repodash`), or bind a key in the app's `keys.json`:
 
 RepoDash never edits your `keys.json` or layouts itself.
 
+**A tile in the sidebar.** The view's `⋯` menu (top right) can add RepoDash to Herdr's sidebar.
+Each choice makes a new layout with Herdr's own `layout.clone` and switches to it, so the
+layouts you have stay as they are:
+
+- **RepoDash layout**: a copy of Herdr's `main` (named `repodash`) with a RepoDash tile in the
+  sidebar (repo count, how many need action) and the cards in place of the terminals; the tile
+  switches between them.
+- **Add to sidebar**: a copy of the layout you're on (`<layout>-repodash`) with only the tile,
+  which opens the view.
+- **Back to `<layout>`** switches back (so does `ctrl-shift-l`). A copy doesn't follow later
+  changes to the layout it came from; delete its file in `layouts/` to remove it.
+
 **How it fits together.** The view is a Herdr mod (JavaScript in `herdr-app/mods/repodash`,
 embedded in the binary and copied to `~/.config/herdr-app/mods/repodash`). It draws what the
 RepoDash web server sends, the same data as the web page, so you need the binary but not the

@@ -4,13 +4,14 @@
 //
 // Where it shows:
 //   - as a dialog: `mod.open:repodash` (mod.json's overlay), for any layout;
-//   - in a layout of your own, as the `dash` child of a stack with id `view` whose other
-//     child, `main`, holds the tabs (`ctrl-shift-r` style toggling between the two).
+//   - in a layout, as the `dash` child of a stack with id `view` whose other child, `main`,
+//     holds the tabs; the ⋯ menu's "RepoDash layout" makes one (see makeLayout).
 //
 // One mod, several copies (props.part):
 //   "dash"   the cards and the inspector (the default)
-//   "nav"    a sidebar row that flips the `view` stack; it also shows the terminals again when
-//            someone picks a space or tab elsewhere while the cards are up
+//   "nav"    a sidebar row that flips the `view` stack (it also shows the terminals again when
+//            someone picks a space or tab elsewhere while the cards are up), or opens the
+//            dialog in a layout without one
 //   "look"   the Appearance popup (cover style, badge, card sections, size), shared("repodash.look")
 //   "gitbar" the title bar of the lazygit dialog
 //
@@ -32,7 +33,7 @@
 
 import { View, div, image, svg } from "gpui-kit";
 import { v_flex, h_flex, ScrollHandle, TextView, EditorState, Editor } from "gpui-base";
-import { props, run, exec, hc, spaces, panes, agents, machines, focused, layout, theme, settings, appHome, readTextFile, nextCommand, openOverlay, closeOverlay, shared, setShared, notify, window as appWindow } from "herdr";
+import { props, run, exec, hc, spaces, panes, agents, machines, focused, layout, layouts, theme, settings, appHome, readTextFile, nextCommand, openOverlay, closeOverlay, shared, setShared, notify, window as appWindow } from "herdr";
 import * as fs from "fs/promises";
 import { hash, nameCover, LANG_COLOR, mixHex, artPath, STYLES } from "./art.js";
 import { ago, fmtTok, under, recent, find } from "./util.js";
@@ -78,6 +79,74 @@ const hasStack = () => !!find(layout(), STACK);
 const viewShown = () => find(layout(), STACK)?.active ?? DASH;
 const showTerminals = () => run("layout.select", { stack: STACK, child: TERMS });
 const showCards = () => run("layout.select", { stack: STACK, child: DASH });
+
+// Layouts. RepoDash never edits a layout someone has: it copies one with Herdr's own
+// layout.clone, changes only that new copy (layout.set) and switches to it. "repodash" is a copy
+// of Herdr's main with the sidebar tile and the cards in place of the terminals (the tile flips
+// them); "<layout>-repodash" is a copy of the shown layout with only the tile (it opens the
+// dialog). A copy is a snapshot: later changes to what it was copied from don't reach it.
+const OWN_LAYOUT = "repodash", SUFFIX = "-repodash";
+const copyTree = (n) => JSON.parse(JSON.stringify(n));
+function hasNav(n) {
+  if (!n || typeof n !== "object") return false;
+  if (n.content?.mod === "repodash" && n.content?.props?.part === "nav") return true;
+  return (n.children ?? []).some(hasNav);
+}
+// The tile under the brand row of the layout's `sidebar` column (on top if it has none).
+function withNav(tree) {
+  const t = copyTree(tree), sb = find(t, "sidebar");
+  if (!Array.isArray(sb?.children) || find(t, "repos-nav")) return null;
+  const at = sb.children.findIndex((c) => c.id === "brand");
+  sb.children.splice(at + 1, 0, { id: "repos-nav", type: "block", size: { px: 64 }, content: { mod: "repodash", props: { part: "nav" } } });
+  return t;
+}
+// The block that shows the active tab becomes a stack: the cards, or that block.
+function withCards(tree) {
+  const t = copyTree(tree);
+  if (find(t, STACK) || find(t, DASH)) return null;
+  const walk = (n) => {
+    for (const [i, c] of (n.children ?? []).entries()) {
+      if (c?.content?.tab === "active") {
+        if (c.id !== TERMS && find(t, TERMS)) return false;
+        n.children[i] = { id: STACK, type: "stack", active: DASH, ...(c.size ? { size: c.size } : {}), children: [
+          { id: DASH, type: "block", content: { mod: "repodash", props: { part: "dash" } } }, (({ size, ...rest }) => ({ ...rest, id: TERMS }))(c)] };
+        return true;
+      }
+      if (walk(c)) return true;
+    }
+    return false;
+  };
+  return walk(t) ? t : null;
+}
+// What the layout menu offers for the shown layout: [{id, label}].
+function layoutItems() {
+  const cur = String(shared("layout") ?? "main"), names = layouts(), tree = layout();
+  const items = [];
+  if (cur !== OWN_LAYOUT) items.push({ id: "lay-own", label: names.includes(OWN_LAYOUT) ? "Switch to the RepoDash layout" : "RepoDash layout (a copy of main)" });
+  if (cur !== OWN_LAYOUT && !cur.endsWith(SUFFIX) && find(tree, "sidebar") && !hasNav(tree))
+    items.push({ id: "lay-tile", label: names.includes(cur + SUFFIX) ? `Switch to ${cur + SUFFIX}` : "Add to sidebar (a copy of this layout)" });
+  const back = backOf(cur, names);
+  if (back) items.push({ id: "lay-back", label: `Back to ${back}` });
+  return items;
+}
+function backOf(cur, names) {
+  const b = cur === OWN_LAYOUT ? "main" : cur.endsWith(SUFFIX) ? cur.slice(0, -SUFFIX.length) : null;
+  return b && names.includes(b) ? b : null;
+}
+// Make (or just switch to) a RepoDash layout. kind: "own" or "tile". Runs on its own, since the
+// dialog that asked may close.
+async function makeLayout(kind, cx) {
+  const cur = String(shared("layout") ?? "main"), names = layouts();
+  const target = kind === "own" ? OWN_LAYOUT : cur + SUFFIX, from = kind === "own" ? "main" : cur;
+  if (names.includes(target)) { run("layout.switch", { name: target }); return; }
+  run("layout.clone", { name: from, as: target });
+  for (let i = 0; i < 40 && shared("layout") !== target; i++) await cx.sleep(50);
+  if (shared("layout") !== target) { notify({ title: "RepoDash", body: `Could not copy the ${from} layout.` }); return; }
+  let next = withNav(layout());
+  if (next && kind === "own") next = withCards(next);
+  if (!next) { notify({ title: "RepoDash", body: `The ${from} layout has no sidebar for the tile; the copy ${target} is unchanged.` }); return; }
+  run("layout.set", { layout: next });
+}
 const platform = () => appWindow()?.platform ?? "linux";
 
 // Links open on this computer, with its own opener.
@@ -142,7 +211,7 @@ export default class RepoDash extends View {
     this.part = props()?.part ?? "dash";
     this.base = DEFAULT_URL;
     this.machine = null; // null until known; "" is this computer
-    if (this.part === "nav") { this.lastFocus = undefined; this.width = 240; return; }
+    if (this.part === "nav") { this.initNav(cx); return; }
     if (this.part === "look") { this.dragging = false; return; }
     if (this.part === "notes") { this.initNotes(cx); return; }
     if (this.part === "news") { this.initNews(cx); return; }
@@ -218,6 +287,7 @@ export default class RepoDash extends View {
         else if (c === "help") this.openHelp();
         else if (c === "all") this.setInspMode(this.insp && this.inspMode === "all" ? "repo" : "all");
         else if (c === "bigger" || c === "smaller") this.resize(c === "bigger" ? 1 : -1);
+        else if (c === "layout" || c === "sidebar") this.switchLayout(c === "layout" ? "own" : "tile", cx);
         else if (c === "git") { const r = (this.repos ?? []).find((x) => x.name === this.sel); if (r) this.openGit(r, r.path, cx); }
         cx.notify();
       }
@@ -395,6 +465,16 @@ export default class RepoDash extends View {
     this.leave();
   }
 
+  // A layout change from the menu; then the dialog closes so the new layout shows.
+  switchLayout(kind, cx) {
+    const close = () => { if (this.overlay) closeOverlay(this.overlay); };
+    if (kind === "back") {
+      const b = backOf(String(shared("layout") ?? "main"), layouts());
+      if (b) run("layout.switch", { name: b });
+      close();
+    } else cx.spawn(async (cx) => { await makeLayout(kind, cx); close(); });
+  }
+
   // Back to the terminals: close the dialog, or flip the layout's stack.
   leave() {
     if (this.overlay) closeOverlay(this.overlay);
@@ -518,7 +598,8 @@ export default class RepoDash extends View {
     else if (pk.menu === "tools") {
       const act = { refresh: () => this.load(cx), look: () => this.openLook(), insp: () => this.toggleInspector(), web: () => openUrl(this.base), help: () => this.openHelp(),
         noremote: () => { this.noRemote = !this.noRemote; }, hidden: () => (this.hiddenView ? this.leaveHiddenView() : this.enterHiddenView()),
-        warnings: () => this.openWarnings(), update: () => this.applyUpdate(cx), news: () => this.openNews() }[pk.id];
+        warnings: () => this.openWarnings(), update: () => this.applyUpdate(cx), news: () => this.openNews(),
+        "lay-own": () => this.switchLayout("own", cx), "lay-tile": () => this.switchLayout("tile", cx), "lay-back": () => this.switchLayout("back", cx) }[pk.id];
       if (act) act();
     }
     cx.notify();
@@ -654,10 +735,30 @@ export default class RepoDash extends View {
     return this.renderDash(cx);
   }
 
-  // The sidebar tile that flips the layout's stack between the cards and the terminals: an
-  // icon tile, the name and a live summary, so the dashboard is easy to find.
+  // The tile's count comes from the cards while they run (shared "repodash.summary"). In a
+  // layout without the cards (the tile only opens the dialog) it asks the server itself, gently.
+  initNav(cx) {
+    this.lastFocus = undefined; this.width = 240;
+    const poll = (cx) => {
+      if (hasStack()) return;
+      cx.spawn(async (cx) => {
+        try {
+          const url = (await readConfig()).url, base = typeof url === "string" && /^https?:\/\//.test(url) ? url.replace(/\/+$/, "") : DEFAULT_URL;
+          const res = await fetch(`${base}/api/repos`);
+          if (!res.ok) return;
+          const shown = ((await res.json()) ?? []).filter((r) => !r.hidden), sum = { total: shown.length, bad: shown.filter((r) => r.level === "bad").length };
+          if (JSON.stringify(sum) !== JSON.stringify(shared("repodash.summary") ?? null)) setShared("repodash.summary", sum);
+        } catch {}
+      });
+    };
+    poll(cx);
+    cx.timer.every(30000, poll);
+  }
+
+  // The sidebar tile: an icon tile, the name and a live summary, so the dashboard is easy to
+  // find. In a layout with the cards it flips them with the terminals; else it opens the dialog.
   renderNav(cx) {
-    const t = theme(), on = viewShown() === DASH;
+    const t = theme(), stack = hasStack(), on = stack && viewShown() === DASH;
     // Someone picked a space or a tab (sidebar, keys, a toast): show its terminals.
     const f = focused(), now = f ? `${f.space}|${f.tab}` : "";
     if (this.lastFocus !== undefined && now !== this.lastFocus && on) showTerminals();
@@ -673,7 +774,7 @@ export default class RepoDash extends View {
       .on_size_change((size, cx) => { this.width = size.width; cx.notify(); })
       .child(h_flex().id("nav").w_full().h(52).px(compact ? 0 : 8).gap(10).rounded(10).items_center().when(compact, (el) => el.justify_center())
         .bg(on ? t.selected : CLEAR).border(1).border_color(on ? t.border : CLEAR).hover((s) => s.bg(on ? t.selected : t.hover))
-        .on_click(() => (on ? showTerminals() : showCards()))
+        .on_click(() => (!stack ? run("mod.open", { name: "repodash" }) : on ? showTerminals() : showCards()))
         .child(tile)
         .when(!compact, (el) => el.child(v_flex().flex_1().min_w(0).gap(1)
           .child(div().truncate().whitespace_nowrap().text_size(14).font_weight(650).text_color(t.foreground).child("Repositories"))
@@ -935,6 +1036,7 @@ export default class RepoDash extends View {
     const cw = !uiFont || /mono|code|consol|courier|menlo/i.test(uiFont) ? 7.6 : 6.9, txt = (str) => cw * str.length;
     const pillW = (label, count, dot) => 24 + txt(label) + (count != null ? 6 + txt(String(count)) : 0) + (dot ? 13 : 0);
     const statusN = (l) => counts[l] ?? 0;
+    const layItems = layoutItems();
     const W = {
       title: 10.5 * "Repositories".length + 6,
       filtersFull: pillW("All", counts.all) + LEVELS.reduce((n, l) => n + 6 + pillW(this.statusLabel(l), statusN(l), true), 0),
@@ -944,7 +1046,7 @@ export default class RepoDash extends View {
       sortsFull: 8 + SORTS.reduce((n, [, label]) => n + 22 + txt(label), 0),
       sortsMenu: 36 + txt(SORTS.find(([id]) => id === this.sort)?.[1] ?? ""),
       tools: 3 * 40 + 10 + (24 + txt("Web")) + (this.warnings.length ? 10 + 22 + txt(`⚠ ${this.warnings.length}`) : 0)
-        + (this.upd?.latest ? 10 + 22 + txt(`↑ ${this.upd.latest}`) : 0) + (this.upd?.version ? 10 + 22 + txt(this.upd.version) : 0) + 30,
+        + (this.upd?.latest ? 10 + 22 + txt(`↑ ${this.upd.latest}`) : 0) + 10 + 40 + 30,
       toolsMenu: 40,
     };
     // The root's own size comes in drawn units (unlike its children's; see the probe).
@@ -998,14 +1100,18 @@ export default class RepoDash extends View {
       ...(this.warnings.length ? [{ id: "warnings", label: `Settings problems (${this.warnings.length})`, color: t.blocked }] : []),
       ...(this.upd?.latest ? [{ id: "update", label: `Update to ${this.upd.latest}  U`, color: sc("warn") }] : []),
       ...(this.upd?.version ? [{ id: "news", label: `What's new in ${this.upd.version}` }] : []),
+      ...layItems,
     ];
+    // The wide bar's ⋯: the version's What's new and the layout choices.
+    const moreItems = [...(this.upd?.version ? [{ id: "news", label: `What's new in ${this.upd.version}` }] : []), ...layItems,
+      ...(this.upd?.version || layItems.length ? [] : [{ id: "help", label: "Keys  ?" }])];
     const tools = lv.toolsMenu
       ? [iconBtn("tools", "⋯", false, () => this.openMenu("tools", toolItems))]
       : [iconBtn("refresh", "↻", false, (cx) => this.load(cx)), iconBtn("look", "◐", false, () => this.openLook()),
         iconBtn("inspbtn", "◫", this.insp, () => this.toggleInspector()), iconBtn("web", "Web", false, () => openUrl(this.base)),
         ...(this.warnings.length ? [quiet("warn", `⚠ ${this.warnings.length}`, t.blocked, () => this.openWarnings())] : []),
         ...(this.upd?.latest ? [quiet("upd", `↑ ${this.upd.latest}`, sc("warn"), (cx) => this.applyUpdate(cx))] : []),
-        ...(this.upd?.version ? [quiet("ver", this.upd.version, t.dim, () => this.openNews())] : [])];
+        iconBtn("more", "⋯", false, () => this.openMenu("tools", moreItems))];
 
     const top = h_flex().flex_none().w_full().px(PAD).pt(14).pb(12).gap(10).items_center().overflow_hidden()
       .child(div().flex_none().mr(6).text_size(17).font_weight(700).text_color(t.foreground).whitespace_nowrap().child(this.cfg?.title && this.cfg.title !== "RepoDash" ? this.cfg.title : "Repositories"))

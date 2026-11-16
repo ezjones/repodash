@@ -250,7 +250,7 @@ Three packages under `internal/`, plus `main.go` at the root. `tui` and `server`
 | `internal/server/web/index.html` | The entire UI (HTML, CSS, vanilla JS), embedded with `go:embed`. No framework, no build step |
 | `internal/tui/tui*.go` | The terminal UI: model and keys, data, view, colours |
 | `desktop.go`, `internal/core/desktop.go` | The Herdr desktop app view: embeds `herdr-app/mods/repodash`; `DesktopHome` (finds the app's folder, WSL included), `InstallDesktop` / `UninstallDesktop` (stamp of file hashes: never replaces a changed file without `-force`, which backs it up), `RefreshDesktop` (on `-web` start, brings an untouched install up to this release) |
-| `herdr-app/` | The mod itself (`mods/repodash/`: `main.js` cards, top bar, keys, dialogs; `inspector.js`; `art.js` cover art ported from the page; `util.js`), plus `RECIPE.md`, `preview.png` and `keys.json` for herdr.dev. Check it with `herdr-app check <its folder>`; it reads the same HTTP API as the page |
+| `herdr-app/` | The mod itself (`mods/repodash/`: `main.js` cards, top bar, keys, dialogs; `inspector.js`; `art.js` cover art ported from the page; `util.js`), plus `RECIPE.md`, `preview.png` and `keys.json` for herdr.dev. Its `⋯` menu adds a sidebar tile by copying a layout (`layout.clone`, then `layout.set` on that copy only: `repodash`, or `<layout>-repodash`); it never edits a layout it did not just copy. Check it with `herdr-app check <its folder>`; it reads the same HTTP API as the page |
 | `herdr-plugin.toml` | herdr plugin manifest: action `open` running `./repodash -herdr-open`, tab pane `grid` running `./repodash -tui`, popup pane `lazygit` (the TUI's `L`); `scripts/herdr-build.sh` builds the binary into the plugin root |
 
 ## Changing the code
