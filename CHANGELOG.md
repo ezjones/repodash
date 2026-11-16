@@ -4,6 +4,8 @@ What each release added. The release workflow copies the section for the tag it 
 
 ## Unreleased
 
+## v0.7.14
+
 - RepoDash in the Herdr desktop app: the same cards, inspector and keys (`x` hide, `p` pin, `n` notes, `L` lazygit, the All tab...) as a view inside Herdr; double-click a card to land in that repo's Herdr space. `install.sh` adds it when the app is on the computer (on Windows, from WSL), or run `repodash -install-desktop`. It starts the RepoDash server by itself when none is running, and updates with RepoDash. Open it with Herdr's command palette (`mod.open`, `repodash`) or a key of your choice.
 - Herdr desktop app: a RepoDash tile in the sidebar, from the view's `⋯` menu. *RepoDash layout* is a copy of Herdr's main layout with the tile and the cards in place of the terminals; *Add to sidebar* copies the layout you're on with just the tile. Your own layouts are never changed, and *Back to* switches back.
 
